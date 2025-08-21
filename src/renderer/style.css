@@ -65,6 +65,64 @@ button:active {
   margin-bottom: 20px;
 }
 
+/* Hardware configuration specific styles */
+.hardware-config {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  border: 2px solid #e9ecef;
+  margin-top: 10px;
+}
+
+.hardware-buttons {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+
+.hardware-buttons button {
+  flex: 1;
+  min-width: 120px;
+}
+
+.hardware-buttons button:first-child {
+  background: #28a745;
+}
+
+.hardware-buttons button:first-child:hover {
+  background: #218838;
+}
+
+.hardware-buttons button:nth-child(2) {
+  background: #17a2b8;
+}
+
+.hardware-buttons button:nth-child(2):hover {
+  background: #138496;
+}
+
+.hardware-buttons button:last-child {
+  background: #dc3545;
+}
+
+.hardware-buttons button:last-child:hover {
+  background: #c82333;
+}
+
+.hardware-status {
+  background: #fff3cd;
+  padding: 10px 15px;
+  border-radius: 5px;
+  border: 1px solid #ffeaa7;
+  margin-top: 10px;
+}
+
+.hardware-status p {
+  margin: 0;
+  color: #856404;
+}
+
 .section h2 {
   color: #2c3e50;
   margin-bottom: 20px;

@@ -62,6 +62,44 @@
       </div>
 
       <div class="section">
+        <h2>Hardware Configuration</h2>
+        <div class="hardware-config">
+          <div class="form-group">
+            <label for="hw-button-count">Arduino Button Count:</label>
+            <select id="hw-button-count">
+              <option value="8">8 (2x4 matrix)</option>
+              <option value="12">12 (3x4 matrix)</option>
+              <option value="16">16 (4x4 matrix)</option>
+              <option value="24">24 (4x6 matrix)</option>
+              <option value="32">32 (4x8 matrix)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="hw-encoder-count">Arduino Encoder Count:</label>
+            <select id="hw-encoder-count">
+              <option value="0">0</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+            </select>
+          </div>
+          <div class="hardware-buttons">
+            <button id="apply-hardware-config">Apply to Arduino</button>
+            <button id="get-hardware-config">Get Current Config</button>
+            <button id="reset-hardware-config">Reset Arduino</button>
+          </div>
+          <div class="hardware-status">
+            <p><strong>Arduino Configuration:</strong> <span id="arduino-config-status">Unknown</span></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
         <h2>Button Configuration</h2>
         <div id="button-config" class="config-grid">
           <!-- Button configuration will be dynamically generated -->

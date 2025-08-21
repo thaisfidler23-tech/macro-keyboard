@@ -230,6 +230,27 @@ class MacroKeyboardApp {
       this.logger.error(message);
       return true;
     });
+
+    // Hardware configuration IPC handlers
+    ipcMain.handle('send-arduino-command', async (event, command) => {
+      return this.sendArduinoCommand(command);
+    });
+
+    ipcMain.handle('configure-arduino-buttons', async (event, count) => {
+      return this.configureArduinoButtons(count);
+    });
+
+    ipcMain.handle('configure-arduino-encoders', async (event, count) => {
+      return this.configureArduinoEncoders(count);
+    });
+
+    ipcMain.handle('get-arduino-config', async () => {
+      return this.getArduinoConfig();
+    });
+
+    ipcMain.handle('reset-arduino', async () => {
+      return this.resetArduino();
+    });
   }
 
   async initSerial() {
@@ -318,6 +339,167 @@ class MacroKeyboardApp {
     // Notify renderer if window exists
     if (this.mainWindow) {
       this.mainWindow.webContents.send('config-reloaded', this.config);
+    }
+  }
+
+  // Arduino hardware configuration methods
+  async sendArduinoCommand(command) {
+    return new Promise((resolve, reject) => {
+      if (!this.serialPort || !this.serialPort.isOpen) {
+        reject(new Error('Serial port not connected'));
+        return;
+      }
+
+      // Set up a timeout
+      const timeout = setTimeout(() => {
+        reject(new Error('Arduino command timeout'));
+      }, 5000);
+
+      let responseBuffer = '';
+
+      const responseHandler = (data) => {
+        responseBuffer += data.toString();
+        
+        // Check if we have complete line(s)
+        const lines = responseBuffer.split('\n');
+        
+        for (const line of lines) {
+          const response = line.trim();
+          this.logger.info(`Arduino response: ${response}`);
+          
+          if (response.startsWith('ERROR:')) {
+            clearTimeout(timeout);
+            reject(new Error(response.substring(6)));
+            return;
+          } else if (response.startsWith('CONFIG:') || response === 'CONFIG:SAVED' || response === 'CONFIG:RESET') {
+            clearTimeout(timeout);
+            resolve(response);
+            return;
+          }
+        }
+      };
+
+      // Add temporary listener
+      const parser = this.serialPort.pipe(new (require('@serialport/parser-readline'))({ delimiter: '\n' }));
+      parser.once('data', responseHandler);
+
+      // Send command
+      this.serialPort.write(command + '\n', (err) => {
+        if (err) {
+          clearTimeout(timeout);
+          reject(err);
+        }
+      });
+    });
+  }
+
+  async configureArduinoButtons(count) {
+    try {
+      const response = await this.sendArduinoCommand(`CONFIG:BUTTONS:${count}`);
+      await this.sendArduinoCommand('CONFIG:SAVE');
+      
+      // Update local config to match
+      this.config.device.buttons = count;
+      await this.saveConfig();
+      
+      return response;
+    } catch (error) {
+      this.logger.error('Error configuring Arduino buttons:', error);
+      throw error;
+    }
+  }
+
+  async configureArduinoEncoders(count) {
+    try {
+      const response = await this.sendArduinoCommand(`CONFIG:ENCODERS:${count}`);
+      await this.sendArduinoCommand('CONFIG:SAVE');
+      
+      // Update local config to match
+      this.config.device.encoders = count;
+      await this.saveConfig();
+      
+      return response;
+    } catch (error) {
+      this.logger.error('Error configuring Arduino encoders:', error);
+      throw error;
+    }
+  }
+
+  async getArduinoConfig() {
+    try {
+      // Send CONFIG:GET and collect multiple responses
+      const responses = [];
+      
+      return new Promise((resolve, reject) => {
+        if (!this.serialPort || !this.serialPort.isOpen) {
+          reject(new Error('Serial port not connected'));
+          return;
+        }
+
+        const timeout = setTimeout(() => {
+          reject(new Error('Arduino command timeout'));
+        }, 5000);
+
+        let responseCount = 0;
+        const expectedResponses = 2; // BUTTONS and ENCODERS
+
+        const responseHandler = (data) => {
+          const response = data.toString().trim();
+          this.logger.info(`Arduino config response: ${response}`);
+          
+          if (response.startsWith('ERROR:')) {
+            clearTimeout(timeout);
+            reject(new Error(response.substring(6)));
+            return;
+          } 
+          
+          if (response.startsWith('CONFIG:BUTTONS:') || response.startsWith('CONFIG:ENCODERS:')) {
+            responses.push(response);
+            responseCount++;
+            
+            if (responseCount >= expectedResponses) {
+              clearTimeout(timeout);
+              resolve(responses.join('\n'));
+            }
+          }
+        };
+
+        // Add temporary listener
+        const parser = this.serialPort.pipe(new (require('@serialport/parser-readline'))({ delimiter: '\n' }));
+        parser.on('data', responseHandler);
+
+        // Clean up listener after timeout
+        setTimeout(() => {
+          parser.removeListener('data', responseHandler);
+        }, 6000);
+
+        // Send command
+        this.serialPort.write('CONFIG:GET\n', (err) => {
+          if (err) {
+            clearTimeout(timeout);
+            reject(err);
+          }
+        });
+      });
+    } catch (error) {
+      this.logger.error('Error getting Arduino config:', error);
+      throw error;
+    }
+  }
+
+  async resetArduino() {
+    try {
+      const response = await this.sendArduinoCommand('CONFIG:RESET');
+      
+      // Update local config to defaults
+      this.config.device.buttons = 8;
+      this.config.device.encoders = 0;
+      await this.saveConfig();
+      
+      return response;
+    } catch (error) {
+      this.logger.error('Error resetting Arduino:', error);
+      throw error;
     }
   }
 }

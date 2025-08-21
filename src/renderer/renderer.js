@@ -58,6 +58,21 @@ class ConfigUI {
       this.config.device.baudRate = parseInt(e.target.value);
     });
 
+    // Hardware configuration buttons
+    document.getElementById('apply-hardware-config').addEventListener('click', async () => {
+      await this.applyHardwareConfig();
+    });
+
+    document.getElementById('get-hardware-config').addEventListener('click', async () => {
+      await this.getArduinoConfig();
+    });
+
+    document.getElementById('reset-hardware-config').addEventListener('click', async () => {
+      if (confirm('Are you sure you want to reset the Arduino to default configuration?')) {
+        await this.resetArduinoConfig();
+      }
+    });
+
     // Listen for config reload from main process
     ipcRenderer.on('config-reloaded', (event, config) => {
       this.config = config;
@@ -72,6 +87,10 @@ class ConfigUI {
     document.getElementById('baud-rate').value = this.config.device.baudRate || 9600;
     document.getElementById('button-count').value = this.config.device.buttons || 8;
     document.getElementById('encoder-count').value = this.config.device.encoders || 0;
+
+    // Update hardware configuration selectors to match
+    document.getElementById('hw-button-count').value = this.config.device.buttons || 8;
+    document.getElementById('hw-encoder-count').value = this.config.device.encoders || 0;
 
     this.generateButtonConfig();
     this.generateEncoderConfig();
@@ -295,6 +314,91 @@ class ConfigUI {
     setTimeout(() => {
       document.body.removeChild(messageDiv);
     }, 3000);
+  }
+
+  async applyHardwareConfig() {
+    try {
+      const buttonCount = parseInt(document.getElementById('hw-button-count').value);
+      const encoderCount = parseInt(document.getElementById('hw-encoder-count').value);
+
+      // Apply button configuration
+      await ipcRenderer.invoke('configure-arduino-buttons', buttonCount);
+      
+      // Apply encoder configuration  
+      await ipcRenderer.invoke('configure-arduino-encoders', encoderCount);
+
+      // Update UI to match new config
+      document.getElementById('button-count').value = buttonCount;
+      document.getElementById('encoder-count').value = encoderCount;
+      this.config.device.buttons = buttonCount;
+      this.config.device.encoders = encoderCount;
+      
+      this.generateButtonConfig();
+      this.generateEncoderConfig();
+
+      document.getElementById('arduino-config-status').textContent = 
+        `${buttonCount} buttons, ${encoderCount} encoders`;
+      
+      this.showMessage('Arduino configuration applied successfully!');
+    } catch (error) {
+      await ipcRenderer.invoke('log-error', 'Error applying hardware config: ' + error.message);
+      this.showMessage('Failed to apply Arduino configuration: ' + error.message, 'error');
+    }
+  }
+
+  async getArduinoConfig() {
+    try {
+      const response = await ipcRenderer.invoke('get-arduino-config');
+      this.parseArduinoConfigResponse(response);
+      this.showMessage('Retrieved Arduino configuration');
+    } catch (error) {
+      await ipcRenderer.invoke('log-error', 'Error getting Arduino config: ' + error.message);
+      this.showMessage('Failed to get Arduino configuration: ' + error.message, 'error');
+    }
+  }
+
+  async resetArduinoConfig() {
+    try {
+      await ipcRenderer.invoke('reset-arduino');
+      
+      // Update UI to defaults
+      document.getElementById('hw-button-count').value = '8';
+      document.getElementById('hw-encoder-count').value = '0';
+      document.getElementById('button-count').value = '8';
+      document.getElementById('encoder-count').value = '0';
+      
+      this.config.device.buttons = 8;
+      this.config.device.encoders = 0;
+      
+      this.generateButtonConfig();
+      this.generateEncoderConfig();
+      
+      document.getElementById('arduino-config-status').textContent = '8 buttons, 0 encoders (default)';
+      
+      this.showMessage('Arduino reset to default configuration');
+    } catch (error) {
+      await ipcRenderer.invoke('log-error', 'Error resetting Arduino: ' + error.message);
+      this.showMessage('Failed to reset Arduino: ' + error.message, 'error');
+    }
+  }
+
+  parseArduinoConfigResponse(response) {
+    // Parse response like "CONFIG:BUTTONS:8" or similar
+    const lines = response.split('\n');
+    let buttons = 8, encoders = 0;
+    
+    lines.forEach(line => {
+      if (line.startsWith('CONFIG:BUTTONS:')) {
+        buttons = parseInt(line.split(':')[2]);
+      } else if (line.startsWith('CONFIG:ENCODERS:')) {
+        encoders = parseInt(line.split(':')[2]);
+      }
+    });
+
+    document.getElementById('hw-button-count').value = buttons;
+    document.getElementById('hw-encoder-count').value = encoders;
+    document.getElementById('arduino-config-status').textContent = 
+      `${buttons} buttons, ${encoders} encoders`;
   }
 }
 

@@ -15,7 +15,24 @@ Plus up to 8 rotary encoders.
 
 ## Configuration
 
-Before uploading the firmware, you need to configure it for your specific hardware:
+The firmware now supports **runtime configuration** through the host application's UI! You no longer need to reflash firmware to change your hardware configuration.
+
+### Runtime Configuration (Recommended)
+
+Configure your hardware through the host application:
+
+1. Connect your Arduino to your computer
+2. Open the Macro Keyboard application  
+3. Go to the Hardware Configuration section
+4. Select your button count (8, 12, 16, 24, or 32)
+5. Set encoder count (0-8)
+6. Click "Apply Configuration"
+
+The settings are automatically saved to the Arduino's EEPROM and persist between power cycles.
+
+### Manual Configuration (Legacy)
+
+If you prefer to set the configuration at compile time, you can still modify `config.h`:
 
 1. Open `config.h` in the Arduino IDE
 2. Uncomment the line for your button configuration:
@@ -101,6 +118,15 @@ Examples:
 
 ### Input Commands
 
+**Configuration Commands:**
+```
+CONFIG:BUTTONS:<count>  // Set button count (8, 12, 16, 24, or 32)
+CONFIG:ENCODERS:<count> // Set encoder count (0-8)  
+CONFIG:SAVE             // Save configuration to EEPROM
+CONFIG:RESET            // Reset to default configuration
+CONFIG:GET              // Get current configuration
+```
+
 **Status Request:**
 ```
 STATUS
@@ -118,10 +144,10 @@ Simulates all button presses and encoder rotations
 1. Install Arduino IDE
 2. Connect your Arduino Micro via USB
 3. Open `macro-keyboard-firmware.ino` in Arduino IDE
-4. Configure hardware in `config.h`
-5. Select the correct board: Tools → Board → Arduino Micro
-6. Select the correct port: Tools → Port → (your Arduino port)
-7. Upload the firmware: Sketch → Upload
+4. Select the correct board: Tools → Board → Arduino Micro
+5. Select the correct port: Tools → Port → (your Arduino port)
+6. Upload the firmware: Sketch → Upload
+7. Configure hardware through the host application UI (no reflashing needed!)
 
 ## Troubleshooting
 
@@ -143,3 +169,13 @@ Simulates all button presses and encoder rotations
 **Matrix ghosting (multiple buttons triggered):**
 - Add diodes (1N4148) in series with each button
 - Verify no short circuits in wiring
+
+**Configuration not saving:**
+- Ensure Arduino has EEPROM support (most models do)
+- Send CONFIG:SAVE command after changing settings
+- Check serial output for error messages
+
+**Wrong button/encoder count after restart:**
+- Configuration is stored in EEPROM and should persist
+- Use CONFIG:GET to check current settings
+- Use CONFIG:RESET to restore defaults if needed
