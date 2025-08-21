@@ -1,0 +1,179 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create_release.outputs.id }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Get the previous tag
+        PREV_TAG=$(git describe --tags --abbrev=0 HEAD^)
+        
+        # Generate changelog from commits between tags
+        echo "## Changes" > CHANGELOG.md
+        git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" >> CHANGELOG.md
+        
+        # Set output for release body
+        echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+        cat CHANGELOG.md >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+    
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: Macro Keyboard ${{ github.ref_name }}
+        body: |
+          ${{ steps.changelog.outputs.CHANGELOG }}
+          
+          ## Installation
+          
+          ### Desktop Application
+          - **Windows**: Download and run the `.exe` installer
+          - **macOS**: Download the `.dmg` file and drag to Applications
+          - **Linux**: Download the `.AppImage` file and make it executable
+          
+          ### Arduino Firmware
+          Download the appropriate firmware `.hex` file for your button configuration and flash it to your Arduino Micro using the Arduino IDE or avrdude.
+          
+          ## Configuration Files
+          Choose the firmware based on your hardware:
+          - `firmware-BUTTONS_8-enc0.hex`: 8 buttons, no encoders
+          - `firmware-BUTTONS_16-enc2.hex`: 16 buttons, 2 encoders
+          - etc.
+        draft: false
+        prerelease: false
+
+  build-and-upload:
+    name: Build and Upload Assets
+    needs: create-release
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            asset_name_suffix: linux
+          - os: windows-latest  
+            asset_name_suffix: windows
+          - os: macos-latest
+            asset_name_suffix: macos
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build for Linux
+      if: matrix.os == 'ubuntu-latest'
+      run: npm run build:linux
+    
+    - name: Build for Windows
+      if: matrix.os == 'windows-latest'
+      run: npm run build:win
+    
+    - name: Build for macOS
+      if: matrix.os == 'macos-latest'
+      run: npm run build:mac
+    
+    - name: Upload Release Assets (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./dist/Macro Keyboard-*.AppImage
+        asset_name: MacroKeyboard-${{ github.ref_name }}-linux.AppImage
+        asset_content_type: application/octet-stream
+    
+    - name: Upload Release Assets (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./dist/Macro Keyboard Setup *.exe
+        asset_name: MacroKeyboard-${{ github.ref_name }}-windows.exe
+        asset_content_type: application/octet-stream
+    
+    - name: Upload Release Assets (macOS)
+      if: matrix.os == 'macos-latest'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./dist/Macro Keyboard-*.dmg
+        asset_name: MacroKeyboard-${{ github.ref_name }}-macos.dmg
+        asset_content_type: application/octet-stream
+
+  build-firmware:
+    name: Build and Upload Firmware
+    needs: create-release
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        config: [BUTTONS_8, BUTTONS_12, BUTTONS_16, BUTTONS_24, BUTTONS_32]
+        encoder: [0, 2, 4, 8]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Arduino CLI
+      uses: arduino/setup-arduino-cli@v1
+    
+    - name: Install Arduino core
+      run: |
+        arduino-cli core update-index
+        arduino-cli core install arduino:avr
+    
+    - name: Create build config
+      run: |
+        cd arduino/macro-keyboard-firmware
+        echo "#define ${{ matrix.config }}" > build_config.h
+        echo "#define ENCODER_COUNT ${{ matrix.encoder }}" >> build_config.h
+        sed -i '1i #include "build_config.h"' config.h
+    
+    - name: Compile firmware
+      run: |
+        mkdir -p arduino/build
+        arduino-cli compile --fqbn arduino:avr:micro arduino/macro-keyboard-firmware/macro-keyboard-firmware.ino --output-dir arduino/build
+    
+    - name: Upload firmware asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./arduino/build/macro-keyboard-firmware.ino.hex
+        asset_name: firmware-${{ matrix.config }}-enc${{ matrix.encoder }}.hex
+        asset_content_type: application/octet-stream
