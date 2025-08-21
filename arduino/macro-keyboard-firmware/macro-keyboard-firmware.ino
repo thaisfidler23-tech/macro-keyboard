@@ -75,6 +75,7 @@ unsigned long buttonDebounceTime[MAX_BUTTONS];
 
 // Button matrix variables
 // Encoder variables
+int encoderPinA[MAX_ENCODERS];
 int encoderPinB[MAX_ENCODERS];
 int encoderLastState[MAX_ENCODERS];
 bool encoderEnabled[MAX_ENCODERS];
