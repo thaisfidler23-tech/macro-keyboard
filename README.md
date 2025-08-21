@@ -138,6 +138,18 @@ npm run lint:fix   # Fix linting issues
 npm test           # Run tests
 ```
 
+### Automated Releases
+
+The project uses automated releases that trigger when code is pushed to the main branch:
+
+1. **CI Pipeline**: All tests, linting, and builds must pass
+2. **Version Increment**: Automatically increments version based on commit message:
+   - `[major]` - Major version increment (1.0.0 → 2.0.0)
+   - `[minor]` - Minor version increment (1.0.0 → 1.1.0)
+   - Default - Patch version increment (1.0.0 → 1.0.1)
+3. **Release Creation**: Creates GitHub release with platform-specific builds
+4. **Assets**: Includes desktop apps for Windows, macOS, Linux and Arduino firmware
+
 ### Testing
 ```bash
 # Run all tests

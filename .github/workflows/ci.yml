@@ -115,3 +115,87 @@ jobs:
         name: firmware-${{ matrix.config }}-enc${{ matrix.encoder }}
         path: arduino/build/${{ matrix.config }}_ENC${{ matrix.encoder }}/*.hex
         retention-days: 30
+
+  auto-release:
+    name: Automatic Release
+    needs: [lint-and-test, build, arduino-compile]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Check if release needed
+      id: check_release
+      run: |
+        # Check if the last commit was a version bump (skip ci)
+        LAST_COMMIT=$(git log -1 --pretty=%B)
+        if echo "$LAST_COMMIT" | grep -i "\[skip ci\]" > /dev/null; then
+          echo "Skipping release - last commit was automated version bump"
+          echo "should_release=false" >> $GITHUB_OUTPUT
+        else
+          echo "Release needed - proceeding with version increment"
+          echo "should_release=true" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Configure Git
+      if: steps.check_release.outputs.should_release == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+    
+    - name: Determine version increment type
+      if: steps.check_release.outputs.should_release == 'true'
+      id: version_type
+      run: |
+        # Get the last commit message
+        COMMIT_MSG=$(git log -1 --pretty=%B)
+        
+        # Default to patch version increment
+        VERSION_TYPE="patch"
+        
+        # Check commit message for version increment hints
+        if echo "$COMMIT_MSG" | grep -i "\[major\]" > /dev/null; then
+          VERSION_TYPE="major"
+        elif echo "$COMMIT_MSG" | grep -i "\[minor\]" > /dev/null; then
+          VERSION_TYPE="minor"
+        elif echo "$COMMIT_MSG" | grep -i "\[patch\]" > /dev/null; then
+          VERSION_TYPE="patch"
+        fi
+        
+        echo "version_type=$VERSION_TYPE" >> $GITHUB_OUTPUT
+        echo "Detected version increment type: $VERSION_TYPE"
+    
+    - name: Increment version and create tag
+      if: steps.check_release.outputs.should_release == 'true'
+      id: version
+      run: |
+        # Increment version using npm
+        NEW_VERSION=$(npm version ${{ steps.version_type.outputs.version_type }} --no-git-tag-version)
+        echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "New version: $NEW_VERSION"
+        
+        # Commit the version change
+        git add package.json package-lock.json
+        git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
+        
+        # Create and push tag
+        git tag "$NEW_VERSION"
+        git push origin main
+        git push origin "$NEW_VERSION"
+        
+        echo "Created and pushed tag: $NEW_VERSION"
