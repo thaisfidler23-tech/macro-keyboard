@@ -215,3 +215,26 @@ TEST     # Should simulate all buttons/encoders
 - Update documentation if needed
 - Ensure all CI checks pass
 - Link to related issues
+
+### Release Process
+
+The project uses automated releases:
+
+#### Automated Releases
+- Releases are automatically created when changes are pushed to the `main` branch
+- All CI checks (lint, test, build) must pass before a release is created
+- Version numbers are automatically incremented based on commit messages
+- GitHub releases include platform-specific builds and Arduino firmware
+
+#### Version Increment Control
+Use these keywords in your commit messages to control version increments:
+- `[major]` - Breaking changes (1.0.0 → 2.0.0)
+- `[minor]` - New features (1.0.0 → 1.1.0)  
+- `[patch]` or default - Bug fixes (1.0.0 → 1.0.1)
+
+#### Manual Release (if needed)
+```bash
+# Create and push a version tag manually
+npm version patch  # or minor/major
+git push origin main --tags
+```
