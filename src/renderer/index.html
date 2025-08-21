@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Macro Keyboard Configuration</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Macro Keyboard Configuration</h1>
+      <div class="header-buttons">
+        <button id="reload-config">Reload Config</button>
+        <button id="save-config">Save Config</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="section">
+        <h2>Device Settings</h2>
+        <div class="form-group">
+          <label for="serial-port">Serial Port:</label>
+          <select id="serial-port">
+            <option value="">Select Serial Port</option>
+          </select>
+          <button id="refresh-ports">Refresh</button>
+        </div>
+        <div class="form-group">
+          <label for="baud-rate">Baud Rate:</label>
+          <select id="baud-rate">
+            <option value="9600">9600</option>
+            <option value="19200">19200</option>
+            <option value="38400">38400</option>
+            <option value="57600">57600</option>
+            <option value="115200">115200</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="button-count">Number of Buttons:</label>
+          <select id="button-count">
+            <option value="8">8</option>
+            <option value="12">12</option>
+            <option value="16">16</option>
+            <option value="24">24</option>
+            <option value="32">32</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="encoder-count">Number of Encoders:</label>
+          <select id="encoder-count">
+            <option value="0">0</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Hardware Configuration</h2>
+        <div class="hardware-config">
+          <div class="form-group">
+            <label for="hw-button-count">Arduino Button Count:</label>
+            <select id="hw-button-count">
+              <option value="8">8 (2x4 matrix)</option>
+              <option value="12">12 (3x4 matrix)</option>
+              <option value="16">16 (4x4 matrix)</option>
+              <option value="24">24 (4x6 matrix)</option>
+              <option value="32">32 (4x8 matrix)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="hw-encoder-count">Arduino Encoder Count:</label>
+            <select id="hw-encoder-count">
+              <option value="0">0</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+            </select>
+          </div>
+          <div class="hardware-buttons">
+            <button id="apply-hardware-config">Apply to Arduino</button>
+            <button id="get-hardware-config">Get Current Config</button>
+            <button id="reset-hardware-config">Reset Arduino</button>
+          </div>
+          <div class="hardware-status">
+            <p><strong>Arduino Configuration:</strong> <span id="arduino-config-status">Unknown</span></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Button Configuration</h2>
+        <div id="button-config" class="config-grid">
+          <!-- Button configuration will be dynamically generated -->
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Encoder Configuration</h2>
+        <div id="encoder-config" class="config-grid">
+          <!-- Encoder configuration will be dynamically generated -->
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Status & Logs</h2>
+        <div class="status-info">
+          <p><strong>Serial Port Status:</strong> <span id="serial-status">Disconnected</span></p>
+          <p><strong>Last Action:</strong> <span id="last-action">None</span></p>
+        </div>
+        <div class="log-viewer">
+          <h3>Recent Activity</h3>
+          <div id="log-output">
+            <!-- Log messages will be displayed here -->
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

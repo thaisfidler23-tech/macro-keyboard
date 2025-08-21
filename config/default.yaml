@@ -1,0 +1,93 @@
+# Macro Keyboard Configuration
+# This file contains the configuration for the macro keyboard application
+
+device:
+  # Serial port settings
+  serialPort: null  # Will be set when a device is connected
+  baudRate: 9600
+  
+  # Hardware configuration
+  buttons: 8        # Number of buttons (8, 12, 16, 24, or 32)
+  encoders: 0       # Number of rotary encoders (0-8)
+
+# Button configurations
+# Each button can have a description, type, and action
+buttons:
+  button1:
+    description: "Volume Up"
+    type: "keypress"
+    action: "VolumeUp"
+  
+  button2:
+    description: "Volume Down"
+    type: "keypress"
+    action: "VolumeDown"
+  
+  button3:
+    description: "Mute"
+    type: "keypress"
+    action: "AudioMute"
+  
+  button4:
+    description: "Calculator"
+    type: "application"
+    action: "calc"
+  
+  button5:
+    description: "Screenshot"
+    type: "keypress"
+    action: "cmd+shift+3"  # macOS screenshot shortcut
+  
+  button6:
+    description: "Open Terminal"
+    type: "application"
+    action: "Terminal"
+  
+  button7:
+    description: "Lock Screen"
+    type: "keypress"
+    action: "cmd+ctrl+q"  # macOS lock screen
+  
+  button8:
+    description: "Custom Command"
+    type: "command"
+    action: "echo 'Button 8 pressed'"
+
+# Encoder configurations
+# Each encoder can have different actions for clockwise and counter-clockwise rotation
+encoders:
+  # Example encoder configuration (when encoders > 0)
+  # encoder1:
+  #   description: "Volume Control"
+  #   typeCW: "keypress"
+  #   actionCW: "VolumeUp"
+  #   typeCCW: "keypress"
+  #   actionCCW: "VolumeDown"
+
+# Logging configuration
+logging:
+  level: "info"
+  file: "logs/macro-keyboard.log"
+  maxSize: "10MB"
+  maxFiles: 5
+
+# Action type definitions:
+# - keypress: Send keyboard shortcuts (e.g., "cmd+c", "ctrl+alt+t")
+# - command: Execute shell commands (e.g., "open /Applications/Calculator.app")
+# - application: Launch applications (e.g., "Calculator", "Terminal")
+
+# Platform-specific examples:
+# macOS:
+#   - Screenshot: "cmd+shift+3" or "cmd+shift+4"
+#   - Lock screen: "cmd+ctrl+q"
+#   - Mission Control: "ctrl+up"
+#
+# Windows:
+#   - Screenshot: "win+shift+s"
+#   - Lock screen: "win+l"
+#   - Task view: "win+tab"
+#
+# Linux:
+#   - Screenshot: "printscreen" or "shift+printscreen"
+#   - Lock screen: "ctrl+alt+l"
+#   - Activities: "super"
