@@ -46,6 +46,7 @@
       "config/default.yaml",
       "node_modules/**/*"
     ],
+    "publish": null,
     "mac": {
       "category": "public.app-category.utilities",
       "target": "dmg"
