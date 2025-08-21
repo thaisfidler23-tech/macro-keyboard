@@ -16,9 +16,10 @@ class ConfigUI {
   async loadConfig() {
     try {
       this.config = await ipcRenderer.invoke('get-config');
-      console.log('Config loaded:', this.config);
+      // Config loaded successfully
     } catch (error) {
-      console.error('Error loading config:', error);
+      // Log error through main process instead of console
+      await ipcRenderer.invoke('log-error', 'Error loading config: ' + error.message);
     }
   }
 
@@ -253,7 +254,7 @@ class ConfigUI {
       await ipcRenderer.invoke('save-config', this.config);
       this.showMessage('Configuration saved successfully!');
     } catch (error) {
-      console.error('Error saving config:', error);
+      await ipcRenderer.invoke('log-error', 'Error saving config: ' + error.message);
       this.showMessage('Error saving configuration!', 'error');
     }
   }
@@ -279,7 +280,7 @@ class ConfigUI {
       select.value = this.config.device.serialPort || '';
       
     } catch (error) {
-      console.error('Error loading serial ports:', error);
+      await ipcRenderer.invoke('log-error', 'Error loading serial ports: ' + error.message);
     }
   }
 

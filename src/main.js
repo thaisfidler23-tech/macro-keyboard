@@ -225,6 +225,11 @@ class MacroKeyboardApp {
         return [];
       }
     });
+
+    ipcMain.handle('log-error', async (event, message) => {
+      this.logger.error(message);
+      return true;
+    });
   }
 
   async initSerial() {
