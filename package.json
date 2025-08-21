@@ -3,9 +3,6 @@
   "version": "1.0.0",
   "description": "Electron based application to drive a physical macro keyboard.",
   "main": "src/main.js",
-  "directories": {
-    "doc": "docs"
-  },
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
