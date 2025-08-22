@@ -52,6 +52,8 @@ npm run build:win
 npm run build:linux
 ```
 
+**Note:** The electron-builder configuration is set with `"publish": null` to prevent automatic publishing during CI builds. The CI workflow only builds artifacts for testing, while the release workflow handles publishing to GitHub releases when tags are created.
+
 ## Project Architecture
 
 ### Main Process (`src/main.js`)
