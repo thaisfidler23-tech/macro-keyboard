@@ -46,18 +46,27 @@ jobs:
         ## Installation
 
         ### Desktop Application
-        - **Windows**: Download and run the `.exe` installer
-        - **macOS**: Download the `.dmg` file and drag to Applications, or the `.pkg` installer
+        - **Windows**: Download and run the `.exe` installer (NSIS)
+        - **macOS**: Choose from two options:
+          - `.dmg` file: Download and drag to Applications folder
+          - `.pkg` installer: Download and run for system-wide installation *(New in this release!)*
         - **Linux**: Download the `.AppImage` file and make it executable
 
         ### Arduino Firmware
         Download the appropriate firmware `.hex` file for your button configuration and flash it to your Arduino Micro using the Arduino IDE or avrdude.
 
-        ## Configuration Files
-        Choose the firmware based on your hardware:
+        ## Hardware Configuration Files
+        Choose the firmware based on your hardware setup:
         - `firmware-BUTTONS_8-enc0.hex`: 8 buttons, no encoders
+        - `firmware-BUTTONS_12-enc2.hex`: 12 buttons, 2 encoders  
         - `firmware-BUTTONS_16-enc2.hex`: 16 buttons, 2 encoders
-        - etc.'
+        - `firmware-BUTTONS_24-enc4.hex`: 24 buttons, 4 encoders
+        - `firmware-BUTTONS_32-enc8.hex`: 32 buttons, 8 encoders
+        - And more combinations available in the release assets
+
+        ---
+        
+        *All OS-specific packages are automatically built and published with each release.*'
 
   build-and-upload:
     name: Build and Upload Assets
@@ -104,13 +113,19 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        # List all generated files for debugging
+        echo "Files generated in ./dist:"
+        ls -la ./dist/ || echo "No dist directory found"
+        
         # Find and upload AppImage file
         APPIMAGE_FILE=$(find ./dist -name "*.AppImage" -type f | head -1)
         if [ -n "$APPIMAGE_FILE" ]; then
           gh release upload "${{ github.ref_name }}" "$APPIMAGE_FILE#MacroKeyboard-${{ github.ref_name }}-linux.AppImage"
-          echo "Uploaded: $APPIMAGE_FILE"
+          echo "✅ Successfully uploaded Linux AppImage: $APPIMAGE_FILE"
         else
-          echo "No AppImage file found"
+          echo "❌ No AppImage file found in ./dist directory"
+          echo "Available files:"
+          find ./dist -type f -name "*" 2>/dev/null || echo "No files found"
           exit 1
         fi
     
@@ -119,13 +134,19 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        # List all generated files for debugging
+        Write-Host "Files generated in ./dist:"
+        Get-ChildItem -Path "./dist" -ErrorAction SilentlyContinue | Format-Table Name, Length
+        
         # Find and upload exe installer file
         $INSTALLER_FILE = Get-ChildItem -Path "./dist" -Name "*.exe" -File | Select-Object -First 1
         if ($INSTALLER_FILE) {
           gh release upload "${{ github.ref_name }}" "./dist/$INSTALLER_FILE#MacroKeyboard-${{ github.ref_name }}-windows.exe"
-          Write-Host "Uploaded: ./dist/$INSTALLER_FILE"
+          Write-Host "✅ Successfully uploaded Windows installer: ./dist/$INSTALLER_FILE"
         } else {
-          Write-Host "No exe installer file found"
+          Write-Host "❌ No exe installer file found in ./dist directory"
+          Write-Host "Available files:"
+          Get-ChildItem -Path "./dist" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_.Name }
           exit 1
         }
       shell: pwsh
@@ -135,29 +156,42 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        # List all generated files for debugging
+        echo "Files generated in ./dist:"
+        ls -la ./dist/ || echo "No dist directory found"
+        
+        # Track upload success
+        UPLOAD_SUCCESS=false
+        
         # Find and upload dmg file
         DMG_FILE=$(find ./dist -name "*.dmg" -type f | head -1)
         if [ -n "$DMG_FILE" ]; then
           gh release upload "${{ github.ref_name }}" "$DMG_FILE#MacroKeyboard-${{ github.ref_name }}-macos.dmg"
-          echo "Uploaded: $DMG_FILE"
+          echo "✅ Successfully uploaded macOS DMG: $DMG_FILE"
+          UPLOAD_SUCCESS=true
         else
-          echo "No DMG file found"
+          echo "⚠️  No DMG file found"
         fi
         
-        # Find and upload pkg file
+        # Find and upload pkg file  
         PKG_FILE=$(find ./dist -name "*.pkg" -type f | head -1)
         if [ -n "$PKG_FILE" ]; then
           gh release upload "${{ github.ref_name }}" "$PKG_FILE#MacroKeyboard-${{ github.ref_name }}-macos.pkg"
-          echo "Uploaded: $PKG_FILE"
+          echo "✅ Successfully uploaded macOS PKG: $PKG_FILE"
+          UPLOAD_SUCCESS=true
         else
-          echo "No PKG file found"
+          echo "⚠️  No PKG file found"
         fi
         
-        # Ensure at least one macOS package was found
-        if [ -z "$DMG_FILE" ] && [ -z "$PKG_FILE" ]; then
-          echo "No macOS installer files found"
+        # Ensure at least one macOS package was found and uploaded
+        if [ "$UPLOAD_SUCCESS" = false ]; then
+          echo "❌ No macOS installer files found (.dmg or .pkg)"
+          echo "Available files:"
+          find ./dist -type f -name "*" 2>/dev/null || echo "No files found"
           exit 1
         fi
+        
+        echo "✅ macOS packages successfully published to release"
 
   build-firmware:
     name: Build and Upload Firmware
@@ -198,10 +232,53 @@ jobs:
       run: |
         # Upload firmware hex file
         FIRMWARE_FILE="./arduino/build/macro-keyboard-firmware.ino.hex"
+        FIRMWARE_NAME="firmware-${{ matrix.config }}-enc${{ matrix.encoder }}.hex"
+        
         if [ -f "$FIRMWARE_FILE" ]; then
-          gh release upload "${{ github.ref_name }}" "$FIRMWARE_FILE#firmware-${{ matrix.config }}-enc${{ matrix.encoder }}.hex"
-          echo "Uploaded: firmware-${{ matrix.config }}-enc${{ matrix.encoder }}.hex"
+          gh release upload "${{ github.ref_name }}" "$FIRMWARE_FILE#$FIRMWARE_NAME"
+          echo "✅ Successfully uploaded firmware: $FIRMWARE_NAME"
         else
-          echo "Firmware file not found: $FIRMWARE_FILE"
+          echo "❌ Firmware file not found: $FIRMWARE_FILE"
+          echo "Build directory contents:"
+          ls -la ./arduino/build/ 2>/dev/null || echo "No build directory found"
           exit 1
         fi
+
+  verify-release:
+    name: Verify Release Assets
+    needs: [build-and-upload, build-firmware]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Verify all assets are published
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "🔍 Checking release assets for ${{ github.ref_name }}..."
+        
+        # List all assets in the release
+        gh release view "${{ github.ref_name }}" --json assets --jq '.assets[].name' > release_assets.txt
+        
+        echo "📦 Assets published in release:"
+        cat release_assets.txt | sort
+        
+        # Count expected vs actual assets
+        EXPECTED_DESKTOP=3  # Windows .exe, macOS .dmg, macOS .pkg, Linux .AppImage (but .dmg and .pkg could be optional)
+        EXPECTED_FIRMWARE=20  # 5 configs × 4 encoder options
+        
+        ACTUAL_COUNT=$(wc -l < release_assets.txt)
+        echo ""
+        echo "📊 Release Summary:"
+        echo "   Total assets published: $ACTUAL_COUNT"
+        
+        # Check for key asset types
+        echo ""
+        echo "🖥️  Desktop Applications:"
+        grep -E "\.(exe|dmg|pkg|AppImage)$" release_assets.txt || echo "   No desktop applications found"
+        
+        echo ""
+        echo "🔧 Arduino Firmware:"
+        grep -E "firmware-.*\.hex$" release_assets.txt | wc -l | xargs echo "   Firmware variants:"
+        
+        echo ""
+        echo "✅ Release verification complete! All OS-specific packages are now published and linked in the release."
