@@ -1,6 +1,6 @@
 {
   "name": "macro-keyboard",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Electron based application to drive a physical macro keyboard.",
   "main": "src/main.js",
   "scripts": {
