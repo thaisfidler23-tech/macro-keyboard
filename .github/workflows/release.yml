@@ -9,9 +9,6 @@ jobs:
   create-release:
     name: Create Release
     runs-on: ubuntu-latest
-    outputs:
-      release_id: ${{ steps.create_release.outputs.id }}
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
     
     steps:
     - uses: actions/checkout@v4
@@ -22,11 +19,16 @@ jobs:
       id: changelog
       run: |
         # Get the previous tag
-        PREV_TAG=$(git describe --tags --abbrev=0 HEAD^)
+        PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
         
         # Generate changelog from commits between tags
-        echo "## Changes" > CHANGELOG.md
-        git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" >> CHANGELOG.md
+        if [ -n "$PREV_TAG" ]; then
+          echo "## Changes" > CHANGELOG.md
+          git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" >> CHANGELOG.md
+        else
+          echo "## Changes" > CHANGELOG.md
+          echo "- Initial release" >> CHANGELOG.md
+        fi
         
         # Set output for release body
         echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
@@ -34,33 +36,28 @@ jobs:
         echo "EOF" >> $GITHUB_OUTPUT
     
     - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref_name }}
-        release_name: Macro Keyboard ${{ github.ref_name }}
-        body: |
-          ${{ steps.changelog.outputs.CHANGELOG }}
-          
-          ## Installation
-          
-          ### Desktop Application
-          - **Windows**: Download and run the `.exe` installer
-          - **macOS**: Download the `.dmg` file and drag to Applications
-          - **Linux**: Download the `.AppImage` file and make it executable
-          
-          ### Arduino Firmware
-          Download the appropriate firmware `.hex` file for your button configuration and flash it to your Arduino Micro using the Arduino IDE or avrdude.
-          
-          ## Configuration Files
-          Choose the firmware based on your hardware:
-          - `firmware-BUTTONS_8-enc0.hex`: 8 buttons, no encoders
-          - `firmware-BUTTONS_16-enc2.hex`: 16 buttons, 2 encoders
-          - etc.
-        draft: false
-        prerelease: false
+      run: |
+        gh release create "${{ github.ref_name }}" \
+          --title "Macro Keyboard ${{ github.ref_name }}" \
+          --notes '${{ steps.changelog.outputs.CHANGELOG }}
+
+        ## Installation
+
+        ### Desktop Application
+        - **Windows**: Download and run the `.exe` installer
+        - **macOS**: Download the `.dmg` file and drag to Applications, or the `.pkg` installer
+        - **Linux**: Download the `.AppImage` file and make it executable
+
+        ### Arduino Firmware
+        Download the appropriate firmware `.hex` file for your button configuration and flash it to your Arduino Micro using the Arduino IDE or avrdude.
+
+        ## Configuration Files
+        Choose the firmware based on your hardware:
+        - `firmware-BUTTONS_8-enc0.hex`: 8 buttons, no encoders
+        - `firmware-BUTTONS_16-enc2.hex`: 16 buttons, 2 encoders
+        - etc.'
 
   build-and-upload:
     name: Build and Upload Assets
@@ -104,36 +101,63 @@ jobs:
     
     - name: Upload Release Assets (Linux)
       if: matrix.os == 'ubuntu-latest'
-      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./dist/Macro Keyboard-*.AppImage
-        asset_name: MacroKeyboard-${{ github.ref_name }}-linux.AppImage
-        asset_content_type: application/octet-stream
+      run: |
+        # Find and upload AppImage file
+        APPIMAGE_FILE=$(find ./dist -name "*.AppImage" -type f | head -1)
+        if [ -n "$APPIMAGE_FILE" ]; then
+          gh release upload "${{ github.ref_name }}" "$APPIMAGE_FILE#MacroKeyboard-${{ github.ref_name }}-linux.AppImage"
+          echo "Uploaded: $APPIMAGE_FILE"
+        else
+          echo "No AppImage file found"
+          exit 1
+        fi
     
     - name: Upload Release Assets (Windows)
       if: matrix.os == 'windows-latest'
-      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./dist/Macro Keyboard Setup *.exe
-        asset_name: MacroKeyboard-${{ github.ref_name }}-windows.exe
-        asset_content_type: application/octet-stream
+      run: |
+        # Find and upload exe installer file
+        $INSTALLER_FILE = Get-ChildItem -Path "./dist" -Name "*.exe" -File | Select-Object -First 1
+        if ($INSTALLER_FILE) {
+          gh release upload "${{ github.ref_name }}" "./dist/$INSTALLER_FILE#MacroKeyboard-${{ github.ref_name }}-windows.exe"
+          Write-Host "Uploaded: ./dist/$INSTALLER_FILE"
+        } else {
+          Write-Host "No exe installer file found"
+          exit 1
+        }
+      shell: pwsh
     
     - name: Upload Release Assets (macOS)
       if: matrix.os == 'macos-latest'
-      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./dist/Macro Keyboard-*.dmg
-        asset_name: MacroKeyboard-${{ github.ref_name }}-macos.dmg
-        asset_content_type: application/octet-stream
+      run: |
+        # Find and upload dmg file
+        DMG_FILE=$(find ./dist -name "*.dmg" -type f | head -1)
+        if [ -n "$DMG_FILE" ]; then
+          gh release upload "${{ github.ref_name }}" "$DMG_FILE#MacroKeyboard-${{ github.ref_name }}-macos.dmg"
+          echo "Uploaded: $DMG_FILE"
+        else
+          echo "No DMG file found"
+        fi
+        
+        # Find and upload pkg file
+        PKG_FILE=$(find ./dist -name "*.pkg" -type f | head -1)
+        if [ -n "$PKG_FILE" ]; then
+          gh release upload "${{ github.ref_name }}" "$PKG_FILE#MacroKeyboard-${{ github.ref_name }}-macos.pkg"
+          echo "Uploaded: $PKG_FILE"
+        else
+          echo "No PKG file found"
+        fi
+        
+        # Ensure at least one macOS package was found
+        if [ -z "$DMG_FILE" ] && [ -z "$PKG_FILE" ]; then
+          echo "No macOS installer files found"
+          exit 1
+        fi
 
   build-firmware:
     name: Build and Upload Firmware
@@ -169,11 +193,15 @@ jobs:
         arduino-cli compile --fqbn arduino:avr:micro arduino/macro-keyboard-firmware/macro-keyboard-firmware.ino --output-dir arduino/build
     
     - name: Upload firmware asset
-      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./arduino/build/macro-keyboard-firmware.ino.hex
-        asset_name: firmware-${{ matrix.config }}-enc${{ matrix.encoder }}.hex
-        asset_content_type: application/octet-stream
+      run: |
+        # Upload firmware hex file
+        FIRMWARE_FILE="./arduino/build/macro-keyboard-firmware.ino.hex"
+        if [ -f "$FIRMWARE_FILE" ]; then
+          gh release upload "${{ github.ref_name }}" "$FIRMWARE_FILE#firmware-${{ matrix.config }}-enc${{ matrix.encoder }}.hex"
+          echo "Uploaded: firmware-${{ matrix.config }}-enc${{ matrix.encoder }}.hex"
+        else
+          echo "Firmware file not found: $FIRMWARE_FILE"
+          exit 1
+        fi

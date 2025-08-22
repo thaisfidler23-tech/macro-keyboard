@@ -49,7 +49,10 @@
     "publish": null,
     "mac": {
       "category": "public.app-category.utilities",
-      "target": "dmg"
+      "target": [
+        "dmg",
+        "pkg"
+      ]
     },
     "win": {
       "target": "nsis"
