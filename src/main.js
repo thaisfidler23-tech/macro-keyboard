@@ -4,96 +4,264 @@ const fs = require('fs');
 const yaml = require('js-yaml');
 const winston = require('winston');
 const ActionExecutor = require('./ActionExecutor');
+const { ErrorHandler, ErrorTypes } = require('./ErrorHandler');
+const { SerialConnectionManager } = require('./SerialConnectionManager');
 
 class MacroKeyboardApp {
   constructor() {
     this.mainWindow = null;
     this.tray = null;
     this.config = {};
-    this.logger = this.initLogger();
-    this.actionExecutor = null; // Will be initialized after logger
-    this.serialPort = null;
+    this.logger = null; // Will be initialized first
+    this.errorHandler = null; // Will be initialized after logger
+    this.actionExecutor = null; // Will be initialized after error handler
+    this.serialManager = null; // New serial connection manager
+    this.serialPort = null; // Deprecated - will be removed
     this.isDev = process.argv.includes('--dev');
+    
+    // Error boundary state
+    this.isShuttingDown = false;
+    this.initializationErrors = [];
   }
 
+  /**
+   * Initialize logger with error handling
+   */
   initLogger() {
-    return winston.createLogger({
-      level: 'info',
-      format: winston.format.combine(
-        winston.format.timestamp(),
-        winston.format.printf(({ timestamp, level, message }) => {
-          return `${timestamp} [${level.toUpperCase()}]: ${message}`;
-        })
-      ),
-      transports: [
-        new winston.transports.File({ filename: 'logs/macro-keyboard.log' }),
-        new winston.transports.Console()
-      ]
+    try {
+      return winston.createLogger({
+        level: this.isDev ? 'debug' : 'info',
+        format: winston.format.combine(
+          winston.format.timestamp(),
+          winston.format.errors({ stack: true }),
+          winston.format.printf(({ timestamp, level, message, stack }) => {
+            const logMessage = `${timestamp} [${level.toUpperCase()}]: ${message}`;
+            return stack ? `${logMessage}\n${stack}` : logMessage;
+          })
+        ),
+        transports: [
+          new winston.transports.File({ 
+            filename: 'logs/macro-keyboard.log',
+            maxsize: 5242880, // 5MB
+            maxFiles: 5
+          }),
+          new winston.transports.Console({
+            format: winston.format.simple()
+          })
+        ],
+        exceptionHandlers: [
+          new winston.transports.File({ filename: 'logs/exceptions.log' })
+        ],
+        rejectionHandlers: [
+          new winston.transports.File({ filename: 'logs/rejections.log' })
+        ]
+      });
+    } catch (error) {
+      // Fallback to console logging
+      console.error('Failed to initialize Winston logger:', error);
+      return {
+        info: console.log.bind(console),
+        warn: console.warn.bind(console),
+        error: console.error.bind(console),
+        debug: console.debug.bind(console)
+      };
+    }
+  }
+
+  /**
+   * Initialize the application with comprehensive error handling
+   */
+  async init() {
+    try {
+      await app.whenReady();
+      
+      // Initialize core systems with error boundaries
+      await this.initializeCore();
+      
+    } catch (error) {
+      console.error('Critical initialization error:', error);
+      
+      if (this.errorHandler) {
+        const criticalError = this.errorHandler.createError(
+          ErrorTypes.SYSTEM.INITIALIZATION_FAILED,
+          'Failed to initialize Macro Keyboard application',
+          error
+        );
+        await this.errorHandler.handleError(criticalError, 'Application');
+      }
+      
+      // Attempt graceful shutdown
+      this.gracefulShutdown(1);
+    }
+  }
+
+  /**
+   * Initialize core systems with error boundaries
+   */
+  async initializeCore() {
+    // Ensure logs directory exists
+    await this.ensureLogsDirectory();
+    
+    // Initialize logger first
+    this.logger = this.initLogger();
+    this.logger.info('Macro Keyboard application starting...');
+    
+    // Initialize error handler
+    this.errorHandler = new ErrorHandler(this.logger);
+    this.setupErrorHandlerListeners();
+    
+    // Initialize action executor with error handler
+    this.actionExecutor = new ActionExecutor(this.logger);
+    
+    // Load configuration with error handling
+    await this.safeLoadConfig();
+    
+    // Create UI components with error handling
+    await this.safeCreateWindow();
+    await this.safeCreateTray();
+    
+    // Set up IPC with error handling
+    await this.safeSetupIPC();
+    
+    // Initialize serial communication with new manager
+    await this.safeInitSerial();
+    
+    this.logger.info('Application initialization complete');
+  }
+
+  /**
+   * Ensure logs directory exists with error handling
+   */
+  async ensureLogsDirectory() {
+    try {
+      const logsDir = path.join(__dirname, '..', 'logs');
+      if (!fs.existsSync(logsDir)) {
+        fs.mkdirSync(logsDir, { recursive: true });
+      }
+    } catch (error) {
+      console.error('Failed to create logs directory:', error);
+      // Continue without logging to file
+    }
+  }
+
+  /**
+   * Set up error handler event listeners
+   */
+  setupErrorHandlerListeners() {
+    this.errorHandler.on('userNotification', (notification) => {
+      // Send to renderer for user display
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('error-notification', notification);
+      }
+      
+      // Also log for debugging
+      this.logger.warn('User notification:', notification);
+    });
+    
+    this.errorHandler.on('recovery', ({ error, component, attempts }) => {
+      this.logger.info(`Recovery successful for ${component}:${error.type} after ${attempts} attempts`);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('error-recovered', { error: error.type, component });
+      }
+    });
+    
+    this.errorHandler.on('reconnectFailed', () => {
+      this.logger.error('All reconnection attempts failed');
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('device-connection-failed');
+      }
     });
   }
 
-  async init() {
-    await app.whenReady();
-    
-    // Ensure logs directory exists
-    if (!fs.existsSync('logs')) {
-      fs.mkdirSync('logs', { recursive: true });
-    }
-
-    this.logger.info('Macro Keyboard application starting...');
-    
-    // Initialize action executor
-    this.actionExecutor = new ActionExecutor(this.logger);
-    
-    await this.loadConfig();
-    this.createWindow();
-    
-    // Platform-specific initialization
-    if (process.platform === 'darwin') {
-      this.createMacTray();
-    } else if (process.platform === 'win32') {
-      this.createWindowsTray();
-    } else {
-      // Linux - headless mode only
-      this.logger.info('Running in headless mode (Linux)');
-      if (this.mainWindow) {
-        this.mainWindow.hide();
-      }
-    }
-
-    this.setupIPC();
-    this.initSerial();
-  }
-
-  async loadConfig() {
+  /**
+   * Load configuration with error handling
+   */
+  async safeLoadConfig() {
     const configPath = path.join(__dirname, '..', 'config', 'default.yaml');
+    
     try {
       if (fs.existsSync(configPath)) {
         const configFile = fs.readFileSync(configPath, 'utf8');
         this.config = yaml.load(configFile);
-        this.logger.info('Configuration loaded successfully');
+        
+        // Validate configuration
+        this.validateConfig(this.config);
+        
+        this.logger.info('Configuration loaded and validated successfully');
       } else {
+        this.logger.info('Configuration file not found, creating default');
         this.config = this.getDefaultConfig();
-        await this.saveConfig();
-        this.logger.info('Created default configuration');
+        await this.safeSaveConfig();
       }
     } catch (error) {
-      this.logger.error('Error loading configuration:', error);
+      const configError = this.errorHandler.createError(
+        ErrorTypes.CONFIGURATION.CONFIG_PARSE_ERROR,
+        'Failed to load configuration file',
+        error,
+        { configPath }
+      );
+      
+      await this.errorHandler.handleError(configError, 'Configuration');
+      
+      // Fall back to default configuration
       this.config = this.getDefaultConfig();
+      this.logger.warn('Using default configuration due to load error');
     }
   }
 
-  async saveConfig() {
+  /**
+   * Validate configuration structure
+   */
+  validateConfig(config) {
+    const required = ['device', 'buttons', 'encoders', 'logging'];
+    
+    for (const key of required) {
+      if (!(key in config)) {
+        throw new Error(`Missing required configuration section: ${key}`);
+      }
+    }
+    
+    // Validate device configuration
+    if (!config.device.baudRate || config.device.baudRate < 1200) {
+      throw new Error('Invalid baud rate in device configuration');
+    }
+    
+    // Validate button counts
+    if (config.device.buttons && (config.device.buttons < 1 || config.device.buttons > 32)) {
+      throw new Error('Button count must be between 1 and 32');
+    }
+    
+    // Validate encoder counts
+    if (config.device.encoders && (config.device.encoders < 0 || config.device.encoders > 8)) {
+      throw new Error('Encoder count must be between 0 and 8');
+    }
+  }
+
+  /**
+   * Save configuration with error handling
+   */
+  async safeSaveConfig() {
     const configPath = path.join(__dirname, '..', 'config', 'default.yaml');
+    
     try {
       if (!fs.existsSync(path.dirname(configPath))) {
         fs.mkdirSync(path.dirname(configPath), { recursive: true });
       }
+      
       const configYaml = yaml.dump(this.config, { indent: 2 });
       fs.writeFileSync(configPath, configYaml);
       this.logger.info('Configuration saved successfully');
     } catch (error) {
-      this.logger.error('Error saving configuration:', error);
+      const saveError = this.errorHandler.createError(
+        ErrorTypes.CONFIGURATION.CONFIG_SAVE_FAILED,
+        'Failed to save configuration file',
+        error,
+        { configPath }
+      );
+      
+      await this.errorHandler.handleError(saveError, 'Configuration');
     }
   }
 
@@ -112,6 +280,138 @@ class MacroKeyboardApp {
         file: 'logs/macro-keyboard.log'
       }
     };
+  }
+
+  /**
+   * Create window with error handling
+   */
+  async safeCreateWindow() {
+    try {
+      this.createWindow();
+    } catch (error) {
+      const windowError = this.errorHandler.createError(
+        ErrorTypes.SYSTEM.INITIALIZATION_FAILED,
+        'Failed to create main window',
+        error
+      );
+      
+      await this.errorHandler.handleError(windowError, 'Window');
+      // Continue without GUI on failure
+    }
+  }
+
+  /**
+   * Create system tray with error handling
+   */
+  async safeCreateTray() {
+    try {
+      // Platform-specific tray creation
+      if (process.platform === 'darwin') {
+        this.createMacTray();
+      } else if (process.platform === 'win32') {
+        this.createWindowsTray();
+      } else {
+        // Linux - headless mode only
+        this.logger.info('Running in headless mode (Linux)');
+        if (this.mainWindow) {
+          this.mainWindow.hide();
+        }
+      }
+    } catch (error) {
+      const trayError = this.errorHandler.createError(
+        ErrorTypes.SYSTEM.INITIALIZATION_FAILED,
+        'Failed to create system tray',
+        error
+      );
+      
+      await this.errorHandler.handleError(trayError, 'Tray');
+      // Continue without tray on failure
+    }
+  }
+
+  /**
+   * Set up IPC with error handling
+   */
+  async safeSetupIPC() {
+    try {
+      this.setupIPC();
+    } catch (error) {
+      const ipcError = this.errorHandler.createError(
+        ErrorTypes.SYSTEM.IPC_ERROR,
+        'Failed to set up IPC communication',
+        error
+      );
+      
+      await this.errorHandler.handleError(ipcError, 'IPC');
+    }
+  }
+
+  /**
+   * Initialize serial communication with new manager and error handling
+   */
+  async safeInitSerial() {
+    try {
+      // Create serial connection manager
+      this.serialManager = new SerialConnectionManager(this.config, this.logger, this.errorHandler);
+      
+      // Set up serial manager event listeners
+      this.setupSerialManagerListeners();
+      
+      // Initialize the manager
+      await this.serialManager.initialize();
+      
+      this.logger.info('Serial communication manager initialized');
+    } catch (error) {
+      const serialError = this.errorHandler.createError(
+        ErrorTypes.HARDWARE.SERIAL_CONNECTION_FAILED,
+        'Failed to initialize serial communication',
+        error
+      );
+      
+      await this.errorHandler.handleError(serialError, 'Serial');
+      // Continue in offline mode
+    }
+  }
+
+  /**
+   * Set up serial manager event listeners
+   */
+  setupSerialManagerListeners() {
+    this.serialManager.on('connected', (port) => {
+      this.logger.info(`Connected to macro keyboard on ${port}`);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('device-connected', port);
+      }
+    });
+    
+    this.serialManager.on('disconnected', () => {
+      this.logger.warn('Macro keyboard disconnected');
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('device-disconnected');
+      }
+    });
+    
+    this.serialManager.on('message', (data) => {
+      this.handleSerialData(data);
+    });
+    
+    this.serialManager.on('stateChange', (newState, oldState) => {
+      this.logger.debug(`Serial state changed: ${oldState} -> ${newState}`);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('serial-state-change', { newState, oldState });
+      }
+    });
+    
+    this.serialManager.on('offlineMode', (enabled) => {
+      this.logger.info(`Offline mode ${enabled ? 'enabled' : 'disabled'}`);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('offline-mode', enabled);
+      }
+    });
   }
 
   createWindow() {
@@ -313,74 +613,208 @@ class MacroKeyboardApp {
     }
   }
 
+  /**
+   * Execute button action with comprehensive error handling
+   */
   async executeButtonAction(buttonId) {
-    const buttonConfig = this.config.buttons[`button${buttonId}`];
-    if (buttonConfig && buttonConfig.action && buttonConfig.type) {
+    try {
+      const buttonConfig = this.config.buttons[`button${buttonId}`];
+      
+      if (!buttonConfig || !buttonConfig.action || !buttonConfig.type) {
+        const configError = this.errorHandler.createError(
+          ErrorTypes.CONFIGURATION.INVALID_BUTTON_CONFIG,
+          `No valid action configured for button ${buttonId}`,
+          null,
+          { buttonId, buttonConfig }
+        );
+        
+        await this.errorHandler.handleError(configError, 'ButtonAction');
+        return false;
+      }
+
       this.logger.info(`Executing action for button ${buttonId}: ${buttonConfig.action}`);
       
       if (!this.actionExecutor) {
-        this.logger.error('Action executor not initialized');
+        const systemError = this.errorHandler.createError(
+          ErrorTypes.SYSTEM.RESOURCE_NOT_AVAILABLE,
+          'Action executor not initialized',
+          null,
+          { buttonId }
+        );
+        
+        await this.errorHandler.handleError(systemError, 'ButtonAction');
         return false;
       }
 
       const success = await this.actionExecutor.executeAction(buttonConfig, `button${buttonId}`);
+      
       if (!success) {
-        this.logger.error(`Failed to execute action for button ${buttonId}`);
+        const actionError = this.errorHandler.createError(
+          ErrorTypes.ACTION.ACTION_EXECUTION_FAILED,
+          `Failed to execute action for button ${buttonId}`,
+          null,
+          { buttonId, buttonConfig }
+        );
+        
+        await this.errorHandler.handleError(actionError, 'ButtonAction');
       }
+      
       return success;
-    } else {
-      this.logger.warn(`No action configured for button ${buttonId}`, buttonConfig);
+    } catch (error) {
+      const unexpectedError = this.errorHandler.createError(
+        ErrorTypes.ACTION.ACTION_EXECUTION_FAILED,
+        `Unexpected error executing button ${buttonId} action`,
+        error,
+        { buttonId }
+      );
+      
+      await this.errorHandler.handleError(unexpectedError, 'ButtonAction');
       return false;
     }
   }
 
+  /**
+   * Execute encoder action with comprehensive error handling
+   */
   async executeEncoderAction(encoderId, direction) {
-    const encoderConfig = this.config.encoders[`encoder${encoderId}`];
-    if (encoderConfig) {
+    try {
+      const encoderConfig = this.config.encoders[`encoder${encoderId}`];
+      
+      if (!encoderConfig) {
+        const configError = this.errorHandler.createError(
+          ErrorTypes.CONFIGURATION.INVALID_ENCODER_CONFIG,
+          `No configuration found for encoder ${encoderId}`,
+          null,
+          { encoderId, direction }
+        );
+        
+        await this.errorHandler.handleError(configError, 'EncoderAction');
+        return false;
+      }
+      
       const actionKey = direction === 'CW' ? 'actionCW' : 'actionCCW';
       const typeKey = direction === 'CW' ? 'typeCW' : 'typeCCW';
       const action = encoderConfig[actionKey];
       const type = encoderConfig[typeKey];
       
-      if (action && type) {
-        this.logger.info(`Executing ${direction} action for encoder ${encoderId}: ${action}`);
+      if (!action || !type) {
+        const configError = this.errorHandler.createError(
+          ErrorTypes.CONFIGURATION.INVALID_ENCODER_CONFIG,
+          `No ${direction} action configured for encoder ${encoderId}`,
+          null,
+          { encoderId, direction, encoderConfig }
+        );
         
-        if (!this.actionExecutor) {
-          this.logger.error('Action executor not initialized');
-          return false;
-        }
-
-        const actionConfig = { type, action };
-        const success = await this.actionExecutor.executeAction(actionConfig, `encoder${encoderId}:${direction}`);
-        if (!success) {
-          this.logger.error(`Failed to execute ${direction} action for encoder ${encoderId}`);
-        }
-        return success;
-      } else {
-        this.logger.warn(`No ${direction} action configured for encoder ${encoderId}`, encoderConfig);
+        await this.errorHandler.handleError(configError, 'EncoderAction');
         return false;
       }
-    } else {
-      this.logger.warn(`No configuration found for encoder ${encoderId}`);
+      
+      this.logger.info(`Executing ${direction} action for encoder ${encoderId}: ${action}`);
+      
+      if (!this.actionExecutor) {
+        const systemError = this.errorHandler.createError(
+          ErrorTypes.SYSTEM.RESOURCE_NOT_AVAILABLE,
+          'Action executor not initialized',
+          null,
+          { encoderId, direction }
+        );
+        
+        await this.errorHandler.handleError(systemError, 'EncoderAction');
+        return false;
+      }
+
+      const actionConfig = { type, action };
+      const success = await this.actionExecutor.executeAction(actionConfig, `encoder${encoderId}:${direction}`);
+      
+      if (!success) {
+        const actionError = this.errorHandler.createError(
+          ErrorTypes.ACTION.ACTION_EXECUTION_FAILED,
+          `Failed to execute ${direction} action for encoder ${encoderId}`,
+          null,
+          { encoderId, direction, actionConfig }
+        );
+        
+        await this.errorHandler.handleError(actionError, 'EncoderAction');
+      }
+      
+      return success;
+    } catch (error) {
+      const unexpectedError = this.errorHandler.createError(
+        ErrorTypes.ACTION.ACTION_EXECUTION_FAILED,
+        `Unexpected error executing encoder ${encoderId} ${direction} action`,
+        error,
+        { encoderId, direction }
+      );
+      
+      await this.errorHandler.handleError(unexpectedError, 'EncoderAction');
       return false;
     }
   }
 
+  /**
+   * Reload configuration with error handling
+   */
   async reloadConfig() {
-    this.logger.info('Reloading configuration...');
-    await this.loadConfig();
-    
-    // Reinitialize serial if needed
-    if (this.serialPort) {
-      this.serialPort.close();
-      this.serialPort = null;
+    try {
+      this.logger.info('Reloading configuration...');
+      await this.safeLoadConfig();
+      
+      // Reinitialize serial connection with new configuration
+      if (this.serialManager) {
+        await this.serialManager.destroy();
+        await this.safeInitSerial();
+      }
+      
+      // Notify renderer if window exists
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('config-reloaded', this.config);
+      }
+      
+      this.logger.info('Configuration reloaded successfully');
+    } catch (error) {
+      const reloadError = this.errorHandler.createError(
+        ErrorTypes.CONFIGURATION.CONFIG_PARSE_ERROR,
+        'Failed to reload configuration',
+        error
+      );
+      
+      await this.errorHandler.handleError(reloadError, 'Configuration');
+    }
+  }
+
+  /**
+   * Graceful shutdown with cleanup
+   */
+  async gracefulShutdown(exitCode = 0) {
+    if (this.isShuttingDown) {
+      this.logger.warn('Shutdown already in progress');
+      return;
     }
     
-    await this.initSerial();
+    this.isShuttingDown = true;
+    this.logger.info('Beginning graceful shutdown...');
     
-    // Notify renderer if window exists
-    if (this.mainWindow) {
-      this.mainWindow.webContents.send('config-reloaded', this.config);
+    try {
+      // Destroy serial connection manager
+      if (this.serialManager) {
+        await this.serialManager.destroy();
+      }
+      
+      // Close old serial port if it exists
+      if (this.serialPort && this.serialPort.isOpen) {
+        await new Promise(resolve => this.serialPort.close(resolve));
+      }
+      
+      // Clean up error handler
+      if (this.errorHandler) {
+        this.errorHandler.clearHistory();
+      }
+      
+      this.logger.info('Graceful shutdown complete');
+    } catch (error) {
+      this.logger.error('Error during shutdown:', error);
+    } finally {
+      process.exit(exitCode);
     }
   }
 

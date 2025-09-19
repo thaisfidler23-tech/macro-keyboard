@@ -10,6 +10,14 @@ device:
   buttons: 8        # Number of buttons (8, 12, 16, 24, or 32)
   encoders: 0       # Number of rotary encoders (0-8)
 
+# Logging configuration
+logging:
+  level: "info"
+  file: "logs/macro-keyboard.log"
+  console: true
+  maxFileSize: "10MB"
+  maxFiles: 5
+
 # Button configurations
 # Each button can have a description, type, and action
 buttons:
@@ -63,13 +71,6 @@ encoders:
   #   actionCW: "VolumeUp"
   #   typeCCW: "keypress"
   #   actionCCW: "VolumeDown"
-
-# Logging configuration
-logging:
-  level: "info"
-  file: "logs/macro-keyboard.log"
-  maxSize: "10MB"
-  maxFiles: 5
 
 # Action type definitions:
 # - keypress: Send keyboard shortcuts (e.g., "cmd+c", "ctrl+alt+t")
