@@ -143,7 +143,15 @@ npm run build      # Build for all platforms
 npm run lint       # Run ESLint
 npm run lint:fix   # Fix linting issues
 npm test           # Run tests
+npm run icons:generate  # Generate application icons
+npm run icons:validate # Validate icon setup
 ```
+
+### Documentation
+- [Development Guide](docs/DEVELOPMENT.md) - Setup and development workflow
+- [Action Execution](docs/ACTION_EXECUTION.md) - How actions are processed and executed
+- [Icons & Branding](docs/ICONS_AND_BRANDING.md) - Application icons and visual identity
+- [Arduino README](arduino/README.md) - Hardware setup and firmware details
 
 ### Automated Releases
 

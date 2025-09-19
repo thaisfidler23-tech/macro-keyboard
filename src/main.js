@@ -145,7 +145,9 @@ class MacroKeyboardApp {
   }
 
   createMacTray() {
-    this.tray = new Tray(path.join(__dirname, 'assets', 'icon.png'));
+    // Use template image for macOS system tray (16x16 or 32x32)
+    const trayIconPath = path.join(__dirname, 'assets', 'tray-32x32.png');
+    this.tray = new Tray(trayIconPath);
     
     const contextMenu = Menu.buildFromTemplate([
       {
@@ -175,7 +177,9 @@ class MacroKeyboardApp {
   }
 
   createWindowsTray() {
-    this.tray = new Tray(path.join(__dirname, 'assets', 'icon.ico'));
+    // Use ICO file for Windows system tray
+    const trayIconPath = path.join(__dirname, 'assets', 'tray-32x32.png');
+    this.tray = new Tray(trayIconPath);
     
     const contextMenu = Menu.buildFromTemplate([
       {
