@@ -22,7 +22,7 @@ Electron based application to drive a physical macro keyboard with Arduino integ
 
 ### Action Types
 - **Key Press**: Send keyboard shortcuts and key combinations
-- **Shell Commands**: Execute system commands and scripts
+- **Shell Commands**: Execute system commands and scripts (with security validation)
 - **Application Launch**: Launch applications and programs
 
 ### Logging & Monitoring
@@ -85,6 +85,11 @@ buttons:
     description: "Launch Terminal"
     type: "application"
     action: "Terminal"
+  
+  button3:
+    description: "Custom Script"
+    type: "command"
+    action: "echo 'Hello from macro!'"
 
 encoders:
   encoder1:
@@ -94,6 +99,8 @@ encoders:
     typeCCW: "keypress"
     actionCCW: "VolumeDown"
 ```
+
+For detailed action configuration options and cross-platform examples, see the [Action Execution Documentation](docs/ACTION_EXECUTION.md).
 
 ## Arduino Firmware
 

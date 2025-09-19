@@ -77,6 +77,20 @@ The renderer process provides:
 - Serial communication protocol
 - Configurable hardware support
 
+### Action Execution System (`src/ActionExecutor.js`)
+The action execution system handles:
+- Cross-platform keyboard shortcuts using robotjs
+- Secure shell command execution with validation
+- Application launching via platform-specific commands
+- Error handling and logging
+- Security pattern matching to prevent malicious commands
+
+Key features:
+- **Security Validation**: Commands are validated against dangerous patterns
+- **Cross-Platform Compatibility**: Key mappings and app launches work across macOS, Windows, Linux
+- **Timeout Protection**: Commands terminate after 10 seconds
+- **Resource Management**: Proper cleanup of child processes
+
 ## Serial Communication Protocol
 
 ### From Arduino to Application

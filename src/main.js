@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const yaml = require('js-yaml');
 const winston = require('winston');
+const ActionExecutor = require('./ActionExecutor');
 
 class MacroKeyboardApp {
   constructor() {
@@ -10,6 +11,7 @@ class MacroKeyboardApp {
     this.tray = null;
     this.config = {};
     this.logger = this.initLogger();
+    this.actionExecutor = null; // Will be initialized after logger
     this.serialPort = null;
     this.isDev = process.argv.includes('--dev');
   }
@@ -39,6 +41,9 @@ class MacroKeyboardApp {
     }
 
     this.logger.info('Macro Keyboard application starting...');
+    
+    // Initialize action executor
+    this.actionExecutor = new ActionExecutor(this.logger);
     
     await this.loadConfig();
     this.createWindow();
@@ -304,23 +309,56 @@ class MacroKeyboardApp {
     }
   }
 
-  executeButtonAction(buttonId) {
+  async executeButtonAction(buttonId) {
     const buttonConfig = this.config.buttons[`button${buttonId}`];
-    if (buttonConfig && buttonConfig.action) {
+    if (buttonConfig && buttonConfig.action && buttonConfig.type) {
       this.logger.info(`Executing action for button ${buttonId}: ${buttonConfig.action}`);
-      // TODO: Implement action execution based on action type
+      
+      if (!this.actionExecutor) {
+        this.logger.error('Action executor not initialized');
+        return false;
+      }
+
+      const success = await this.actionExecutor.executeAction(buttonConfig, `button${buttonId}`);
+      if (!success) {
+        this.logger.error(`Failed to execute action for button ${buttonId}`);
+      }
+      return success;
+    } else {
+      this.logger.warn(`No action configured for button ${buttonId}`, buttonConfig);
+      return false;
     }
   }
 
-  executeEncoderAction(encoderId, direction) {
+  async executeEncoderAction(encoderId, direction) {
     const encoderConfig = this.config.encoders[`encoder${encoderId}`];
     if (encoderConfig) {
       const actionKey = direction === 'CW' ? 'actionCW' : 'actionCCW';
+      const typeKey = direction === 'CW' ? 'typeCW' : 'typeCCW';
       const action = encoderConfig[actionKey];
-      if (action) {
+      const type = encoderConfig[typeKey];
+      
+      if (action && type) {
         this.logger.info(`Executing ${direction} action for encoder ${encoderId}: ${action}`);
-        // TODO: Implement action execution based on action type
+        
+        if (!this.actionExecutor) {
+          this.logger.error('Action executor not initialized');
+          return false;
+        }
+
+        const actionConfig = { type, action };
+        const success = await this.actionExecutor.executeAction(actionConfig, `encoder${encoderId}:${direction}`);
+        if (!success) {
+          this.logger.error(`Failed to execute ${direction} action for encoder ${encoderId}`);
+        }
+        return success;
+      } else {
+        this.logger.warn(`No ${direction} action configured for encoder ${encoderId}`, encoderConfig);
+        return false;
       }
+    } else {
+      this.logger.warn(`No configuration found for encoder ${encoderId}`);
+      return false;
     }
   }
 
