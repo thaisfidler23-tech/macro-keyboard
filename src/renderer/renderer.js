@@ -45,6 +45,25 @@ window.electronAPI = {
   },
   onUpdateError: (callback) => {
     ipcRenderer.on('update-error', (event, error) => callback(error));
+  },
+
+  // Log management methods
+  getRecentLogs: (limit) => ipcRenderer.invoke('get-recent-logs', limit),
+  getLogStatistics: () => ipcRenderer.invoke('get-log-statistics'),
+  exportLogs: (startDate, endDate, format) => ipcRenderer.invoke('export-logs', startDate, endDate, format),
+  clearLogs: () => ipcRenderer.invoke('clear-logs'),
+  
+  // Log event listener
+  on: (channel, callback) => {
+    if (channel === 'log-entry') {
+      ipcRenderer.on('log-entry', (event, logData) => callback(event, logData));
+    }
+  },
+  
+  removeListener: (channel) => {
+    if (channel === 'log-entry') {
+      ipcRenderer.removeAllListeners('log-entry');
+    }
   }
 };
 
@@ -57,6 +76,7 @@ class ConfigUI {
     this.lastConnectionStatus = 'unknown';
     this.buttonStatePreview = null;
     this.updateUI = null;
+    this.logViewer = null;
     this.init();
   }
 
@@ -70,6 +90,7 @@ class ConfigUI {
     this.createErrorNotificationSystem();
     this.initializeHardwarePreview();
     this.initializeUpdateUI();
+    this.initializeLogViewer();
     
     // Perform initial configuration validation
     await this.validateCurrentConfig();
@@ -897,6 +918,119 @@ class ConfigUI {
       console.log('UpdateUI initialized');
     } else {
       console.warn('UpdateUI class not available');
+    }
+  }
+
+  /**
+   * Initialize log viewer components
+   */
+  initializeLogViewer() {
+    if (typeof LogViewer !== 'undefined') {
+      this.logViewer = new LogViewer();
+      
+      // Add log viewer to the main container after initialization
+      setTimeout(() => {
+        this.addLogViewerToUI();
+      }, 100);
+      
+      console.log('LogViewer initialized');
+    } else {
+      console.warn('LogViewer class not available');
+    }
+  }
+
+  /**
+   * Add log viewer to the main UI
+   */
+  addLogViewerToUI() {
+    const mainContent = document.querySelector('.container');
+    if (mainContent && this.logViewer) {
+      // Create a container for the log viewer at the bottom
+      const logContainer = document.createElement('div');
+      logContainer.id = 'log-viewer-main';
+      logContainer.style.marginTop = '2rem';
+      
+      mainContent.appendChild(logContainer);
+      
+      // Add log viewer content
+      const logSection = document.createElement('div');
+      logSection.className = 'log-viewer-section';
+      logSection.innerHTML = `
+        <h3>Application Logs</h3>
+        <div class="log-viewer-controls">
+          <div class="log-controls-row">
+            <div class="log-filter-group">
+              <label for="log-level-filter">Filter by level:</label>
+              <select id="log-level-filter">
+                <option value="all">All Levels</option>
+                <option value="debug">Debug</option>
+                <option value="info">Info</option>
+                <option value="warn">Warning</option>
+                <option value="error">Error</option>
+              </select>
+            </div>
+            
+            <div class="log-search-group">
+              <label for="log-search">Search logs:</label>
+              <input type="text" id="log-search" placeholder="Search messages...">
+            </div>
+            
+            <div class="log-action-group">
+              <button id="log-refresh" class="btn btn-secondary">
+                <span class="icon">🔄</span> Refresh
+              </button>
+              <button id="log-clear" class="btn btn-secondary">
+                <span class="icon">🗑️</span> Clear
+              </button>
+              <button id="log-export" class="btn btn-secondary">
+                <span class="icon">💾</span> Export
+              </button>
+            </div>
+          </div>
+          
+          <div class="log-controls-row">
+            <div class="log-auto-refresh">
+              <label>
+                <input type="checkbox" id="log-auto-refresh" checked>
+                Auto-refresh every 5 seconds
+              </label>
+            </div>
+            
+            <div class="log-stats">
+              <span id="log-count">0 entries</span>
+              <span id="log-stats-detail"></span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="log-viewer-container">
+          <div id="log-entries" class="log-entries"></div>
+        </div>
+        
+        <div class="log-pagination">
+          <button id="log-prev" class="btn btn-secondary" disabled>Previous</button>
+          <span id="log-page-info">Page 1</span>
+          <button id="log-next" class="btn btn-secondary" disabled>Next</button>
+          <select id="log-page-size">
+            <option value="50">50 per page</option>
+            <option value="100" selected>100 per page</option>
+            <option value="200">200 per page</option>
+          </select>
+        </div>
+      `;
+      
+      logContainer.appendChild(logSection);
+      
+      // Setup event handlers
+      this.logViewer.setupLogViewerEventHandlers();
+      
+      // Load initial logs
+      this.logViewer.loadLogs();
+      
+      // Set as visible for auto-refresh
+      this.logViewer.setVisible(true);
+      
+      console.log('LogViewer added to UI');
     }
   }
 

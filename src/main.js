@@ -9,6 +9,7 @@ const { SerialConnectionManager } = require('./SerialConnectionManager');
 const { ConfigValidator } = require('./ConfigValidator');
 const ProfileManager = require('./ProfileManager');
 const UpdateManager = require('./UpdateManager');
+const LogManager = require('./LogManager');
 
 class MacroKeyboardApp {
   constructor() {
@@ -16,6 +17,7 @@ class MacroKeyboardApp {
     this.tray = null;
     this.config = {};
     this.logger = null; // Will be initialized first
+    this.logManager = null; // New structured logging manager
     this.errorHandler = null; // Will be initialized after logger
     this.configValidator = null; // Will be initialized after logger
     this.profileManager = null; // Will be initialized after configValidator
@@ -108,8 +110,9 @@ class MacroKeyboardApp {
     // Ensure logs directory exists
     await this.ensureLogsDirectory();
     
-    // Initialize logger first
-    this.logger = this.initLogger();
+    // Initialize LogManager first
+    this.logManager = new LogManager(this.config?.logging || {});
+    this.logger = this.logManager.getLogger(); // Get Winston logger instance for backward compatibility
     this.logger.info('Macro Keyboard application starting...');
     
     // Initialize error handler
@@ -296,6 +299,12 @@ class MacroKeyboardApp {
       }
       
       this.logger.info('Configuration loaded and validated successfully');
+      
+      // Reconfigure LogManager with loaded configuration
+      if (this.config.logging) {
+        this.logManager.updateConfiguration(this.config.logging);
+        this.logger.info('LogManager reconfigured with loaded settings');
+      }
       
     } catch (error) {
       const configError = this.errorHandler.createError(
@@ -925,6 +934,50 @@ class MacroKeyboardApp {
       } catch (error) {
         this.logger.error('Error getting update statistics:', error);
         throw error;
+      }
+    });
+
+    // Log management handlers
+    ipcMain.handle('get-recent-logs', async (event, limit = 100) => {
+      try {
+        return await this.logManager.getRecentLogs(limit);
+      } catch (error) {
+        this.logger.error('Error getting recent logs:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-log-statistics', () => {
+      try {
+        return this.logManager.getStatistics();
+      } catch (error) {
+        this.logger.error('Error getting log statistics:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('export-logs', async (event, startDate = null, endDate = null, format = 'json') => {
+      try {
+        return await this.logManager.exportLogs(startDate, endDate, format);
+      } catch (error) {
+        this.logger.error('Error exporting logs:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('clear-logs', async () => {
+      try {
+        return await this.logManager.clearLogs();
+      } catch (error) {
+        this.logger.error('Error clearing logs:', error);
+        throw error;
+      }
+    });
+
+    // Set up real-time log forwarding to renderer
+    this.logManager.on('log-entry', (logData) => {
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('log-entry', logData);
       }
     });
   }

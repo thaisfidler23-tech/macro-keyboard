@@ -15,10 +15,33 @@ device:
 
 # Logging configuration
 logging:
-  level: "info"     # debug, info, warn, error
-  file: "logs/macro-keyboard.log"
-  maxSize: 5242880  # Maximum log file size in bytes (5MB)
-  maxFiles: 5       # Maximum number of log files to retain
+  # Basic settings
+  level: "info"               # debug, info, warn, error
+  logDir: "logs"              # Log directory (relative to app data directory)
+  
+  # File rotation settings
+  maxFileSize: 5242880        # Maximum log file size in bytes (5MB)
+  maxFiles: 10                # Maximum number of log files to retain
+  retentionDays: 30           # Days to retain log files
+  datePattern: "YYYY-MM-DD"   # Date pattern for log rotation
+  
+  # Console logging
+  enableConsole: true         # Enable console output
+  colorizeConsole: true       # Colorize console output
+  
+  # Remote logging (optional)
+  enableRemote: false         # Enable remote log aggregation
+  remoteEndpoint: null        # URL for remote log endpoint
+  remoteBatchSize: 100        # Number of logs to batch before sending
+  remoteFlushInterval: 5000   # Interval to flush remote logs (ms)
+  
+  # Performance logging
+  enablePerformance: true     # Enable performance logging
+  performanceThreshold: 100   # Log performance warnings above threshold (ms)
+  
+  # Structured logging
+  enableStructured: false     # Use JSON format for logs
+  includeMetadata: true       # Include system metadata in logs
 
 # Security and execution policies
 security:
