@@ -22,6 +22,30 @@ describe('Configuration Tests', () => {
     expect(defaultConfig).toHaveProperty('encoders');
     expect(defaultConfig).toHaveProperty('logging');
     expect(defaultConfig).toHaveProperty('security');
+    expect(defaultConfig).toHaveProperty('updates');
+  });
+
+  test('updates config has required structure', () => {
+    expect(defaultConfig.updates).toHaveProperty('enabled');
+    expect(defaultConfig.updates).toHaveProperty('checkInterval');
+    expect(defaultConfig.updates).toHaveProperty('autoDownload');
+    expect(defaultConfig.updates).toHaveProperty('autoInstallOnAppQuit');
+    expect(defaultConfig.updates).toHaveProperty('allowPrerelease');
+    expect(defaultConfig.updates).toHaveProperty('notify');
+    expect(defaultConfig.updates).toHaveProperty('silent');
+  });
+
+  test('updates config values are valid', () => {
+    const updates = defaultConfig.updates;
+    
+    expect(typeof updates.enabled).toBe('boolean');
+    expect(typeof updates.checkInterval).toBe('number');
+    expect(updates.checkInterval).toBeGreaterThan(0);
+    expect(typeof updates.autoDownload).toBe('boolean');
+    expect(typeof updates.autoInstallOnAppQuit).toBe('boolean');
+    expect(typeof updates.allowPrerelease).toBe('boolean');
+    expect(typeof updates.notify).toBe('boolean');
+    expect(typeof updates.silent).toBe('boolean');
   });
 
   test('security config has required structure', () => {

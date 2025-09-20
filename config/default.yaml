@@ -71,6 +71,16 @@ security:
       - "cmd+q"
       - "ctrl+alt+delete"
 
+# Automatic update configuration
+updates:
+  enabled: true             # Enable automatic update checking
+  checkInterval: 86400000   # Check interval in milliseconds (24 hours)
+  autoDownload: true        # Automatically download updates when available
+  autoInstallOnAppQuit: true # Install updates when app quits
+  allowPrerelease: false    # Include pre-release versions
+  notify: true              # Show update notifications to user
+  silent: false             # Silent update mode (no user interaction)
+
 # Profile management
 profiles:
   active: "default"         # Currently active profile

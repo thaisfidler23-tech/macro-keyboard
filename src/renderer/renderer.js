@@ -20,7 +20,32 @@ window.electronAPI = {
   
   // File dialog methods
   showSaveDialog: (options) => ipcRenderer.invoke('show-save-dialog', options),
-  showOpenDialog: (options) => ipcRenderer.invoke('show-open-dialog', options)
+  showOpenDialog: (options) => ipcRenderer.invoke('show-open-dialog', options),
+  
+  // Update management methods
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
+  installUpdate: () => ipcRenderer.invoke('install-update'),
+  getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),
+  setAutoUpdateEnabled: (enabled) => ipcRenderer.invoke('set-auto-update-enabled', enabled),
+  getUpdateStatistics: () => ipcRenderer.invoke('get-update-statistics'),
+  
+  // Update event listeners
+  onUpdateAvailable: (callback) => {
+    ipcRenderer.on('update-available', (event, updateInfo) => callback(updateInfo));
+  },
+  onUpdateNotAvailable: (callback) => {
+    ipcRenderer.on('update-not-available', () => callback());
+  },
+  onUpdateDownloadProgress: (callback) => {
+    ipcRenderer.on('update-download-progress', (event, progress) => callback(progress));
+  },
+  onUpdateDownloaded: (callback) => {
+    ipcRenderer.on('update-downloaded', (event, updateInfo) => callback(updateInfo));
+  },
+  onUpdateError: (callback) => {
+    ipcRenderer.on('update-error', (event, error) => callback(error));
+  }
 };
 
 class ConfigUI {
@@ -31,6 +56,7 @@ class ConfigUI {
     this.availablePorts = {};
     this.lastConnectionStatus = 'unknown';
     this.buttonStatePreview = null;
+    this.updateUI = null;
     this.init();
   }
 
@@ -43,6 +69,7 @@ class ConfigUI {
     await this.loadConnectionStatus();
     this.createErrorNotificationSystem();
     this.initializeHardwarePreview();
+    this.initializeUpdateUI();
     
     // Perform initial configuration validation
     await this.validateCurrentConfig();
@@ -859,6 +886,18 @@ class ConfigUI {
     
     // Also log to console for debugging
     console.log('Hardware event received:', hardwareEvent);
+  }
+
+  /**
+   * Initialize update UI components
+   */
+  initializeUpdateUI() {
+    if (typeof UpdateUI !== 'undefined') {
+      this.updateUI = new UpdateUI();
+      console.log('UpdateUI initialized');
+    } else {
+      console.warn('UpdateUI class not available');
+    }
   }
 
   async saveConfig() {

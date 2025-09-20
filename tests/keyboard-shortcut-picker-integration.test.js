@@ -2,8 +2,7 @@
  * Test file for Keyboard Shortcut Picker integration
  */
 
-const { describe, test, expect, beforeEach, afterEach } = require('@jest/globals');
-const { jest } = require('@jest/globals');
+const { describe, test, expect, beforeEach, afterEach, jest } = require('@jest/globals');
 
 // Mock DOM environment
 class MockElement {

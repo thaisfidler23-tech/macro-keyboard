@@ -8,6 +8,7 @@ const { ErrorHandler, ErrorTypes } = require('./ErrorHandler');
 const { SerialConnectionManager } = require('./SerialConnectionManager');
 const { ConfigValidator } = require('./ConfigValidator');
 const ProfileManager = require('./ProfileManager');
+const UpdateManager = require('./UpdateManager');
 
 class MacroKeyboardApp {
   constructor() {
@@ -20,6 +21,7 @@ class MacroKeyboardApp {
     this.profileManager = null; // Will be initialized after configValidator
     this.actionExecutor = null; // Will be initialized after error handler
     this.serialManager = null; // New serial connection manager
+    this.updateManager = null; // Will be initialized after logger
     this.serialPort = null; // Deprecated - will be removed
     this.isDev = process.argv.includes('--dev');
     
@@ -121,11 +123,15 @@ class MacroKeyboardApp {
     this.profileManager = new ProfileManager(this.logger, this.configValidator, this.errorHandler);
     await this.profileManager.initializeProfilesDirectory();
     
-    // Initialize action executor with error handler
-    this.actionExecutor = new ActionExecutor(this.logger);
-    
     // Load configuration with error handling
     await this.safeLoadConfig();
+    
+    // Initialize action executor with configuration and error handler
+    this.actionExecutor = new ActionExecutor(this.config, this.logger);
+    
+    // Initialize update manager with configuration
+    this.updateManager = new UpdateManager(this.logger, this.config.updates);
+    this.setupUpdateManagerListeners();
     
     // Create UI components with error handling
     await this.safeCreateWindow();
@@ -136,6 +142,11 @@ class MacroKeyboardApp {
     
     // Initialize serial communication with new manager
     await this.safeInitSerial();
+    
+    // Start update checking if enabled
+    if (this.updateManager.isUpdateSupported()) {
+      this.updateManager.startUpdateChecking();
+    }
     
     this.logger.info('Application initialization complete');
   }
@@ -182,6 +193,49 @@ class MacroKeyboardApp {
       
       if (this.mainWindow && !this.mainWindow.isDestroyed()) {
         this.mainWindow.webContents.send('device-connection-failed');
+      }
+    });
+  }
+
+  /**
+   * Set up update manager event listeners
+   */
+  setupUpdateManagerListeners() {
+    this.updateManager.on('update-available', (updateInfo) => {
+      this.logger.info('Update available:', updateInfo);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('update-available', updateInfo);
+      }
+    });
+
+    this.updateManager.on('update-not-available', () => {
+      this.logger.info('No updates available');
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('update-not-available');
+      }
+    });
+
+    this.updateManager.on('download-progress', (progress) => {
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('update-download-progress', progress);
+      }
+    });
+
+    this.updateManager.on('update-downloaded', (updateInfo) => {
+      this.logger.info('Update downloaded:', updateInfo);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('update-downloaded', updateInfo);
+      }
+    });
+
+    this.updateManager.on('error', (error) => {
+      this.logger.error('Update manager error:', error);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('update-error', error.message);
       }
     });
   }
@@ -814,6 +868,65 @@ class MacroKeyboardApp {
         throw error;
       }
     });
+
+    // Update management IPC handlers
+    ipcMain.handle('check-for-updates', async () => {
+      try {
+        await this.updateManager.checkForUpdates();
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error checking for updates:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('download-update', async () => {
+      try {
+        this.updateManager.downloadAndInstallUpdate();
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error downloading update:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('install-update', async () => {
+      try {
+        this.updateManager.quitAndInstall();
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error installing update:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-update-status', () => {
+      try {
+        return this.updateManager.getUpdateStatus();
+      } catch (error) {
+        this.logger.error('Error getting update status:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('set-auto-update-enabled', async (event, enabled) => {
+      try {
+        this.updateManager.setAutoUpdateEnabled(enabled);
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error setting auto-update:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-update-statistics', () => {
+      try {
+        return this.updateManager.getStatistics();
+      } catch (error) {
+        this.logger.error('Error getting update statistics:', error);
+        throw error;
+      }
+    });
   }
 
   async initSerial() {
@@ -1183,6 +1296,11 @@ class MacroKeyboardApp {
       // Close old serial port if it exists
       if (this.serialPort && this.serialPort.isOpen) {
         await new Promise(resolve => this.serialPort.close(resolve));
+      }
+      
+      // Clean up update manager
+      if (this.updateManager) {
+        this.updateManager.cleanup();
       }
       
       // Clean up error handler

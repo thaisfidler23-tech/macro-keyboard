@@ -2510,3 +2510,271 @@ button:active {
     flex-direction: column;
   }
 }
+
+/* Update UI Styles */
+.update-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 20px;
+  min-width: 350px;
+  max-width: 400px;
+  z-index: 1000;
+  border-left: 4px solid #3498db;
+  transform: translateX(100%);
+  transition: transform 0.3s ease-in-out;
+}
+
+.update-container:not(.hidden) {
+  transform: translateX(0);
+}
+
+.update-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.update-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.update-text {
+  flex: 1;
+}
+
+.update-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: #2c3e50;
+  margin-bottom: 4px;
+}
+
+.update-subtitle {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.4;
+}
+
+.update-progress {
+  margin-bottom: 16px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: #ecf0f1;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3498db, #2980b9);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
+.progress-text {
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+}
+
+.update-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.update-actions .btn {
+  padding: 8px 16px;
+  font-size: 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.update-actions .btn-primary {
+  background: #3498db;
+  color: white;
+}
+
+.update-actions .btn-primary:hover {
+  background: #2980b9;
+}
+
+.update-actions .btn-secondary {
+  background: #ecf0f1;
+  color: #2c3e50;
+}
+
+.update-actions .btn-secondary:hover {
+  background: #d5dbdb;
+}
+
+/* Update Settings Section */
+.update-settings {
+  border-top: 2px solid #ecf0f1;
+  margin-top: 24px;
+  padding-top: 24px;
+}
+
+.update-settings h3 {
+  color: #2c3e50;
+  margin-bottom: 16px;
+  font-size: 18px;
+}
+
+.update-settings .setting-group {
+  margin-bottom: 16px;
+}
+
+.update-settings .setting-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: #2c3e50;
+  margin-bottom: 4px;
+  cursor: pointer;
+}
+
+.update-settings .setting-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+.update-settings .setting-description {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.update-settings .setting-value {
+  font-weight: 500;
+  color: #2c3e50;
+  font-size: 14px;
+}
+
+.update-settings #update-statistics {
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid #ecf0f1;
+}
+
+.update-settings #update-statistics > div {
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.update-settings #update-statistics > div:last-child {
+  margin-bottom: 0;
+}
+
+.update-settings #manual-update-check {
+  margin-right: 12px;
+}
+
+.update-settings #last-check-time {
+  font-style: italic;
+  color: #666;
+  font-size: 12px;
+}
+
+/* Update notification animations */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.update-container.show {
+  animation: slideInRight 0.3s ease-out;
+}
+
+.update-container.hide {
+  animation: slideOutRight 0.3s ease-in;
+}
+
+/* Progress bar animations */
+@keyframes progressPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.progress-fill {
+  animation: progressPulse 2s infinite;
+}
+
+/* Responsive design for update UI */
+@media (max-width: 768px) {
+  .update-container {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    min-width: auto;
+    max-width: none;
+  }
+  
+  .update-actions {
+    flex-direction: column;
+  }
+  
+  .update-actions .btn {
+    width: 100%;
+  }
+}
+
+/* Dark mode support for update UI */
+@media (prefers-color-scheme: dark) {
+  .update-container {
+    background: #2c3e50;
+    color: #ecf0f1;
+  }
+  
+  .update-title {
+    color: #ecf0f1;
+  }
+  
+  .progress-bar {
+    background-color: #34495e;
+  }
+  
+  .update-settings #update-statistics {
+    background: #34495e;
+    border-color: #34495e;
+  }
+}
