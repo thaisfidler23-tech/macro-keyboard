@@ -163,17 +163,93 @@ class LEDController extends EventEmitter {
   }
   
   /**
-   * Handle LED command responses
+   * Handle LED command responses from enhanced protocol
    */
   handleLEDResponse(response) {
-    if (response.includes('ERROR:')) {
-      const error = response.split('ERROR:')[1];
-      console.error('LED command error:', error);
-      this.emit('error', { message: 'LED command failed', error });
+    // Handle error responses
+    if (response.includes('ERROR:LED:')) {
+      const errorParts = response.split(':');
+      const errorType = errorParts[2] || 'UNKNOWN';
+      const errorMessage = errorParts.slice(3).join(':') || 'Unknown LED error';
+      
+      console.error(`LED ${errorType} error:`, errorMessage);
+      this.emit('error', { 
+        message: 'LED command failed', 
+        error: `${errorType}: ${errorMessage}`,
+        type: errorType
+      });
       return;
     }
     
-    // Parse successful LED responses
+    // Handle acknowledgment responses (LED:ACK:...)
+    if (response.startsWith('LED:ACK:')) {
+      const ackParts = response.split(':');
+      const ackType = ackParts[2];
+      
+      switch (ackType) {
+        case 'BRIGHTNESS':
+          const brightness = parseInt(ackParts[3]);
+          this.brightness = brightness;
+          this.emit('brightness-changed', brightness);
+          break;
+          
+        case 'EFFECT':
+          const effectName = ackParts[3];
+          const speed = parseInt(ackParts[4]);
+          this.currentEffect = { name: effectName, speed };
+          this.emit('effect-started', this.currentEffect);
+          break;
+          
+        case 'CLEARED':
+          this.currentColors.clear();
+          this.currentEffect = null;
+          this.emit('cleared');
+          break;
+          
+        case 'RESET':
+          this.currentColors.clear();
+          this.currentEffect = null;
+          this.emit('reset-to-default');
+          break;
+          
+        case 'POWER':
+          const powerState = ackParts[3] === 'ON';
+          this.isEnabled = powerState;
+          this.emit('power-state-changed', powerState);
+          break;
+          
+        case 'SET':
+        case 'ALL':
+        case 'BATCH':
+          // Color commands acknowledged - emit success
+          this.emit('led-command-success');
+          break;
+          
+        default:
+          console.log('LED ACK received:', response);
+          this.emit('led-command-success');
+      }
+      return;
+    }
+    
+    // Handle power limiting notifications
+    if (response.startsWith('POWER:LIMITING:')) {
+      const parts = response.split(':');
+      const status = parts[2];
+      
+      if (status === 'Active') {
+        const reducedBrightness = parseInt(parts[4]);
+        console.warn(`Power limiting active: brightness reduced to ${reducedBrightness}`);
+        this.brightness = reducedBrightness;
+        this.emit('power-limiting-active', { brightness: reducedBrightness });
+      } else if (status === 'Inactive') {
+        console.info('Power limiting deactivated');
+        this.emit('power-limiting-inactive');
+      }
+      return;
+    }
+    
+    // Legacy response handling for backward compatibility
     if (response.startsWith('LED:BRIGHTNESS:')) {
       const brightness = parseInt(response.split(':')[2]);
       this.brightness = brightness;
@@ -202,7 +278,7 @@ class LEDController extends EventEmitter {
   }
   
   /**
-   * Set color for a specific button
+   * Set color for a specific button using enhanced protocol
    */
   async setButtonColor(buttonId, color, animate = true) {
     if (!this.isEnabled || !this.serialManager.isConnected()) {
@@ -218,15 +294,15 @@ class LEDController extends EventEmitter {
     // Update local state
     this.currentColors.set(buttonId, { r, g, b });
     
-    // Send command to hardware
-    const command = `LED:${buttonId}:${r}:${g}:${b}\\n`;
+    // Send enhanced protocol command
+    const command = `LED:SET:${buttonId}:${r}:${g}:${b}\n`;
     await this.sendCommand(command);
     
     this.emit('button-color-changed', { buttonId, color: { r, g, b }, animate });
   }
-  
+
   /**
-   * Set color for all buttons
+   * Set color for all buttons using enhanced protocol
    */
   async setAllButtons(color, animate = true) {
     if (!this.isEnabled || !this.serialManager.isConnected()) {
@@ -240,15 +316,58 @@ class LEDController extends EventEmitter {
       this.currentColors.set(i, { r, g, b });
     }
     
-    // Send command to hardware
-    const command = `LED:ALL:${r}:${g}:${b}\\n`;
+    // Use legacy ALL command for backward compatibility
+    const command = `LED:ALL:${r}:${g}:${b}\n`;
     await this.sendCommand(command);
     
     this.emit('all-colors-changed', { color: { r, g, b }, animate });
   }
-  
+
   /**
-   * Clear all LEDs (turn off)
+   * Set multiple button colors efficiently using batch protocol
+   */
+  async setBatchColors(buttonColors, animate = true) {
+    if (!this.isEnabled || !this.serialManager.isConnected()) {
+      throw new Error('LED system not available');
+    }
+    
+    if (!buttonColors || typeof buttonColors !== 'object') {
+      throw new Error('buttonColors must be an object with buttonId->color mapping');
+    }
+    
+    const buttonIds = Object.keys(buttonColors).map(id => parseInt(id)).filter(id => 
+      !isNaN(id) && id >= 1 && id <= this.buttonCount
+    );
+    
+    if (buttonIds.length === 0) {
+      throw new Error('No valid button IDs provided');
+    }
+    
+    // Sort button IDs to ensure consistent ordering
+    buttonIds.sort((a, b) => a - b);
+    
+    // Build batch command data
+    let dataParams = '';
+    for (let i = 0; i < buttonIds.length; i++) {
+      const buttonId = buttonIds[i];
+      const { r, g, b } = this.validateColor(buttonColors[buttonId]);
+      
+      // Update local state
+      this.currentColors.set(buttonId, { r, g, b });
+      
+      if (i > 0) dataParams += ':';
+      dataParams += `${r}:${g}:${b}`;
+    }
+    
+    // Send batch command: LED:BATCH:<count>:<r1>:<g1>:<b1>:<r2>:<g2>:<b2>:...
+    const command = `LED:BATCH:${buttonIds.length}:${dataParams}\n`;
+    await this.sendCommand(command);
+    
+    this.emit('batch-colors-changed', { buttonColors, animate });
+  }
+
+  /**
+   * Clear all LEDs using enhanced protocol
    */
   async clearAll() {
     if (!this.isEnabled || !this.serialManager.isConnected()) {
@@ -259,14 +378,110 @@ class LEDController extends EventEmitter {
     this.currentColors.clear();
     this.currentEffect = null;
     
-    // Send command to hardware
-    await this.sendCommand('LED:CLEAR\\n');
+    // Send clear command (legacy format for compatibility)
+    await this.sendCommand('LED:CLEAR\n');
     
     this.emit('cleared');
   }
+
+  /**
+   * Reset LEDs to default state using enhanced protocol
+   */
+  async resetToDefault() {
+    if (!this.isEnabled || !this.serialManager.isConnected()) {
+      throw new Error('LED system not available');
+    }
+    
+    // Clear local state
+    this.currentColors.clear();
+    this.currentEffect = null;
+    
+    // Send reset command
+    await this.sendCommand('LED:RESET\n');
+    
+    this.emit('reset-to-default');
+  }
+
+  /**
+   * Control LED power state
+   */
+  async setPowerState(enabled) {
+    if (!this.serialManager.isConnected()) {
+      throw new Error('LED system not available');
+    }
+    
+    const powerCommand = enabled ? 'on' : 'off';
+    const command = `LED:POWER:${powerCommand}\n`;
+    await this.sendCommand(command);
+    
+    this.isEnabled = enabled;
+    if (!enabled) {
+      this.currentColors.clear();
+      this.currentEffect = null;
+    }
+    
+    this.emit('power-state-changed', enabled);
+  }
+
+  /**
+   * Get detailed LED system status
+   */
+  async getDetailedStatus() {
+    if (!this.serialManager.isConnected()) {
+      throw new Error('Serial connection not available');
+    }
+    
+    return new Promise((resolve, reject) => {
+      let responseData = '';
+      const timeout = setTimeout(() => {
+        this.serialManager.removeListener('data', dataHandler);
+        reject(new Error('LED status query timeout'));
+      }, 5000);
+      
+      const dataHandler = (data) => {
+        responseData += data;
+        
+        if (responseData.includes('LED:STATUS:END')) {
+          clearTimeout(timeout);
+          this.serialManager.removeListener('data', dataHandler);
+          
+          const status = this.parseDetailedStatusResponse(responseData);
+          resolve(status);
+        }
+      };
+      
+      this.serialManager.on('data', dataHandler);
+      this.serialManager.write('LED:STATUS\n');
+    });
+  }
+
+  /**
+   * Parse detailed status response from enhanced protocol
+   */
+  parseDetailedStatusResponse(response) {
+    const lines = response.split('\n');
+    const status = {};
+    
+    lines.forEach(line => {
+      line = line.trim();
+      if (line.startsWith('LED:STATUS:ENABLED:')) {
+        status.enabled = line.split(':')[3] === 'true';
+      } else if (line.startsWith('LED:STATUS:BUTTON_COUNT:')) {
+        status.buttonCount = parseInt(line.split(':')[3]);
+      } else if (line.startsWith('LED:STATUS:BRIGHTNESS:')) {
+        status.brightness = parseInt(line.split(':')[3]);
+      } else if (line.startsWith('LED:STATUS:CURRENT_EFFECT:')) {
+        status.currentEffect = parseInt(line.split(':')[3]);
+      } else if (line.startsWith('LED:STATUS:MEMORY_USAGE:')) {
+        status.memoryUsage = parseInt(line.split(':')[3]);
+      }
+    });
+    
+    return status;
+  }
   
   /**
-   * Set brightness for all LEDs
+   * Set brightness for all LEDs using enhanced protocol
    */
   async setBrightness(brightness) {
     if (!this.isEnabled || !this.serialManager.isConnected()) {
@@ -279,15 +494,15 @@ class LEDController extends EventEmitter {
     
     this.brightness = brightness;
     
-    // Send command to hardware
-    const command = `LED:BRIGHTNESS:${brightness}\\n`;
+    // Send enhanced protocol command
+    const command = `LED:BRIGHTNESS:${brightness}\n`;
     await this.sendCommand(command);
     
     this.emit('brightness-changed', brightness);
   }
   
   /**
-   * Start an LED effect
+   * Start an LED effect using enhanced protocol
    */
   async startEffect(effectName, speed = 5) {
     if (!this.isEnabled || !this.serialManager.isConnected()) {
@@ -305,8 +520,8 @@ class LEDController extends EventEmitter {
     this.currentEffect = { name: effectName, speed };
     this.effectSpeed = speed;
     
-    // Send command to hardware
-    const command = `LED:EFFECT:${effectName}:${speed}\\n`;
+    // Send enhanced protocol command
+    const command = `LED:EFFECT:${effectName}:${speed}\n`;
     await this.sendCommand(command);
     
     this.emit('effect-started', this.currentEffect);

@@ -32,10 +32,10 @@
 #if RGB_LED_ENABLED
   #include <Adafruit_NeoPixel.h>
   
-  // Create NeoPixel strip object
-  Adafruit_NeoPixel strip(RGB_LED_COUNT, RGB_LED_PIN, NEO_GRB + NEO_KHZ800);
+  // Create NeoPixel strip object with optimized settings
+  Adafruit_NeoPixel strip(RGB_LED_COUNT, RGB_LED_PIN, LED_COLOR_ORDER + LED_STRIP_SPEED);
   
-  // LED state tracking
+  // LED state tracking with memory optimization
   struct LEDState {
     uint8_t r, g, b;
     uint8_t targetR, targetG, targetB;
@@ -48,7 +48,7 @@
   unsigned long lastLEDUpdate = 0;
   uint8_t globalBrightness = RGB_BRIGHTNESS;
   
-  // LED effect variables
+  // LED effect variables with memory optimization
   enum LEDEffect {
     EFFECT_NONE,
     EFFECT_RAINBOW,
@@ -61,6 +61,42 @@
   uint8_t effectSpeed = 5;
   unsigned long effectStart = 0;
   uint16_t effectStep = 0;
+  
+  // Power management variables
+  uint16_t currentPowerUsage = 0;  // Estimated current power usage in mA
+  bool powerLimitingActive = false;
+  uint8_t thermalBrightness = 255; // Thermal limiting factor
+  
+  #if OPTIMIZE_MEMORY
+    // Gamma correction table in program memory to save RAM
+    const uint8_t PROGMEM gamma8[] = {
+      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+      0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,
+      1,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,
+      2,  3,  3,  3,  3,  3,  3,  3,  4,  4,  4,  4,  4,  5,  5,  5,
+      5,  6,  6,  6,  6,  7,  7,  7,  7,  8,  8,  8,  9,  9,  9, 10,
+     10, 10, 11, 11, 11, 12, 12, 13, 13, 13, 14, 14, 15, 15, 16, 16,
+     17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 24, 24, 25,
+     25, 26, 27, 27, 28, 29, 29, 30, 31, 32, 32, 33, 34, 35, 35, 36,
+     37, 38, 39, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 50,
+     51, 52, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 66, 67, 68,
+     69, 70, 72, 73, 74, 75, 77, 78, 79, 81, 82, 83, 85, 86, 87, 89,
+     90, 92, 93, 95, 96, 98, 99,101,102,104,105,107,109,110,112,114,
+    115,117,119,120,122,124,126,127,129,131,133,135,137,138,140,142,
+    144,146,148,150,152,154,156,158,160,162,164,167,169,171,173,175,
+    177,180,182,184,186,189,191,193,196,198,200,203,205,208,210,213,
+    215,218,220,223,225,228,231,233,236,239,241,244,247,249,252,255 };
+  
+    // Compress effect state to save memory
+    struct CompactEffectState {
+      uint8_t effectType : 4;    // 16 possible effects (0-15)
+      uint8_t intensity : 4;     // 16 intensity levels (0-15)
+      uint16_t phase;            // Current animation phase
+      uint8_t params[4];         // Effect-specific parameters
+    };
+    
+    CompactEffectState effectState;
+  #endif
 #endif
 
 // Configuration structure for EEPROM storage
@@ -400,13 +436,13 @@ void updateLEDs() {
   unsigned long currentTime = millis();
   bool needsUpdate = false;
   
-  // Handle LED effects
+  // Handle LED effects with optimized timing
   if (currentEffect != EFFECT_NONE) {
     applyLEDEffect();
     needsUpdate = true;
   }
   
-  // Update individual LED animations
+  // Update individual LED animations with optimized interpolation
   for (int i = 0; i < currentConfig.buttonCount; i++) {
     if (ledStates[i].animating) {
       unsigned long elapsed = currentTime - ledStates[i].animationStart;
@@ -418,18 +454,44 @@ void updateLEDs() {
         ledStates[i].b = ledStates[i].targetB;
         ledStates[i].animating = false;
       } else {
-        // Interpolate colors
-        float progress = (float)elapsed / ledStates[i].animationDuration;
-        ledStates[i].r = lerp(ledStates[i].r, ledStates[i].targetR, progress);
-        ledStates[i].g = lerp(ledStates[i].g, ledStates[i].targetG, progress);
-        ledStates[i].b = lerp(ledStates[i].b, ledStates[i].targetB, progress);
+        // Optimized interpolation using fixed-point arithmetic
+        uint8_t progress = (elapsed * 255) / ledStates[i].animationDuration;
+        
+        #if OPTIMIZE_MEMORY
+          ledStates[i].r = optimizedLerp(ledStates[i].r, ledStates[i].targetR, progress);
+          ledStates[i].g = optimizedLerp(ledStates[i].g, ledStates[i].targetG, progress);
+          ledStates[i].b = optimizedLerp(ledStates[i].b, ledStates[i].targetB, progress);
+        #else
+          float t = (float)elapsed / ledStates[i].animationDuration;
+          ledStates[i].r = lerp(ledStates[i].r, ledStates[i].targetR, t);
+          ledStates[i].g = lerp(ledStates[i].g, ledStates[i].targetG, t);
+          ledStates[i].b = lerp(ledStates[i].b, ledStates[i].targetB, t);
+        #endif
       }
       
-      strip.setPixelColor(i, strip.Color(ledStates[i].r, ledStates[i].g, ledStates[i].b));
+      // Apply gamma correction if enabled and set pixel color
+      #if OPTIMIZE_MEMORY
+        strip.setPixelColor(i, strip.Color(
+          applyGammaCorrection(ledStates[i].r),
+          applyGammaCorrection(ledStates[i].g), 
+          applyGammaCorrection(ledStates[i].b)
+        ));
+      #else
+        strip.setPixelColor(i, strip.Color(ledStates[i].r, ledStates[i].g, ledStates[i].b));
+      #endif
+      
       needsUpdate = true;
     }
   }
   
+  // Check power limits before updating
+  #if ENABLE_POWER_LIMITING
+    if (needsUpdate) {
+      checkPowerLimits();
+    }
+  #endif
+  
+  // Update the LED strip if changes were made
   if (needsUpdate) {
     strip.show();
   }
@@ -471,14 +533,91 @@ void clearAllLEDs() {
 void setBrightness(uint8_t brightness) {
   if (!currentConfig.ledEnabled) return;
   
+  // Apply thermal limiting if active
+  if (thermalBrightness < 255) {
+    brightness = (brightness * thermalBrightness) / 255;
+  }
+  
   globalBrightness = brightness;
   currentConfig.ledBrightness = brightness;
   strip.setBrightness(brightness);
+  
+  // Check power limits after brightness change
+  #if ENABLE_POWER_LIMITING
+    checkPowerLimits();
+  #endif
+  
   strip.show();
   
   Serial.print("LED brightness set to: ");
   Serial.println(brightness);
 }
+
+#if ENABLE_POWER_LIMITING
+/**
+ * Check power limits and reduce brightness if necessary
+ */
+void checkPowerLimits() {
+  currentPowerUsage = calculateLEDPowerUsage();
+  
+  if (currentPowerUsage > MAX_USB_POWER) {
+    // Calculate safe brightness level
+    uint8_t safeBrightness = (MAX_USB_POWER * globalBrightness) / currentPowerUsage;
+    
+    if (safeBrightness < globalBrightness) {
+      powerLimitingActive = true;
+      strip.setBrightness(safeBrightness);
+      strip.show();
+      
+      Serial.print("POWER:LIMITING:Active, reduced brightness to ");
+      Serial.println(safeBrightness);
+    }
+  } else {
+    if (powerLimitingActive) {
+      powerLimitingActive = false;
+      Serial.println("POWER:LIMITING:Inactive");
+    }
+  }
+}
+
+/**
+ * Calculate estimated LED power usage in mA
+ */
+uint16_t calculateLEDPowerUsage() {
+  uint32_t totalPower = 0;
+  
+  for (int i = 0; i < currentConfig.buttonCount; i++) {
+    // Calculate power for each LED based on current color values
+    uint32_t ledPower = ledStates[i].r + ledStates[i].g + ledStates[i].b;
+    
+    // Apply brightness scaling
+    ledPower = (ledPower * globalBrightness) / 255;
+    
+    totalPower += ledPower;
+  }
+  
+  // Convert to mA (approximate calculation)
+  return (totalPower * LED_CURRENT_PER_LEVEL) / 1000;
+}
+#endif
+
+#if OPTIMIZE_MEMORY
+/**
+ * Apply gamma correction using program memory lookup table
+ */
+uint8_t applyGammaCorrection(uint8_t value) {
+  return pgm_read_byte(&gamma8[value]);
+}
+
+/**
+ * Optimized color interpolation for smooth animations
+ */
+uint8_t optimizedLerp(uint8_t start, uint8_t end, uint8_t t) {
+  // Use fixed-point arithmetic to avoid floating point operations
+  uint16_t result = start + (((uint16_t)(end - start) * t) >> 8);
+  return (uint8_t)result;
+}
+#endif
 
 void applyLEDEffect() {
   unsigned long currentTime = millis();
@@ -501,17 +640,39 @@ void applyLEDEffect() {
 }
 
 void applyRainbowEffect(unsigned long elapsed) {
-  uint8_t hue = (elapsed / (256 - effectSpeed * 25)) % 256;
+  // Optimized rainbow effect using fixed-point arithmetic
+  uint16_t baseHue = (elapsed / (256 - effectSpeed * 20)) & 0xFF;
   
   for (int i = 0; i < currentConfig.buttonCount; i++) {
-    uint32_t color = wheel((hue + i * 256 / currentConfig.buttonCount) & 255);
+    uint8_t pixelHue = baseHue + (i * 256 / currentConfig.buttonCount);
+    uint32_t color = wheelOptimized(pixelHue);
     strip.setPixelColor(i, color);
   }
 }
 
 void applyBreatheEffect(unsigned long elapsed) {
-  float breath = (sin((elapsed * effectSpeed) / 1000.0) + 1.0) / 2.0;
-  uint8_t brightness = (uint8_t)(breath * 255);
+  // Optimized breathing effect using lookup table for sine approximation
+  static const uint8_t PROGMEM breathTable[] = {
+    128, 131, 134, 137, 140, 143, 146, 149, 152, 155, 158, 162, 165, 167, 170, 173,
+    176, 179, 182, 185, 188, 190, 193, 196, 198, 201, 203, 206, 208, 211, 213, 215,
+    218, 220, 222, 224, 226, 228, 230, 232, 234, 235, 237, 238, 240, 241, 243, 244,
+    245, 246, 248, 249, 250, 250, 251, 252, 253, 253, 254, 254, 254, 255, 255, 255,
+    255, 255, 255, 255, 254, 254, 254, 253, 253, 252, 251, 250, 250, 249, 248, 246,
+    245, 244, 243, 241, 240, 238, 237, 235, 234, 232, 230, 228, 226, 224, 222, 220,
+    218, 215, 213, 211, 208, 206, 203, 201, 198, 196, 193, 190, 188, 185, 182, 179,
+    176, 173, 170, 167, 165, 162, 158, 155, 152, 149, 146, 143, 140, 137, 134, 131,
+    128, 124, 121, 118, 115, 112, 109, 106, 103, 100, 97, 93, 90, 88, 85, 82,
+    79, 76, 73, 70, 67, 65, 62, 59, 57, 54, 52, 49, 47, 44, 42, 40,
+    37, 35, 33, 31, 29, 27, 25, 23, 21, 20, 18, 17, 15, 14, 12, 11,
+    10, 9, 7, 6, 5, 5, 4, 3, 2, 2, 1, 1, 1, 0, 0, 0,
+    0, 0, 0, 0, 1, 1, 1, 2, 2, 3, 4, 5, 5, 6, 7, 9,
+    10, 11, 12, 14, 15, 17, 18, 20, 21, 23, 25, 27, 29, 31, 33, 35,
+    37, 40, 42, 44, 47, 49, 52, 54, 57, 59, 62, 65, 67, 70, 73, 76,
+    79, 82, 85, 88, 90, 93, 97, 100, 103, 106, 109, 112, 115, 118, 121, 124
+  };
+  
+  uint8_t index = ((elapsed * effectSpeed) / 20) % 256;
+  uint8_t brightness = pgm_read_byte(&breathTable[index]);
   
   for (int i = 0; i < currentConfig.buttonCount; i++) {
     strip.setPixelColor(i, strip.Color(
@@ -523,9 +684,13 @@ void applyBreatheEffect(unsigned long elapsed) {
 }
 
 void applyWaveEffect(unsigned long elapsed) {
+  // Optimized wave effect
+  uint8_t waveSpeed = effectSpeed * 2;
+  
   for (int i = 0; i < currentConfig.buttonCount; i++) {
-    float wave = sin((elapsed * effectSpeed / 1000.0) + (i * 0.5)) * 0.5 + 0.5;
-    uint8_t brightness = (uint8_t)(wave * 255);
+    // Use simple sine approximation for performance
+    uint8_t phase = ((elapsed * waveSpeed) / 20 + (i * 32)) & 0xFF;
+    uint8_t brightness = (phase < 128) ? phase * 2 : (255 - phase) * 2;
     
     strip.setPixelColor(i, strip.Color(
       (RGB_DEFAULT_R * brightness) / 255,
@@ -536,10 +701,45 @@ void applyWaveEffect(unsigned long elapsed) {
 }
 
 void applyPressRippleEffect(unsigned long elapsed) {
-  // This effect is triggered by button presses - placeholder for now
-  if (elapsed > 2000) { // Effect duration
+  // Improved ripple effect that can be triggered by button presses
+  uint16_t rippleDuration = 2000; // 2 second duration
+  
+  if (elapsed > rippleDuration) {
     currentEffect = EFFECT_NONE;
+    return;
   }
+  
+  // Simple expanding circle effect from center
+  uint8_t centerButton = currentConfig.buttonCount / 2;
+  float progress = (float)elapsed / rippleDuration;
+  uint8_t rippleRadius = progress * (currentConfig.buttonCount / 2);
+  
+  for (int i = 0; i < currentConfig.buttonCount; i++) {
+    int distance = abs(i - centerButton);
+    
+    if (distance <= rippleRadius && distance >= rippleRadius - 1) {
+      // LED is at the ripple edge - bright color
+      uint8_t intensity = 255 - (progress * 255);
+      strip.setPixelColor(i, strip.Color(intensity, intensity / 2, 0));
+    } else {
+      // Fade to default
+      strip.setPixelColor(i, strip.Color(RGB_DEFAULT_R / 4, RGB_DEFAULT_G / 4, RGB_DEFAULT_B / 4));
+    }
+  }
+}
+
+uint32_t wheelOptimized(byte wheelPos) {
+  // Optimized color wheel function using fixed-point arithmetic
+  wheelPos = 255 - wheelPos;
+  if (wheelPos < 85) {
+    return strip.Color(255 - wheelPos * 3, 0, wheelPos * 3);
+  }
+  if (wheelPos < 170) {
+    wheelPos -= 85;
+    return strip.Color(0, wheelPos * 3, 255 - wheelPos * 3);
+  }
+  wheelPos -= 170;
+  return strip.Color(wheelPos * 3, 255 - wheelPos * 3, 0);
 }
 
 uint32_t wheel(byte wheelPos) {
@@ -665,101 +865,323 @@ void handleConfigCommand(String command) {
 
 #if RGB_LED_ENABLED
 void handleLEDCommand(String command) {
-  // LED command formats:
-  // LED:<button_id>:<r>:<g>:<b> - Set specific button color (button_id is 1-indexed)
+  // Enhanced LED command formats from requirements document:
+  // LED:SET:<button_id>:<r>:<g>:<b> - Set specific button color (button_id is 1-indexed)
+  // LED:BATCH:<count>:<data> - Set multiple buttons efficiently
+  // LED:EFFECT:<effect_id>:<params> - Trigger lighting effect
+  // LED:BRIGHTNESS:<level> - Global brightness 0-255
+  // LED:POWER:<on|off> - LED power control
+  // LED:STATUS - Get LED system status
+  // LED:RESET - Reset all LEDs to default
+  // 
+  // Legacy compatibility:
+  // LED:<button_id>:<r>:<g>:<b> - Set specific button color (backward compatibility)
   // LED:ALL:<r>:<g>:<b> - Set all buttons to same color
   // LED:CLEAR - Turn off all LEDs
-  // LED:EFFECT:<effect_name>:<speed> - Start LED effect
-  // LED:BRIGHTNESS:<0-255> - Set overall brightness
   
-  if (command.startsWith("LED:") && currentConfig.ledEnabled) {
-    int firstColon = command.indexOf(':', 4);
-    if (firstColon == -1) {
-      Serial.println("ERROR:Invalid LED command format");
-      return;
+  if (!command.startsWith("LED:")) {
+    Serial.println("ERROR:LED:INVALID_COMMAND:Not an LED command");
+    return;
+  }
+  
+  if (!currentConfig.ledEnabled) {
+    Serial.println("ERROR:LED:DISABLED:LEDs are disabled");
+    return;
+  }
+  
+  // Parse command structure
+  int firstColon = command.indexOf(':', 4);
+  if (firstColon == -1) {
+    Serial.println("ERROR:LED:PARSE_ERROR:Invalid command format");
+    return;
+  }
+  
+  String subCommand = command.substring(4, firstColon);
+  String params = (firstColon < command.length() - 1) ? command.substring(firstColon + 1) : "";
+  
+  // Handle new protocol commands
+  if (subCommand == "SET") {
+    handleLEDSetCommand(params);
+  }
+  else if (subCommand == "BATCH") {
+    handleLEDBatchCommand(params);
+  }
+  else if (subCommand == "EFFECT") {
+    handleLEDEffectCommand(params);
+  }
+  else if (subCommand == "BRIGHTNESS") {
+    handleLEDBrightnessCommand(params);
+  }
+  else if (subCommand == "POWER") {
+    handleLEDPowerCommand(params);
+  }
+  else if (subCommand == "STATUS") {
+    handleLEDStatusCommand();
+  }
+  else if (subCommand == "RESET") {
+    handleLEDResetCommand();
+  }
+  // Legacy compatibility commands
+  else if (subCommand == "CLEAR") {
+    clearAllLEDs();
+    Serial.println("LED:ACK:CLEARED");
+  }
+  else if (subCommand == "ALL") {
+    // Parse RGB values: ALL:R:G:B
+    int r, g, b;
+    if (parseRGBValues(params, r, g, b)) {
+      setAllLEDs(r, g, b, true);
+      Serial.print("LED:ACK:ALL:");
+      Serial.print(r); Serial.print(":");
+      Serial.print(g); Serial.print(":");
+      Serial.println(b);
+    } else {
+      Serial.println("ERROR:LED:INVALID_RGB:Invalid RGB values");
     }
-    
-    String subCommand = command.substring(4, firstColon);
-    String params = command.substring(firstColon + 1);
-    
-    if (subCommand == "CLEAR") {
-      clearAllLEDs();
-      Serial.println("LED:CLEARED");
-    }
-    else if (subCommand == "BRIGHTNESS") {
-      int brightness = params.toInt();
-      if (brightness >= 0 && brightness <= 255) {
-        setBrightness(brightness);
-        Serial.print("LED:BRIGHTNESS:");
-        Serial.println(brightness);
-      } else {
-        Serial.println("ERROR:Brightness must be 0-255");
-      }
-    }
-    else if (subCommand == "ALL") {
-      // Parse RGB values: ALL:R:G:B
+  }
+  else {
+    // Check if it's a direct button command (legacy format)
+    int buttonId = subCommand.toInt();
+    if (buttonId >= 1 && buttonId <= currentConfig.buttonCount) {
       int r, g, b;
       if (parseRGBValues(params, r, g, b)) {
-        setAllLEDs(r, g, b, true);
-        Serial.print("LED:ALL:");
+        setLEDColor(buttonId - 1, r, g, b, true); // Convert to 0-indexed
+        Serial.print("LED:ACK:");
+        Serial.print(buttonId);
+        Serial.print(":");
         Serial.print(r); Serial.print(":");
         Serial.print(g); Serial.print(":");
         Serial.println(b);
       } else {
-        Serial.println("ERROR:Invalid RGB values");
+        Serial.println("ERROR:LED:INVALID_RGB:Invalid RGB values");
       }
+    } else {
+      Serial.println("ERROR:LED:UNKNOWN_COMMAND:Unknown LED command");
     }
-    else if (subCommand == "EFFECT") {
-      // Parse effect: EFFECT:name:speed
-      int colonPos = params.indexOf(':');
-      if (colonPos > 0) {
-        String effectName = params.substring(0, colonPos);
-        int speed = params.substring(colonPos + 1).toInt();
-        
-        LEDEffect effect = EFFECT_NONE;
-        if (effectName == "RAINBOW") effect = EFFECT_RAINBOW;
-        else if (effectName == "BREATHE") effect = EFFECT_BREATHE;
-        else if (effectName == "WAVE") effect = EFFECT_WAVE;
-        else if (effectName == "RIPPLE") effect = EFFECT_PRESS_RIPPLE;
-        
-        if (effect != EFFECT_NONE && speed >= 1 && speed <= 10) {
-          startLEDEffect(effect, speed);
-          Serial.print("LED:EFFECT:");
-          Serial.print(effectName);
-          Serial.print(":");
-          Serial.println(speed);
-        } else {
-          Serial.println("ERROR:Invalid effect name or speed (1-10)");
-        }
-      } else {
-        Serial.println("ERROR:Invalid effect command format");
-      }
-    }
-    else {
-      // Individual button: <button_id>:R:G:B
-      int buttonId = subCommand.toInt();
-      if (buttonId >= 1 && buttonId <= currentConfig.buttonCount) {
-        int r, g, b;
-        if (parseRGBValues(params, r, g, b)) {
-          setLEDColor(buttonId - 1, r, g, b, true); // Convert to 0-indexed
-          Serial.print("LED:");
-          Serial.print(buttonId);
-          Serial.print(":");
-          Serial.print(r); Serial.print(":");
-          Serial.print(g); Serial.print(":");
-          Serial.println(b);
-        } else {
-          Serial.println("ERROR:Invalid RGB values");
-        }
-      } else {
-        Serial.println("ERROR:Invalid button ID");
-      }
-    }
-  } else if (!currentConfig.ledEnabled) {
-    Serial.println("ERROR:LEDs are disabled");
-  } else {
-    Serial.println("ERROR:Invalid LED command");
   }
+}
+
+void handleLEDSetCommand(String params) {
+  // Format: SET:<button_id>:<r>:<g>:<b>
+  int colonPos1 = params.indexOf(':');
+  if (colonPos1 == -1) {
+    Serial.println("ERROR:LED:SET:Missing button ID");
+    return;
+  }
+  
+  int buttonId = params.substring(0, colonPos1).toInt();
+  if (buttonId < 1 || buttonId > currentConfig.buttonCount) {
+    Serial.print("ERROR:LED:SET:Invalid button ID (1-");
+    Serial.print(currentConfig.buttonCount);
+    Serial.println(" allowed)");
+    return;
+  }
+  
+  String rgbParams = params.substring(colonPos1 + 1);
+  int r, g, b;
+  if (parseRGBValues(rgbParams, r, g, b)) {
+    setLEDColor(buttonId - 1, r, g, b, true); // Convert to 0-indexed
+    Serial.print("LED:ACK:SET:");
+    Serial.print(buttonId);
+    Serial.print(":");
+    Serial.print(r); Serial.print(":");
+    Serial.print(g); Serial.print(":");
+    Serial.println(b);
+  } else {
+    Serial.println("ERROR:LED:SET:Invalid RGB values");
+  }
+}
+
+void handleLEDBatchCommand(String params) {
+  // Format: BATCH:<count>:<r1>:<g1>:<b1>:<r2>:<g2>:<b2>:...
+  int colonPos = params.indexOf(':');
+  if (colonPos == -1) {
+    Serial.println("ERROR:LED:BATCH:Missing count parameter");
+    return;
+  }
+  
+  int count = params.substring(0, colonPos).toInt();
+  if (count <= 0 || count > currentConfig.buttonCount) {
+    Serial.println("ERROR:LED:BATCH:Invalid count parameter");
+    return;
+  }
+  
+  String dataParams = params.substring(colonPos + 1);
+  
+  // Count expected parameters (count * 3 for RGB values)
+  int expectedParams = count * 3;
+  int actualParams = 1; // Start with 1 for the first value
+  for (int i = 0; i < dataParams.length(); i++) {
+    if (dataParams.charAt(i) == ':') actualParams++;
+  }
+  
+  if (actualParams != expectedParams) {
+    Serial.print("ERROR:LED:BATCH:Expected ");
+    Serial.print(expectedParams);
+    Serial.print(" parameters, got ");
+    Serial.println(actualParams);
+    return;
+  }
+  
+  // Parse and set colors in batch
+  int paramIndex = 0;
+  int buttonIndex = 0;
+  
+  while (buttonIndex < count && paramIndex < dataParams.length()) {
+    // Find next three values (R, G, B)
+    int r = 0, g = 0, b = 0;
+    
+    // Parse R value
+    int nextColon = dataParams.indexOf(':', paramIndex);
+    if (nextColon == -1 && buttonIndex == count - 1) nextColon = dataParams.length();
+    if (nextColon == -1) break;
+    
+    r = dataParams.substring(paramIndex, nextColon).toInt();
+    paramIndex = nextColon + 1;
+    
+    // Parse G value  
+    nextColon = dataParams.indexOf(':', paramIndex);
+    if (nextColon == -1 && buttonIndex == count - 1) nextColon = dataParams.length();
+    if (nextColon == -1) break;
+    
+    g = dataParams.substring(paramIndex, nextColon).toInt();
+    paramIndex = nextColon + 1;
+    
+    // Parse B value
+    nextColon = dataParams.indexOf(':', paramIndex);
+    if (nextColon == -1) nextColon = dataParams.length();
+    
+    b = dataParams.substring(paramIndex, nextColon).toInt();
+    paramIndex = nextColon + 1;
+    
+    // Validate and set color
+    if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255) {
+      setLEDColor(buttonIndex, r, g, b, false); // No animation for batch operations
+    }
+    
+    buttonIndex++;
+  }
+  
+  // Update strip once after all changes
+  strip.show();
+  
+  Serial.print("LED:ACK:BATCH:");
+  Serial.println(count);
+}
+
+void handleLEDEffectCommand(String params) {
+  // Format: EFFECT:<effect_name>:<speed>:<param1>:<param2>:...
+  int colonPos = params.indexOf(':');
+  if (colonPos == -1) {
+    Serial.println("ERROR:LED:EFFECT:Missing effect name");
+    return;
+  }
+  
+  String effectName = params.substring(0, colonPos);
+  String effectParams = params.substring(colonPos + 1);
+  
+  // Parse speed parameter
+  int speedColonPos = effectParams.indexOf(':');
+  int speed = 5; // Default speed
+  
+  if (speedColonPos > 0) {
+    speed = effectParams.substring(0, speedColonPos).toInt();
+  } else if (effectParams.length() > 0) {
+    speed = effectParams.toInt();
+  }
+  
+  if (speed < 1 || speed > 10) {
+    Serial.println("ERROR:LED:EFFECT:Speed must be 1-10");
+    return;
+  }
+  
+  LEDEffect effect = EFFECT_NONE;
+  if (effectName == "RAINBOW") effect = EFFECT_RAINBOW;
+  else if (effectName == "BREATHE") effect = EFFECT_BREATHE;  
+  else if (effectName == "WAVE") effect = EFFECT_WAVE;
+  else if (effectName == "RIPPLE") effect = EFFECT_PRESS_RIPPLE;
+  
+  if (effect != EFFECT_NONE) {
+    startLEDEffect(effect, speed);
+    Serial.print("LED:ACK:EFFECT:");
+    Serial.print(effectName);
+    Serial.print(":");
+    Serial.println(speed);
+  } else {
+    Serial.println("ERROR:LED:EFFECT:Unknown effect name");
+  }
+}
+
+void handleLEDBrightnessCommand(String params) {
+  int brightness = params.toInt();
+  if (brightness >= 0 && brightness <= 255) {
+    setBrightness(brightness);
+    Serial.print("LED:ACK:BRIGHTNESS:");
+    Serial.println(brightness);
+  } else {
+    Serial.println("ERROR:LED:BRIGHTNESS:Value must be 0-255");
+  }
+}
+
+void handleLEDPowerCommand(String params) {
+  if (params == "on" || params == "ON") {
+    currentConfig.ledEnabled = true;
+    initializeLEDs();
+    Serial.println("LED:ACK:POWER:ON");
+  } else if (params == "off" || params == "OFF") {
+    clearAllLEDs();
+    currentConfig.ledEnabled = false;
+    Serial.println("LED:ACK:POWER:OFF");
+  } else {
+    Serial.println("ERROR:LED:POWER:Use 'on' or 'off'");
+  }
+}
+
+void handleLEDStatusCommand() {
+  Serial.println("LED:STATUS:BEGIN");
+  Serial.print("LED:STATUS:ENABLED:");
+  Serial.println(currentConfig.ledEnabled ? "true" : "false");
+  Serial.print("LED:STATUS:BUTTON_COUNT:");
+  Serial.println(currentConfig.buttonCount);
+  Serial.print("LED:STATUS:BRIGHTNESS:");
+  Serial.println(globalBrightness);
+  Serial.print("LED:STATUS:CURRENT_EFFECT:");
+  Serial.println((int)currentEffect);
+  Serial.print("LED:STATUS:MEMORY_USAGE:");
+  
+  // Calculate approximate memory usage for LEDs
+  int ledMemoryUsage = (currentConfig.buttonCount * sizeof(LEDState)) + 
+                       (RGB_LED_COUNT * 3) + // Color buffer
+                       64; // Effect state overhead
+  Serial.println(ledMemoryUsage);
+  
+  Serial.println("LED:STATUS:END");
+}
+
+void handleLEDResetCommand() {
+  // Reset all LEDs to default state
+  currentEffect = EFFECT_NONE;
+  effectSpeed = 5;
+  effectStart = 0;
+  effectStep = 0;
+  
+  // Reset all LED states to default colors
+  for (int i = 0; i < currentConfig.buttonCount; i++) {
+    ledStates[i].r = RGB_DEFAULT_R;
+    ledStates[i].g = RGB_DEFAULT_G;
+    ledStates[i].b = RGB_DEFAULT_B;
+    ledStates[i].targetR = RGB_DEFAULT_R;
+    ledStates[i].targetG = RGB_DEFAULT_G;
+    ledStates[i].targetB = RGB_DEFAULT_B;
+    ledStates[i].animating = false;
+    ledStates[i].animationStart = 0;
+    ledStates[i].animationDuration = 300;
+    
+    strip.setPixelColor(i, strip.Color(RGB_DEFAULT_R, RGB_DEFAULT_G, RGB_DEFAULT_B));
+  }
+  
+  strip.show();
+  Serial.println("LED:ACK:RESET");
 }
 
 bool parseRGBValues(String rgbString, int &r, int &g, int &b) {

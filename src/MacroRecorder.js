@@ -1,10 +1,14 @@
 const { EventEmitter } = require('events');
+const FileFormatManager = require('./FileFormatManager');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * Macro Recording System for Macro Keyboard
  * 
  * Handles recording, playback, and management of macro sequences
  * Supports keyboard input capture, timing, and conditional execution
+ * Includes comprehensive import/export functionality
  */
 class MacroRecorder extends EventEmitter {
   constructor(logger, actionExecutor) {
@@ -12,6 +16,9 @@ class MacroRecorder extends EventEmitter {
     
     this.logger = logger;
     this.actionExecutor = actionExecutor;
+    
+    // Initialize file format manager
+    this.fileFormatManager = new FileFormatManager(logger);
     
     // Recording state
     this.isRecording = false;
@@ -546,12 +553,405 @@ class MacroRecorder extends EventEmitter {
   }
   
   /**
+   * Export a single sequence to file
+   */
+  async exportSequence(sequenceName, filePath, format = null) {
+    const sequenceData = this.savedSequences.get(sequenceName) || 
+                        this.sequenceTemplates.get(sequenceName);
+    
+    if (!sequenceData) {
+      throw new Error(`Sequence not found: ${sequenceName}`);
+    }
+    
+    // Don't allow export of built-in templates without explicit permission
+    if (this.sequenceTemplates.has(sequenceName) && !sequenceData.allowExport) {
+      throw new Error('Cannot export built-in template');
+    }
+    
+    return await this.fileFormatManager.exportSequence(sequenceData, filePath, format);
+  }
+  
+  /**
+   * Import a sequence from file
+   */
+  async importSequence(filePath, options = {}) {
+    const {
+      overwriteExisting = false,
+      renameOnConflict = false,
+      validateSequence = true
+    } = options;
+    
+    const result = await this.fileFormatManager.importSequence(filePath);
+    
+    if (!result.success) {
+      throw new Error('Import failed');
+    }
+    
+    const { sequenceData, metadata } = result;
+    let finalName = sequenceData.name;
+    
+    // Handle naming conflicts
+    if (this.savedSequences.has(finalName)) {
+      if (overwriteExisting) {
+        this.logger.warn(`Overwriting existing sequence: ${finalName}`);
+      } else if (renameOnConflict) {
+        finalName = this.generateUniqueName(finalName);
+        this.logger.info(`Renamed imported sequence to: ${finalName}`);
+      } else {
+        throw new Error(`Sequence already exists: ${finalName}`);
+      }
+    }
+    
+    // Add import metadata
+    const importedSequence = {
+      ...sequenceData,
+      name: finalName,
+      metadata: {
+        ...sequenceData.metadata,
+        ...metadata,
+        importedAt: new Date().toISOString()
+      }
+    };
+    
+    // Validate sequence if requested
+    if (validateSequence) {
+      this.validateImportedSequence(importedSequence);
+    }
+    
+    // Save the sequence
+    this.savedSequences.set(finalName, importedSequence);
+    
+    this.logger.info(`Imported sequence: ${finalName} from ${filePath}`);
+    this.emit('sequenceImported', { name: finalName, originalName: sequenceData.name, path: filePath });
+    
+    return {
+      success: true,
+      name: finalName,
+      originalName: sequenceData.name,
+      sequenceData: importedSequence
+    };
+  }
+  
+  /**
+   * Export multiple sequences (bulk export)
+   */
+  async exportSequences(sequenceNames, outputPath, options = {}) {
+    const sequences = {};
+    
+    // Collect sequences to export
+    for (const name of sequenceNames) {
+      const sequenceData = this.savedSequences.get(name) || this.sequenceTemplates.get(name);
+      if (sequenceData) {
+        // Skip built-in templates unless explicitly allowed
+        if (!this.sequenceTemplates.has(name) || sequenceData.allowExport) {
+          sequences[name] = sequenceData;
+        } else {
+          this.logger.warn(`Skipping built-in template: ${name}`);
+        }
+      } else {
+        this.logger.warn(`Sequence not found for export: ${name}`);
+      }
+    }
+    
+    if (Object.keys(sequences).length === 0) {
+      throw new Error('No valid sequences to export');
+    }
+    
+    return await this.fileFormatManager.exportBulk(sequences, outputPath, options);
+  }
+  
+  /**
+   * Import multiple sequences from directory or package
+   */
+  async importSequences(sourcePath, options = {}) {
+    const {
+      overwriteExisting = false,
+      createBackup = true,
+      validateSequences = true,
+      conflictResolution = 'error' // 'error', 'skip', 'rename', 'overwrite'
+    } = options;
+    
+    // Create backup if requested
+    if (createBackup) {
+      await this.createSequencesBackup();
+    }
+    
+    const importResult = await this.fileFormatManager.importBulk(sourcePath);
+    const results = [];
+    const errors = [];
+    
+    // Process each imported sequence
+    for (const result of importResult.imported) {
+      try {
+        const importOptions = {
+          overwriteExisting: overwriteExisting || conflictResolution === 'overwrite',
+          renameOnConflict: conflictResolution === 'rename',
+          validateSequence: validateSequences
+        };
+        
+        // Check for conflicts
+        if (this.savedSequences.has(result.sequenceData.name)) {
+          if (conflictResolution === 'skip') {
+            results.push({
+              name: result.sequenceData.name,
+              success: false,
+              skipped: true,
+              reason: 'Sequence already exists'
+            });
+            continue;
+          } else if (conflictResolution === 'error') {
+            throw new Error(`Sequence already exists: ${result.sequenceData.name}`);
+          }
+        }
+        
+        const sequenceResult = await this.importSequence(result.metadata.importedFrom, importOptions);
+        results.push({
+          name: sequenceResult.name,
+          originalName: sequenceResult.originalName,
+          success: true
+        });
+        
+      } catch (error) {
+        errors.push({
+          name: result.sequenceData.name,
+          error: error.message
+        });
+        this.logger.error(`Failed to import sequence ${result.sequenceData.name}: ${error.message}`);
+      }
+    }
+    
+    // Add any errors from the bulk import
+    errors.push(...importResult.errors);
+    
+    this.logger.info(`Bulk import completed: ${results.length} successful, ${errors.length} errors`);
+    this.emit('bulkImported', { 
+      successful: results.length, 
+      errors: errors.length, 
+      results, 
+      errors 
+    });
+    
+    return {
+      success: true,
+      imported: results,
+      errors,
+      count: results.length
+    };
+  }
+  
+  /**
+   * Export all sequences for current profile
+   */
+  async exportProfile(profileName, outputPath, format = 'mkb') {
+    const sequences = {};
+    
+    // Export all saved sequences (not templates)
+    this.savedSequences.forEach((sequenceData, name) => {
+      sequences[name] = sequenceData;
+    });
+    
+    if (Object.keys(sequences).length === 0) {
+      throw new Error('No sequences to export in current profile');
+    }
+    
+    const packageOptions = {
+      format,
+      includeMetadata: true,
+      createIndex: true
+    };
+    
+    // Add profile metadata
+    packageOptions.packageMetadata = {
+      name: `${profileName} Profile`,
+      description: `Macro sequences from ${profileName} profile`,
+      profile: profileName,
+      exportedAt: new Date().toISOString(),
+      sequenceCount: Object.keys(sequences).length
+    };
+    
+    return await this.fileFormatManager.exportBulk(sequences, outputPath, packageOptions);
+  }
+  
+  /**
+   * Create a backup of current sequences
+   */
+  async createSequencesBackup() {
+    const backupDir = path.join(process.cwd(), 'backups', 'sequences');
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupPath = path.join(backupDir, `backup-${timestamp}`);
+    
+    // Ensure backup directory exists
+    await this.fileFormatManager.ensureDirectoryExists(backupDir);
+    
+    const sequences = {};
+    this.savedSequences.forEach((sequenceData, name) => {
+      sequences[name] = sequenceData;
+    });
+    
+    if (Object.keys(sequences).length > 0) {
+      await this.fileFormatManager.exportBulk(sequences, backupPath, {
+        format: 'json',
+        includeMetadata: true,
+        createIndex: true
+      });
+      
+      this.logger.info(`Created backup: ${backupPath}`);
+      return backupPath;
+    }
+    
+    return null;
+  }
+  
+  /**
+   * Validate imported sequence
+   */
+  validateImportedSequence(sequenceData) {
+    // Basic structure validation
+    if (!sequenceData.sequence || !Array.isArray(sequenceData.sequence)) {
+      throw new Error('Invalid sequence: sequence array is required');
+    }
+    
+    // Validate each action
+    sequenceData.sequence.forEach((action, index) => {
+      this.validateSequenceAction(action, index);
+    });
+    
+    // Check for reasonable limits
+    if (sequenceData.sequence.length > 1000) {
+      this.logger.warn(`Large sequence imported: ${sequenceData.name} has ${sequenceData.sequence.length} actions`);
+    }
+    
+    const totalDelay = sequenceData.sequence.reduce((sum, action) => sum + (action.delay || 0), 0);
+    if (totalDelay > 300000) { // 5 minutes
+      this.logger.warn(`Long sequence imported: ${sequenceData.name} has ${totalDelay}ms total delay`);
+    }
+    
+    return true;
+  }
+  
+  /**
+   * Validate individual sequence action
+   */
+  validateSequenceAction(action, index) {
+    if (!action.type || !['keypress', 'command', 'application'].includes(action.type)) {
+      throw new Error(`Invalid action type at step ${index + 1}: ${action.type}`);
+    }
+    
+    if (!action.action || typeof action.action !== 'string') {
+      throw new Error(`Invalid action at step ${index + 1}: action must be a non-empty string`);
+    }
+    
+    if (action.delay && (typeof action.delay !== 'number' || action.delay < 0 || action.delay > 60000)) {
+      throw new Error(`Invalid delay at step ${index + 1}: must be between 0 and 60000ms`);
+    }
+    
+    return true;
+  }
+  
+  /**
+   * Generate unique name for imported sequence
+   */
+  generateUniqueName(baseName) {
+    let counter = 1;
+    let newName = `${baseName}_imported`;
+    
+    while (this.savedSequences.has(newName)) {
+      newName = `${baseName}_imported_${counter}`;
+      counter++;
+    }
+    
+    return newName;
+  }
+  
+  /**
+   * Get import/export statistics
+   */
+  getImportExportStats() {
+    return {
+      totalSequences: this.savedSequences.size,
+      templatesCount: this.sequenceTemplates.size,
+      exportableSequences: Array.from(this.savedSequences.keys()).concat(
+        Array.from(this.sequenceTemplates.entries())
+          .filter(([, data]) => data.allowExport)
+          .map(([name]) => name)
+      ),
+      supportedFormats: this.fileFormatManager.getSupportedFormats()
+    };
+  }
+  
+  /**
+   * Preview export without actually exporting
+   */
+  async previewExport(sequenceNames, format = 'mkb') {
+    const sequences = {};
+    const missing = [];
+    
+    // Collect sequences and check availability
+    for (const name of sequenceNames) {
+      const sequenceData = this.savedSequences.get(name) || this.sequenceTemplates.get(name);
+      if (sequenceData) {
+        if (!this.sequenceTemplates.has(name) || sequenceData.allowExport) {
+          sequences[name] = sequenceData;
+        } else {
+          missing.push({ name, reason: 'Built-in template not exportable' });
+        }
+      } else {
+        missing.push({ name, reason: 'Sequence not found' });
+      }
+    }
+    
+    return {
+      sequences: Object.keys(sequences).map(name => ({
+        name,
+        actionCount: sequences[name].sequence?.length || 0,
+        duration: sequences[name].metadata?.duration || 0,
+        format,
+        estimatedSize: this.estimateExportSize(sequences[name], format)
+      })),
+      missing,
+      totalSequences: Object.keys(sequences).length,
+      totalSize: Object.values(sequences).reduce((sum, seq) => sum + this.estimateExportSize(seq, format), 0)
+    };
+  }
+  
+  /**
+   * Estimate export size for a sequence
+   */
+  estimateExportSize(sequenceData, format) {
+    // Rough estimation based on format
+    const baseSize = JSON.stringify(sequenceData).length;
+    
+    switch (format.toLowerCase()) {
+      case 'json':
+        return Math.round(baseSize * 1.2); // JSON formatting
+      case 'yaml':
+      case 'yml':
+      case 'mkb':
+        return Math.round(baseSize * 1.5); // YAML is more verbose
+      default:
+        return baseSize;
+    }
+  }
+  
+  /**
+   * Get file format manager instance
+   */
+  getFileFormatManager() {
+    return this.fileFormatManager;
+  }
+  
+  /**
    * Cleanup resources
    */
   cleanup() {
     this.stopPlayback();
     if (this.isRecording) {
       this.cancelRecording();
+    }
+    
+    // Cleanup file format manager
+    if (this.fileFormatManager) {
+      this.fileFormatManager.cleanup();
     }
     
     this.removeAllListeners();

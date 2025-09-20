@@ -522,6 +522,7 @@ class LogManager extends EventEmitter {
       const stats = {
         totalSize: 0,
         fileCount: 0,
+        totalLogs: 0,
         logCounts: { debug: 0, info: 0, warn: 0, error: 0 },
         oldestLog: null,
         newestLog: null
@@ -549,6 +550,8 @@ class LogManager extends EventEmitter {
       
       // Count log levels from recent logs
       const recentLogs = this.getRecentLogs(1000);
+      stats.totalLogs = recentLogs.length;
+      
       for (const log of recentLogs) {
         if (stats.logCounts.hasOwnProperty(log.level)) {
           stats.logCounts[log.level]++;
@@ -558,7 +561,44 @@ class LogManager extends EventEmitter {
       return stats;
     } catch (error) {
       this.error('Failed to get log statistics', error);
-      return null;
+      return {
+        totalSize: 0,
+        fileCount: 0,
+        totalLogs: 0,
+        logCounts: { debug: 0, info: 0, warn: 0, error: 0 },
+        oldestLog: null,
+        newestLog: null
+      };
+    }
+  }
+
+  /**
+   * Get log statistics (alias for backward compatibility)
+   */
+  getStatistics() {
+    return this.getLogStatistics();
+  }
+
+  /**
+   * Rotate logs if needed based on file size
+   */
+  rotateLogsIfNeeded() {
+    try {
+      const logFiles = fs.readdirSync(this.config.logDir);
+      
+      for (const file of logFiles) {
+        if (file.endsWith('.log')) {
+          const filePath = path.join(this.config.logDir, file);
+          const stats = fs.statSync(filePath);
+          
+          if (stats.size > this.config.maxFileSize) {
+            this.rotateLogs();
+            break;
+          }
+        }
+      }
+    } catch (error) {
+      this.error('Failed to check log rotation', error);
     }
   }
 
@@ -604,6 +644,67 @@ class LogManager extends EventEmitter {
     } catch (error) {
       this.error('Failed to export logs', error);
       return null;
+    }
+  }
+
+  /**
+   * Get underlying winston logger instance
+   */
+  getLogger() {
+    return this.logger;
+  }
+
+  /**
+   * Check if logger is initialized
+   */
+  isInitialized() {
+    return this.logger !== null;
+  }
+
+  /**
+   * Log with structured data - alias for log method
+   */
+  logWithData(level, message, data = {}, component = null) {
+    return this.log(level, message, data, component);
+  }
+
+  /**
+   * Clear all log files
+   */
+  async clearLogs() {
+    try {
+      const logFiles = fs.readdirSync(this.config.logDir);
+      
+      for (const file of logFiles) {
+        if (file.endsWith('.log') || file.includes('.log.')) {
+          const filePath = path.join(this.config.logDir, file);
+          fs.unlinkSync(filePath);
+        }
+      }
+      
+      // Initialize logs array if it doesn't exist
+      if (!this.logs) {
+        this.logs = [];
+      }
+      this.logs.length = 0;
+      
+      this.info('All logs cleared');
+    } catch (error) {
+      this.error('Failed to clear logs', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Override emit to handle errors gracefully
+   */
+  emit(event, ...args) {
+    try {
+      return super.emit(event, ...args);
+    } catch (error) {
+      // Log the error but don't throw it
+      console.error(`Event listener error in event '${event}':`, error);
+      return false;
     }
   }
 

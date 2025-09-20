@@ -1,0 +1,83 @@
+{
+  "id": "meeting_manager",
+  "name": "Meeting Manager",
+  "description": "Efficiently join meetings, manage audio/video, and handle screen sharing",
+  "category": "productivity",
+  "author": "MacroKeyboard Team",
+  "version": "1.0.0",
+  "tags": ["meetings", "zoom", "teams", "productivity", "video-calls"],
+  "parameters": [
+    {
+      "name": "meeting_platform",
+      "type": "select",
+      "description": "Your primary meeting platform",
+      "options": ["zoom", "teams", "webex", "google_meet"],
+      "default": "zoom",
+      "required": true
+    },
+    {
+      "name": "default_mute_state",
+      "type": "boolean",
+      "description": "Join meetings muted by default",
+      "default": true
+    },
+    {
+      "name": "camera_enabled",
+      "type": "boolean",
+      "description": "Enable camera when joining",
+      "default": false
+    }
+  ],
+  "sequence": [
+    {
+      "type": "application",
+      "action": "{{meeting_platform}}",
+      "delay": 2000,
+      "description": "Open meeting application"
+    },
+    {
+      "type": "keypress",
+      "action": "{{meeting_platform === 'zoom' ? 'cmd+j' : 'ctrl+shift+c'}}",
+      "delay": 1000,
+      "description": "Join meeting shortcut"
+    },
+    {
+      "type": "delay",
+      "delay": 3000,
+      "description": "Wait for meeting to load"
+    },
+    {
+      "type": "keypress",
+      "action": "{{meeting_platform === 'zoom' ? 'cmd+shift+a' : 'ctrl+shift+m'}}",
+      "delay": 500,
+      "description": "Toggle mute based on preference",
+      "condition": {
+        "parameter": "default_mute_state",
+        "operator": "equals",
+        "value": true
+      }
+    },
+    {
+      "type": "keypress",
+      "action": "{{meeting_platform === 'zoom' ? 'cmd+shift+v' : 'ctrl+shift+o'}}",
+      "delay": 500,
+      "description": "Toggle video based on preference",
+      "condition": {
+        "parameter": "camera_enabled",
+        "operator": "equals",
+        "value": false
+      }
+    },
+    {
+      "type": "keypress",
+      "action": "{{meeting_platform === 'zoom' ? 'cmd+shift+s' : 'ctrl+shift+e'}}",
+      "delay": 1000,
+      "description": "Prepare screen share (don't start yet)"
+    }
+  ],
+  "requirements": {
+    "platforms": ["windows", "macos", "linux"],
+    "applications": ["Zoom", "Microsoft Teams", "Cisco Webex", "Google Meet"],
+    "hardware": ["basic"]
+  }
+}

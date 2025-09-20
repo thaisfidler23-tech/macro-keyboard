@@ -87,9 +87,26 @@
 #define RGB_LED_COUNT MAX_BUTTONS // One LED per button (matches button count)
 #define RGB_BRIGHTNESS 128       // Default brightness (0-255)
 
-// LED update timing
-#define LED_UPDATE_INTERVAL 50   // ms - How often to update LED animations
+// LED update timing and performance optimization
+#define LED_UPDATE_INTERVAL 16   // ms - 60fps target (1000/60 ≈ 16ms)
 #define LED_FADE_SPEED 5        // Speed of fade animations (1-10)
+#define ANIMATION_FPS 60        // Target animation frame rate
+#define EFFECT_UPDATE_INTERVAL (1000 / ANIMATION_FPS) // 16ms for 60fps
+
+// Memory optimization for Arduino Micro (2KB RAM)
+#define LED_BUFFER_SIZE (MAX_BUTTONS * 3)  // RGB values buffer
+#define EFFECT_BUFFER_SIZE 64              // Effect state data buffer
+#define OPTIMIZE_MEMORY 1                  // Enable memory optimization features
+
+// Power management and safety
+#define MAX_USB_POWER 400        // mA - Conservative USB 2.0 limit (500mA - overhead)
+#define LED_CURRENT_PER_LEVEL 1  // mA per brightness level per LED (approximate)
+#define ENABLE_POWER_LIMITING 1  // Enable automatic power limiting
+#define THERMAL_PROTECTION 1     // Enable thermal protection (placeholder)
+
+// LED timing optimization
+#define LED_STRIP_SPEED NEO_KHZ800     // WS2812B speed
+#define LED_COLOR_ORDER NEO_GRB        // WS2812B color order
 
 // Default LED colors (RGB values 0-255)
 #define RGB_DEFAULT_R 50

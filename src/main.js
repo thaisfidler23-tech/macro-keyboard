@@ -18,6 +18,7 @@ const ProfileSwitcher = require('./ProfileSwitcher');
 const LEDController = require('./LEDController');
 const SystemIntegrationManager = require('./SystemIntegrationManager');
 const VoiceRecognitionManager = require('./VoiceRecognitionManager');
+const SecurityManager = require('./SecurityManager');
 
 class MacroKeyboardApp {
   constructor() {
@@ -40,6 +41,7 @@ class MacroKeyboardApp {
     this.ledController = null; // Will be initialized after serialManager
     this.systemIntegrationManager = null; // Will be initialized after logger
     this.voiceRecognitionManager = null; // Will be initialized after logger
+    this.securityManager = null; // Will be initialized after logger
     this.serialPort = null; // Deprecated - will be removed
     this.isDev = process.argv.includes('--dev');
     
@@ -610,6 +612,9 @@ class MacroKeyboardApp {
       // Initialize voice recognition manager for hands-free operation
       this.voiceRecognitionManager = new VoiceRecognitionManager(this.logger);
       await this.voiceRecognitionManager.initialize();
+      
+      // Initialize security manager for policy enforcement
+      this.securityManager = new SecurityManager(this.logger, this.config?.security || {});
       
       // Set up system integration event listeners
       this.setupSystemIntegrationListeners();
@@ -2441,6 +2446,103 @@ class MacroKeyboardApp {
         };
       } catch (error) {
         this.logger.error('Error starting voice training:', error);
+        throw error;
+      }
+    });
+
+    // Security Policy IPC handlers
+    ipcMain.handle('get-security-configuration', async () => {
+      try {
+        if (!this.securityManager) {
+          throw new Error('Security manager not available');
+        }
+        return this.securityManager.getSecurityConfiguration();
+      } catch (error) {
+        this.logger.error('Error getting security configuration:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('update-security-policy', async (event, newPolicy) => {
+      try {
+        if (!this.securityManager) {
+          throw new Error('Security manager not available');
+        }
+        return this.securityManager.updateSecurityPolicy(newPolicy);
+      } catch (error) {
+        this.logger.error('Error updating security policy:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-security-stats', async () => {
+      try {
+        if (!this.securityManager) {
+          throw new Error('Security manager not available');
+        }
+        return this.securityManager.getSecurityStats();
+      } catch (error) {
+        this.logger.error('Error getting security stats:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-security-audit-events', async (event, options = {}) => {
+      try {
+        if (!this.securityManager) {
+          throw new Error('Security manager not available');
+        }
+        return this.securityManager.getSecurityAuditEvents(options);
+      } catch (error) {
+        this.logger.error('Error getting security audit events:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-user-roles', async () => {
+      try {
+        if (!this.securityManager) {
+          throw new Error('Security manager not available');
+        }
+        return this.securityManager.getUserRoles();
+      } catch (error) {
+        this.logger.error('Error getting user roles:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('update-user-role', async (event, roleName, roleConfig) => {
+      try {
+        if (!this.securityManager) {
+          throw new Error('Security manager not available');
+        }
+        return this.securityManager.updateUserRole(roleName, roleConfig);
+      } catch (error) {
+        this.logger.error('Error updating user role:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('test-security-policy', async (event, testActions = []) => {
+      try {
+        if (!this.securityManager) {
+          throw new Error('Security manager not available');
+        }
+        return this.securityManager.testSecurityPolicy(testActions);
+      } catch (error) {
+        this.logger.error('Error testing security policy:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('validate-security-action', async (event, actionConfig, context = 'ui-test') => {
+      try {
+        if (!this.securityManager) {
+          throw new Error('Security manager not available');
+        }
+        return this.securityManager.validateAction(actionConfig, context);
+      } catch (error) {
+        this.logger.error('Error validating security action:', error);
         throw error;
       }
     });

@@ -198,8 +198,8 @@ describe('PerformanceMonitor', () => {
       
       expect(stopSpy).toHaveBeenCalled();
       
-      // Fast-forward the timeout
-      jest.runAllTimers();
+      // Fast-forward the timeout with limited advancement
+      jest.advanceTimersByTime(2000);
       expect(startSpy).toHaveBeenCalledTimes(2); // Initial + restart
     });
   });

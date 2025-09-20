@@ -35,12 +35,19 @@
     "sharp": "^0.33.1"
   },
   "dependencies": {
+    "@azure/msal-node": "^3.7.4",
+    "@microsoft/microsoft-graph-client": "^3.0.7",
     "@serialport/parser-readline": "^12.0.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
+    "caldav-adapter": "^8.2.11",
     "electron-updater": "^6.6.2",
+    "googleapis": "^160.0.0",
     "js-yaml": "^4.1.0",
+    "luxon": "^3.7.2",
+    "node-cron": "^4.2.1",
     "robotjs": "^0.6.0",
+    "semver": "^7.7.2",
     "serialport": "^12.0.0",
     "winston": "^3.11.0"
   },

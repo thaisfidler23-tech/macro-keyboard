@@ -3,6 +3,7 @@
  * 
  * Provides interface for recording, editing, and managing macro sequences
  * Integrates with MacroRecorder backend for sequence operations
+ * Includes comprehensive import/export functionality
  */
 class MacroRecorderUI {
   constructor() {
@@ -20,9 +21,13 @@ class MacroRecorderUI {
     this.sequenceEditor = null;
     this.playbackProgress = null;
     
+    // Import/Export Dialog
+    this.importExportDialog = null;
+    
     this.initializeUI();
     this.setupEventListeners();
     this.loadSavedSequences();
+    this.initializeImportExportDialog();
   }
   
   /**
@@ -84,10 +89,12 @@ class MacroRecorderUI {
             <button class="refresh-sequences-btn">Refresh</button>
             <button class="import-sequence-btn">Import</button>
             <button class="export-sequences-btn">Export All</button>
+            <button class="export-selected-btn">Export Selected</button>
           </div>
           
           <div class="sequence-list">
             <div class="sequence-list-header">
+              <input type="checkbox" class="select-all-sequences" title="Select All">
               <span class="col-name">Name</span>
               <span class="col-type">Type</span>
               <span class="col-actions">Actions</span>
@@ -210,6 +217,15 @@ class MacroRecorderUI {
     
     this.container.querySelector('.export-sequences-btn').addEventListener('click', () => {
       this.exportSequences();
+    });
+    
+    this.container.querySelector('.export-selected-btn').addEventListener('click', () => {
+      this.exportSelectedSequences();
+    });
+    
+    // Select all sequences checkbox
+    this.container.querySelector('.select-all-sequences').addEventListener('change', (e) => {
+      this.handleSelectAllSequences(e.target.checked);
     });
     
     // Sequence editor controls

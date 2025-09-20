@@ -1,0 +1,515 @@
+# 3.2.1 Calendar Application Integration
+
+## Task Overview
+Implement comprehensive calendar application integration to enable meeting-aware profile switching and productivity-focused macro automation.
+
+## Current Status
+- **Priority**: ⭐ MEDIUM PRIORITY
+- **Completion**: 25% - SystemIntegrationManager framework exists, calendar integration needed
+- **Estimated Time**: 3-4 weeks
+- **Files**: `src/integration/SystemIntegrationManager.js` (777 lines), new CalendarIntegration
+
+## Technical Requirements
+
+### Calendar Integration Scope
+- Multi-platform calendar application support
+- Meeting detection and profile switching
+- Calendar event-based macro triggers
+- Meeting controls integration (mute, camera, screen share)
+- Productivity mode automation during focus time
+
+### Supported Calendar Applications
+```javascript
+// Calendar application support matrix:
+const calendarSupport = {
+  microsoft: {
+    outlook: {
+      platforms: ['windows', 'macos'],
+      apiAccess: 'Microsoft Graph API',
+      features: ['events', 'availability', 'meeting_controls'],
+      authentication: 'OAuth 2.0 with MSAL'
+    },
+    outlook365: {
+      platforms: ['web', 'all'],
+      apiAccess: 'Microsoft Graph API',
+      features: ['events', 'availability', 'teams_integration'],
+      authentication: 'OAuth 2.0'
+    }
+  },
+  
+  google: {
+    googleCalendar: {
+      platforms: ['web', 'all'],
+      apiAccess: 'Google Calendar API v3',
+      features: ['events', 'availability', 'meet_integration'],
+      authentication: 'OAuth 2.0'
+    },
+    gmailCalendar: {
+      platforms: ['web'],
+      apiAccess: 'Gmail API + Calendar API',
+      features: ['events', 'email_integration'],
+      authentication: 'OAuth 2.0'
+    }
+  },
+  
+  apple: {
+    calendar: {
+      platforms: ['macos', 'ios'],
+      apiAccess: 'EventKit framework',
+      features: ['events', 'availability', 'system_integration'],
+      authentication: 'Local system access'
+    }
+  },
+  
+  generic: {
+    caldav: {
+      platforms: ['all'],
+      apiAccess: 'CalDAV protocol',
+      features: ['events', 'availability'],
+      authentication: 'HTTP Basic or Digest'
+    },
+    ics: {
+      platforms: ['all'],
+      apiAccess: 'ICS file parsing',
+      features: ['events', 'read_only'],
+      authentication: 'File access'
+    }
+  }
+};
+```
+
+### Calendar Event Types & Actions
+```javascript
+// Event-based automation mapping:
+const eventAutomation = {
+  meetingTypes: {
+    'one-on-one': {
+      profile: 'meeting_focused',
+      macros: ['mute_notifications', 'close_distractions', 'open_notes'],
+      led_scheme: 'meeting_indicator'
+    },
+    'team-meeting': {
+      profile: 'collaboration',
+      macros: ['open_team_tools', 'prepare_screenshare', 'mute_music'],
+      led_scheme: 'team_meeting'
+    },
+    'presentation': {
+      profile: 'presentation_mode',
+      macros: ['presentation_setup', 'disable_notifications', 'focus_mode'],
+      led_scheme: 'presentation_active'
+    },
+    'focus-time': {
+      profile: 'deep_work',
+      macros: ['enable_do_not_disturb', 'close_social_media', 'open_productivity_apps'],
+      led_scheme: 'focus_mode'
+    }
+  },
+  
+  eventStates: {
+    'upcoming': { // 5 minutes before
+      actions: ['show_meeting_reminder', 'prepare_meeting_profile'],
+      notification: 'Meeting starting in 5 minutes'
+    },
+    'starting': { // Meeting start time
+      actions: ['switch_to_meeting_profile', 'execute_meeting_macros'],
+      notification: 'Meeting started - switching to meeting mode'
+    },
+    'active': { // During meeting
+      actions: ['maintain_meeting_mode', 'show_meeting_controls'],
+      notification: 'Meeting in progress'
+    },
+    'ending': { // Meeting end time
+      actions: ['restore_previous_profile', 'show_meeting_summary'],
+      notification: 'Meeting ended - returning to normal mode'
+    }
+  }
+};
+```
+
+## Implementation Steps
+
+### Step 1: Calendar API Integration (6-7 days)
+1. Implement Microsoft Graph API integration for Outlook/Office 365
+2. Add Google Calendar API integration with OAuth authentication
+3. Create Apple EventKit integration for macOS Calendar
+4. Implement CalDAV protocol support for generic calendar systems
+
+### Step 2: Event Processing & Context Detection (5-6 days)
+1. Create CalendarEventProcessor for event parsing and categorization
+2. Implement meeting detection and classification algorithms
+3. Add event-based context switching logic
+4. Create meeting state machine for lifecycle management
+
+### Step 3: Meeting Controls Integration (4-5 days)
+1. Implement Microsoft Teams meeting controls
+2. Add Google Meet integration and controls
+3. Create Zoom meeting control integration
+4. Add generic meeting platform detection and control
+
+### Step 4: Profile Automation & UI (3-4 days)
+1. Create calendar-aware profile switching system
+2. Implement meeting preparation and cleanup automation
+3. Add calendar integration configuration interface
+4. Create meeting dashboard and quick controls
+
+## Testing Requirements
+
+### Integration Tests
+```javascript
+// Test files to create:
+- tests/integration/CalendarIntegration.test.js
+- tests/integration/MicrosoftGraphAPI.test.js
+- tests/integration/GoogleCalendarAPI.test.js
+- tests/integration/AppleEventKit.test.js
+- tests/integration/MeetingControls.test.js
+```
+
+### Testing Scenarios
+```javascript
+// Comprehensive calendar integration testing:
+describe('Calendar Integration Tests', () => {
+  describe('Event Detection', () => {
+    test('detects upcoming meetings across all calendar sources');
+    test('classifies meeting types based on title and attendees');
+    test('handles recurring events correctly');
+    test('manages timezone conversions accurately');
+  });
+  
+  describe('Profile Switching', () => {
+    test('switches to meeting profile before meeting starts');
+    test('restores previous profile after meeting ends');
+    test('handles overlapping meetings gracefully');
+    test('respects user override preferences');
+  });
+  
+  describe('Meeting Controls', () => {
+    test('detects active meeting platforms');
+    test('provides appropriate meeting controls');
+    test('integrates with platform-specific APIs');
+    test('handles meeting platform switching');
+  });
+  
+  describe('Authentication', () => {
+    test('handles OAuth token refresh automatically');
+    test('manages multiple calendar account authentication');
+    test('recovers gracefully from authentication failures');
+    test('respects privacy and permission settings');
+  });
+});
+```
+
+### Mock Calendar Data
+- Create realistic test meeting scenarios
+- Test with various calendar providers
+- Simulate authentication flows
+- Test with different timezone configurations
+
+## Documentation Updates
+
+### Integration Documentation
+```markdown
+# Documentation to create:
+- docs/integrations/CALENDAR_SETUP.md
+- docs/integrations/MEETING_AUTOMATION.md
+- docs/integrations/CALENDAR_PROVIDERS.md
+- docs/troubleshooting/CALENDAR_ISSUES.md
+```
+
+### User Setup Guide
+- Complete calendar integration setup for each provider
+- OAuth authentication setup procedures
+- Meeting automation configuration guide
+- Privacy and permission management
+
+## Acceptance Criteria
+
+### Integration Requirements
+- [ ] Calendar events are detected accurately from all supported providers
+- [ ] Meeting profile switching occurs automatically and reliably
+- [ ] Meeting controls integrate with major video conferencing platforms
+- [ ] Authentication handles token refresh and multi-account scenarios
+
+### Automation Requirements
+- [ ] Profile switching occurs 5 minutes before meeting starts
+- [ ] Meeting-specific macros execute automatically at meeting start
+- [ ] Previous profile is restored automatically after meeting ends
+- [ ] User can override automatic behavior with manual controls
+
+### Privacy & Security Requirements
+- [ ] All calendar data processing occurs locally
+- [ ] OAuth tokens are stored securely with proper encryption
+- [ ] User has granular control over calendar permissions
+- [ ] Calendar integration can be disabled completely
+
+## Calendar Integration Implementation
+
+### Calendar Integration Manager
+```javascript
+// Unified calendar integration interface:
+class CalendarIntegrationManager {
+  constructor() {
+    this.providers = new Map();
+    this.eventProcessor = new CalendarEventProcessor();
+    this.meetingStateMachine = new MeetingStateMachine();
+    this.contextManager = null; // Injected dependency
+  }
+  
+  async initialize(contextManager) {
+    this.contextManager = contextManager;
+    
+    // Initialize calendar providers
+    await this.initializeProviders();
+    
+    // Start event monitoring
+    await this.startEventMonitoring();
+    
+    // Set up meeting state machine
+    this.meetingStateMachine.on('stateChange', this.handleMeetingStateChange.bind(this));
+  }
+  
+  async initializeProviders() {
+    // Microsoft Graph (Outlook/Office 365)
+    if (await this.isProviderConfigured('microsoft')) {
+      this.providers.set('microsoft', new MicrosoftGraphProvider());
+    }
+    
+    // Google Calendar
+    if (await this.isProviderConfigured('google')) {
+      this.providers.set('google', new GoogleCalendarProvider());
+    }
+    
+    // Apple Calendar (macOS only)
+    if (process.platform === 'darwin' && await this.isProviderConfigured('apple')) {
+      this.providers.set('apple', new AppleCalendarProvider());
+    }
+    
+    // Generic CalDAV
+    const caldavConfigs = await this.getCalDAVConfigurations();
+    for (const config of caldavConfigs) {
+      this.providers.set(`caldav_${config.id}`, new CalDAVProvider(config));
+    }
+  }
+  
+  async startEventMonitoring() {
+    // Monitor events from all providers
+    for (const [providerId, provider] of this.providers) {
+      provider.on('eventsChanged', (events) => {
+        this.handleEventsUpdate(providerId, events);
+      });
+      
+      await provider.startMonitoring();
+    }
+    
+    // Set up periodic refresh
+    setInterval(() => {
+      this.refreshAllEvents();
+    }, 60000); // Refresh every minute
+  }
+  
+  async handleEventsUpdate(providerId, events) {
+    // Process events and detect meeting state changes
+    const processedEvents = await this.eventProcessor.processEvents(events);
+    
+    // Update meeting state machine
+    for (const event of processedEvents) {
+      await this.meetingStateMachine.processEvent(event);
+    }
+  }
+  
+  async handleMeetingStateChange(state, meetingEvent) {
+    const automation = eventAutomation.eventStates[state.name];
+    
+    if (automation) {
+      // Execute automation actions
+      for (const action of automation.actions) {
+        await this.executeAutomationAction(action, meetingEvent);
+      }
+      
+      // Show notification
+      if (automation.notification) {
+        await this.contextManager.showNotification(automation.notification);
+      }
+    }
+  }
+}
+```
+
+### Microsoft Graph Integration
+```javascript
+// Microsoft Graph API calendar integration:
+class MicrosoftGraphProvider extends EventEmitter {
+  constructor() {
+    super();
+    this.graphClient = null;
+    this.accessToken = null;
+  }
+  
+  async initialize() {
+    // Initialize Microsoft Graph client
+    const msalConfig = {
+      auth: {
+        clientId: process.env.MICROSOFT_CLIENT_ID,
+        authority: 'https://login.microsoftonline.com/common',
+        redirectUri: 'http://localhost:3000/auth/callback'
+      }
+    };
+    
+    this.msalInstance = new msal.PublicClientApplication(msalConfig);
+    await this.authenticate();
+    
+    this.graphClient = Client.initWithMiddleware({
+      authProvider: {
+        getAccessToken: () => this.accessToken
+      }
+    });
+  }
+  
+  async authenticate() {
+    const tokenRequest = {
+      scopes: ['https://graph.microsoft.com/Calendars.Read', 'https://graph.microsoft.com/User.Read']
+    };
+    
+    try {
+      // Try to get token silently first
+      const response = await this.msalInstance.acquireTokenSilent(tokenRequest);
+      this.accessToken = response.accessToken;
+    } catch (error) {
+      // Fallback to interactive authentication
+      const response = await this.msalInstance.acquireTokenPopup(tokenRequest);
+      this.accessToken = response.accessToken;
+    }
+  }
+  
+  async getEvents(startDate, endDate) {
+    try {
+      const response = await this.graphClient
+        .api('/me/events')
+        .filter(`start/dateTime ge '${startDate.toISOString()}' and end/dateTime le '${endDate.toISOString()}'`)
+        .select('subject,start,end,location,attendees,bodyPreview,organizer')
+        .orderby('start/dateTime')
+        .get();
+      
+      return response.value.map(event => this.normalizeEvent(event));
+    } catch (error) {
+      console.error('Failed to fetch Microsoft Graph events:', error);
+      throw error;
+    }
+  }
+  
+  normalizeEvent(graphEvent) {
+    return {
+      id: graphEvent.id,
+      title: graphEvent.subject,
+      start: new Date(graphEvent.start.dateTime),
+      end: new Date(graphEvent.end.dateTime),
+      location: graphEvent.location?.displayName,
+      attendees: graphEvent.attendees?.map(a => ({
+        name: a.emailAddress.name,
+        email: a.emailAddress.address,
+        status: a.status.response
+      })),
+      organizer: graphEvent.organizer?.emailAddress,
+      description: graphEvent.bodyPreview,
+      provider: 'microsoft',
+      meetingType: this.classifyMeetingType(graphEvent)
+    };
+  }
+  
+  classifyMeetingType(event) {
+    const title = event.subject?.toLowerCase() || '';
+    const attendeeCount = event.attendees?.length || 0;
+    
+    if (title.includes('presentation') || title.includes('demo')) {
+      return 'presentation';
+    } else if (attendeeCount <= 2) {
+      return 'one-on-one';
+    } else if (attendeeCount <= 10) {
+      return 'team-meeting';
+    } else {
+      return 'large-meeting';
+    }
+  }
+}
+```
+
+### Meeting State Machine
+```javascript
+// Meeting lifecycle state management:
+class MeetingStateMachine extends EventEmitter {
+  constructor() {
+    super();
+    this.currentMeetings = new Map();
+    this.states = {
+      IDLE: 'idle',
+      UPCOMING: 'upcoming',
+      STARTING: 'starting',
+      ACTIVE: 'active',
+      ENDING: 'ending'
+    };
+  }
+  
+  async processEvent(calendarEvent) {
+    const now = new Date();
+    const meetingStart = new Date(calendarEvent.start);
+    const meetingEnd = new Date(calendarEvent.end);
+    const upcomingThreshold = 5 * 60 * 1000; // 5 minutes
+    
+    let newState = this.states.IDLE;
+    
+    if (now >= meetingEnd) {
+      // Meeting has ended
+      if (this.currentMeetings.has(calendarEvent.id)) {
+        newState = this.states.ENDING;
+        this.currentMeetings.delete(calendarEvent.id);
+      }
+    } else if (now >= meetingStart) {
+      // Meeting is active
+      newState = this.states.ACTIVE;
+      this.currentMeetings.set(calendarEvent.id, calendarEvent);
+    } else if (meetingStart - now <= upcomingThreshold) {
+      // Meeting is upcoming
+      newState = this.states.UPCOMING;
+      this.currentMeetings.set(calendarEvent.id, calendarEvent);
+    }
+    
+    // Emit state change if different from current
+    const currentState = this.currentMeetings.get(calendarEvent.id)?.state;
+    if (newState !== currentState && newState !== this.states.IDLE) {
+      calendarEvent.state = newState;
+      this.emit('stateChange', { name: newState, previous: currentState }, calendarEvent);
+    }
+  }
+  
+  getCurrentMeetings() {
+    return Array.from(this.currentMeetings.values());
+  }
+  
+  getActiveMeetingCount() {
+    return Array.from(this.currentMeetings.values())
+      .filter(meeting => meeting.state === this.states.ACTIVE).length;
+  }
+}
+```
+
+## Dependencies
+- Microsoft Graph SDK for Office 365 integration
+- Google Calendar API client library
+- Apple EventKit framework (macOS)
+- CalDAV protocol implementation
+- OAuth authentication libraries
+
+## Integration Points
+- SystemIntegrationManager.js (777 lines) for framework integration
+- ContextManager for profile switching coordination
+- ProfileManager for meeting-specific profiles
+- ActionExecutor for meeting automation macros
+
+## Risks & Mitigation
+- **Privacy Risk**: Calendar data contains sensitive personal information
+  - Mitigation: Local processing only, encrypted storage, granular permissions
+- **Authentication Risk**: OAuth token management complexity
+  - Mitigation: Secure token storage, automatic refresh, graceful degradation
+- **Platform Risk**: Calendar API changes may break integration
+  - Mitigation: API versioning, fallback methods, comprehensive error handling
+- **Performance Risk**: Calendar polling may impact system performance
+  - Mitigation: Efficient API usage, intelligent caching, configurable refresh intervals

@@ -11,6 +11,8 @@
 const EventEmitter = require('events');
 const { exec } = require('child_process');
 const crypto = require('crypto');
+const ApplicationDetector = require('./context/ApplicationDetector');
+const ContextRuleEngine = require('./context/ContextRuleEngine');
 
 class ContextManager extends EventEmitter {
   constructor(logger, config = {}) {

@@ -180,7 +180,17 @@ window.electronAPI = {
   setVoiceGain: (gain) => ipcRenderer.invoke('set-voice-gain', gain),
   setVoiceNoiseThreshold: (threshold) => ipcRenderer.invoke('set-voice-noise-threshold', threshold),
   setVoiceConfidenceThreshold: (threshold) => ipcRenderer.invoke('set-voice-confidence-threshold', threshold),
-  startVoiceTraining: (mode) => ipcRenderer.invoke('start-voice-training', mode)
+  startVoiceTraining: (mode) => ipcRenderer.invoke('start-voice-training', mode),
+
+  // Security Policy methods
+  getSecurityConfiguration: () => ipcRenderer.invoke('get-security-configuration'),
+  updateSecurityPolicy: (newPolicy) => ipcRenderer.invoke('update-security-policy', newPolicy),
+  getSecurityStats: () => ipcRenderer.invoke('get-security-stats'),
+  getSecurityAuditEvents: (options) => ipcRenderer.invoke('get-security-audit-events', options),
+  getUserRoles: () => ipcRenderer.invoke('get-user-roles'),
+  updateUserRole: (roleName, roleConfig) => ipcRenderer.invoke('update-user-role', roleName, roleConfig),
+  testSecurityPolicy: (testActions) => ipcRenderer.invoke('test-security-policy', testActions),
+  validateSecurityAction: (actionConfig, context) => ipcRenderer.invoke('validate-security-action', actionConfig, context)
 };
 
 class ConfigUI {

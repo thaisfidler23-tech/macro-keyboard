@@ -1,0 +1,16 @@
+File: 1.1.3_macro_template_system.md
+Processed: Sat Sep 20 11:14:15 CDT 2025
+Duration: 302 seconds
+Status: SUCCESS
+Execution Mode: Local
+Individual Log: /Users/jenna/code/macro-keyboard/logs/individual_runs/1.1.3_macro_template_system_20250920_110913.log
+
+Files:
+- original_prompt.txt: Copy of the original prompt file
+- copilot_output.log: Copilot command output
+- summary.txt: This summary file
+
+Individual log contains:
+- Original prompt content
+- Full copilot command execution
+- All output and errors

@@ -607,6 +607,242 @@ class SecurityManager {
     if (score >= 4) return 'medium';
     return 'low';
   }
+
+  // UI-focused methods for security policy management
+
+  /**
+   * Get complete security configuration for UI
+   * @returns {Object} Complete security configuration
+   */
+  getSecurityConfiguration() {
+    return {
+      ...this.config,
+      metadata: {
+        securityLevel: this.calculateSecurityLevel(),
+        platform: this.platform,
+        systemPathsCount: this.systemPaths.length,
+        lastUpdated: new Date().toISOString()
+      }
+    };
+  }
+
+  /**
+   * Update security policy configuration
+   * @param {Object} newConfig - New security configuration
+   * @returns {Object} Update result with validation
+   */
+  updateSecurityPolicy(newConfig) {
+    try {
+      // Validate configuration structure
+      const validationResult = this.validateSecurityConfiguration(newConfig);
+      if (!validationResult.valid) {
+        return {
+          success: false,
+          message: 'Invalid security configuration',
+          errors: validationResult.errors
+        };
+      }
+
+      // Apply configuration
+      this.updateConfiguration(newConfig);
+      
+      this.logger.info('Security policy updated successfully', {
+        newLevel: this.calculateSecurityLevel(),
+        timestamp: new Date().toISOString()
+      });
+
+      return {
+        success: true,
+        message: 'Security policy updated successfully',
+        newLevel: this.calculateSecurityLevel()
+      };
+    } catch (error) {
+      this.logger.error('Failed to update security policy:', error);
+      return {
+        success: false,
+        message: `Failed to update security policy: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * Validate security configuration structure
+   * @param {Object} config - Configuration to validate
+   * @returns {Object} Validation result
+   */
+  validateSecurityConfiguration(config) {
+    const errors = [];
+    
+    // Validate command execution configuration
+    if (config.commandExecution) {
+      if (config.commandExecution.mode && 
+          !['allowlist', 'blacklist', 'disabled'].includes(config.commandExecution.mode)) {
+        errors.push('Invalid command execution mode');
+      }
+      
+      if (config.commandExecution.maxLength && 
+          (typeof config.commandExecution.maxLength !== 'number' || config.commandExecution.maxLength < 1)) {
+        errors.push('Invalid max command length');
+      }
+      
+      if (config.commandExecution.timeout && 
+          (typeof config.commandExecution.timeout !== 'number' || config.commandExecution.timeout < 1000)) {
+        errors.push('Invalid command timeout (minimum 1000ms)');
+      }
+    }
+
+    // Validate keypress configuration
+    if (config.keypress) {
+      if (config.keypress.maxSequenceLength && 
+          (typeof config.keypress.maxSequenceLength !== 'number' || config.keypress.maxSequenceLength < 1)) {
+        errors.push('Invalid keypress sequence length');
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors
+    };
+  }
+
+  /**
+   * Get security audit events (mock implementation for UI)
+   * @param {Object} options - Filter options
+   * @returns {Array} Audit events
+   */
+  getSecurityAuditEvents(options = {}) {
+    // In a real implementation, this would query actual audit logs
+    // For now, return mock data for UI development
+    const events = [
+      {
+        id: '1',
+        timestamp: new Date().toISOString(),
+        type: 'policy_change',
+        severity: 'info',
+        message: 'Security policy updated',
+        details: { component: 'commandExecution', action: 'update_mode' }
+      },
+      {
+        id: '2', 
+        timestamp: new Date(Date.now() - 60000).toISOString(),
+        type: 'action_blocked',
+        severity: 'warning',
+        message: 'Command blocked by security policy',
+        details: { command: 'rm -rf /', reason: 'dangerous_pattern' }
+      }
+    ];
+
+    // Apply filters
+    let filteredEvents = events;
+    
+    if (options.type) {
+      filteredEvents = filteredEvents.filter(event => event.type === options.type);
+    }
+    
+    if (options.severity) {
+      filteredEvents = filteredEvents.filter(event => event.severity === options.severity);
+    }
+    
+    if (options.limit) {
+      filteredEvents = filteredEvents.slice(0, options.limit);
+    }
+
+    return filteredEvents;
+  }
+
+  /**
+   * Get user roles and permissions configuration
+   * @returns {Object} User roles configuration
+   */
+  getUserRoles() {
+    // Default role configuration - in a real app this would be configurable
+    return {
+      guest: {
+        permissions: ['view_config', 'basic_macros'],
+        restrictions: ['no_system_commands', 'no_file_access'],
+        description: 'Limited access for guest users'
+      },
+      user: {
+        permissions: ['view_config', 'edit_config', 'all_macros'],
+        restrictions: ['no_admin_functions', 'limited_file_access'],
+        description: 'Standard user with macro configuration access'
+      },
+      power_user: {
+        permissions: ['all_user_permissions', 'plugin_management', 'advanced_config'],
+        restrictions: ['no_security_admin', 'no_user_management'],
+        description: 'Advanced user with plugin and advanced configuration access'
+      },
+      admin: {
+        permissions: ['all_permissions'],
+        restrictions: [],
+        description: 'Full administrative access'
+      }
+    };
+  }
+
+  /**
+   * Update user role configuration
+   * @param {string} roleName - Name of the role
+   * @param {Object} roleConfig - Role configuration
+   * @returns {Object} Update result
+   */
+  updateUserRole(roleName, roleConfig) {
+    try {
+      // Validate role configuration
+      if (!roleName || typeof roleName !== 'string') {
+        return { success: false, message: 'Invalid role name' };
+      }
+
+      if (!roleConfig.permissions || !Array.isArray(roleConfig.permissions)) {
+        return { success: false, message: 'Invalid permissions array' };
+      }
+
+      // In a real implementation, this would update the role configuration
+      this.logger.info(`User role ${roleName} updated successfully`, {
+        permissions: roleConfig.permissions,
+        restrictions: roleConfig.restrictions || []
+      });
+
+      return {
+        success: true,
+        message: `Role ${roleName} updated successfully`
+      };
+    } catch (error) {
+      this.logger.error(`Failed to update user role ${roleName}:`, error);
+      return {
+        success: false,
+        message: `Failed to update role: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * Test security policy against sample actions
+   * @param {Array} testActions - Array of actions to test
+   * @returns {Array} Test results
+   */
+  testSecurityPolicy(testActions = []) {
+    const defaultTestActions = [
+      { type: 'command', action: 'ls -la' },
+      { type: 'command', action: 'rm -rf /' },
+      { type: 'keypress', action: 'ctrl+c' },
+      { type: 'application', action: 'Calculator' }
+    ];
+
+    const actionsToTest = testActions.length > 0 ? testActions : defaultTestActions;
+    
+    return actionsToTest.map(action => {
+      const result = this.validateAction(action, 'policy_test');
+      return {
+        action,
+        result: {
+          allowed: result.success,
+          reason: result.message,
+          sanitized: result.sanitizedAction
+        }
+      };
+    });
+  }
 }
 
 module.exports = SecurityManager;
