@@ -20,6 +20,20 @@ Electron based application to drive a physical macro keyboard with Arduino integ
 - Hot-reload configuration without restart
 - Per-button and per-encoder action assignment
 
+### Macro Recording & Sequences
+- **Real-time Recording**: Capture key sequences and timing automatically
+- **Playbook System**: Organize macros into reusable playbooks
+- **Advanced Timing**: Configurable delays and timing patterns
+- **GUI Editor**: Visual macro creation and editing interface
+- **Import/Export**: Share macros across devices and teams
+
+### Context-Aware Profiles
+- **Automatic Switching**: Switch profiles based on active application, time, or system state
+- **Smart Rules Engine**: Create complex switching rules with priorities
+- **Manual Override**: Temporary or permanent manual profile control
+- **Switch History**: Complete tracking of all profile switches
+- **Performance Analytics**: Usage statistics and optimization suggestions
+
 ### Action Types
 - **Key Press**: Send keyboard shortcuts and key combinations
 - **Shell Commands**: Execute system commands and scripts (with security validation)
@@ -158,6 +172,7 @@ npm run icons:validate # Validate icon setup
 ### Documentation
 - [Development Guide](docs/DEVELOPMENT.md) - Setup and development workflow
 - [Action Execution](docs/ACTION_EXECUTION.md) - How actions are processed and executed
+- [Context-Aware Profiles](docs/CONTEXT_AWARE_PROFILES.md) - Automatic profile switching system
 - [Security Architecture](docs/SECURITY_ARCHITECTURE.md) - Security features and configuration
 - [Icons & Branding](docs/ICONS_AND_BRANDING.md) - Application icons and visual identity
 - [Arduino README](arduino/README.md) - Hardware setup and firmware details

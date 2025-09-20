@@ -140,6 +140,11 @@ window.electronAPI = {
   },
   onMacroPlaybackError: (callback) => {
     ipcRenderer.on('macro-playback-error', (event, error) => callback(error));
+  },
+
+  // Context Manager event listeners
+  on: (channel, callback) => {
+    ipcRenderer.on(channel, callback);
   }
 };
 
@@ -1157,6 +1162,16 @@ class ConfigUI {
         });
       }
       
+      // Set up context manager button handler
+      const contextManagerBtn = document.getElementById('context-manager-btn');
+      if (contextManagerBtn) {
+        contextManagerBtn.addEventListener('click', () => {
+          if (window.contextManagerUI) {
+            window.contextManagerUI.show();
+          }
+        });
+      }
+      
       console.log('PluginManagerUI initialized');
     } else {
       console.warn('PluginManagerUI class not available');
@@ -1941,6 +1956,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize the MacroRecorderUI
   window.macroRecorderUI = new MacroRecorderUI();
   document.body.appendChild(window.macroRecorderUI.getElement());
+  
+  // Initialize the ContextManagerUI
+  if (typeof ContextManagerUI !== 'undefined') {
+    window.contextManagerUI = new ContextManagerUI();
+    console.log('ContextManagerUI initialized successfully');
+  } else {
+    console.warn('ContextManagerUI class not available');
+  }
   
   // Initialize profile manager with the necessary dependencies
   window.profileManagerUI.initialize().catch(error => {

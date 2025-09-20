@@ -13,6 +13,8 @@ const LogManager = require('./LogManager');
 const PerformanceMonitor = require('./PerformanceMonitor');
 const PluginManager = require('./PluginManager');
 const MacroRecorder = require('./MacroRecorder');
+const ContextManager = require('./ContextManager');
+const ProfileSwitcher = require('./ProfileSwitcher');
 
 class MacroKeyboardApp {
   constructor() {
@@ -30,6 +32,8 @@ class MacroKeyboardApp {
     this.performanceMonitor = null; // Will be initialized after logManager
     this.pluginManager = null; // Will be initialized after errorHandler
     this.macroRecorder = null; // Will be initialized after actionExecutor
+    this.contextManager = null; // Will be initialized after profileManager
+    this.profileSwitcher = null; // Will be initialized after contextManager
     this.serialPort = null; // Deprecated - will be removed
     this.isDev = process.argv.includes('--dev');
     
@@ -144,6 +148,15 @@ class MacroKeyboardApp {
     // Initialize macro recorder after action executor
     this.macroRecorder = new MacroRecorder(this.logger, this.actionExecutor);
     this.actionExecutor.setMacroRecorder(this.macroRecorder);
+    
+    // Initialize context manager after profile manager
+    this.contextManager = new ContextManager(this.logger);
+    
+    // Initialize profile switcher after context manager
+    this.profileSwitcher = new ProfileSwitcher(this.logger, this.contextManager, this.profileManager);
+    
+    // Set up context manager event listeners
+    this.setupContextManagerListeners();
     
     // Initialize plugin manager with configuration and error handler
     this.pluginManager = new PluginManager(
@@ -261,6 +274,77 @@ class MacroKeyboardApp {
       
       if (this.mainWindow && !this.mainWindow.isDestroyed()) {
         this.mainWindow.webContents.send('update-error', error.message);
+      }
+    });
+  }
+
+  /**
+   * Set up context manager event listeners for real-time context changes
+   */
+  setupContextManagerListeners() {
+    // Context change events
+    this.contextManager.on('contextChanged', (contextData) => {
+      this.logger.debug('Context changed:', contextData);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('context-changed', contextData);
+      }
+    });
+
+    this.contextManager.on('applicationChanged', (appData) => {
+      this.logger.debug('Active application changed:', appData);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('application-changed', appData);
+      }
+    });
+
+    this.contextManager.on('timeRuleMatched', (ruleData) => {
+      this.logger.debug('Time rule matched:', ruleData);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('time-rule-matched', ruleData);
+      }
+    });
+
+    this.contextManager.on('systemStateChanged', (stateData) => {
+      this.logger.debug('System state changed:', stateData);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('system-state-changed', stateData);
+      }
+    });
+
+    // Profile switching events from ProfileSwitcher
+    this.profileSwitcher.on('profileSwitched', (switchData) => {
+      this.logger.info('Profile switched:', switchData);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('profile-switched', switchData);
+      }
+    });
+
+    this.profileSwitcher.on('switchFailed', (errorData) => {
+      this.logger.error('Profile switch failed:', errorData);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('profile-switch-failed', errorData);
+      }
+    });
+
+    this.profileSwitcher.on('modeChanged', (modeData) => {
+      this.logger.info('Switching mode changed:', modeData);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('switching-mode-changed', modeData);
+      }
+    });
+
+    this.profileSwitcher.on('rollbackTriggered', (rollbackData) => {
+      this.logger.info('Profile rollback triggered:', rollbackData);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('profile-rollback-triggered', rollbackData);
       }
     });
   }
@@ -1359,6 +1443,107 @@ class MacroKeyboardApp {
     this.macroRecorder.on('playbackError', (error) => {
       if (this.mainWindow && !this.mainWindow.isDestroyed()) {
         this.mainWindow.webContents.send('macro-playback-error', error);
+      }
+    });
+
+    // Context-Aware Profile IPC handlers
+    ipcMain.handle('get-context-rules', async () => {
+      try {
+        return this.contextManager.getRules();
+      } catch (error) {
+        this.logger.error('Error getting context rules:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('add-context-rule', async (event, rule) => {
+      try {
+        this.contextManager.addRule(rule);
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error adding context rule:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('remove-context-rule', async (event, ruleId) => {
+      try {
+        this.contextManager.removeRule(ruleId);
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error removing context rule:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('update-context-rule', async (event, ruleId, updates) => {
+      try {
+        this.contextManager.updateRule(ruleId, updates);
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error updating context rule:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-current-context', async () => {
+      try {
+        return this.contextManager.getCurrentContext();
+      } catch (error) {
+        this.logger.error('Error getting current context:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-profile-switching-status', async () => {
+      try {
+        return {
+          isEnabled: this.profileSwitcher.isEnabled(),
+          currentMode: this.profileSwitcher.getCurrentMode(),
+          statistics: this.profileSwitcher.getStatistics()
+        };
+      } catch (error) {
+        this.logger.error('Error getting profile switching status:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('enable-automatic-switching', async () => {
+      try {
+        this.profileSwitcher.enableAutomaticSwitching();
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error enabling automatic switching:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('disable-automatic-switching', async () => {
+      try {
+        this.profileSwitcher.disableAutomaticSwitching();
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error disabling automatic switching:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('switch-to-profile', async (event, profileName) => {
+      try {
+        await this.profileSwitcher.switchToProfile(profileName, 'manual');
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error switching to profile:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-switch-history', async () => {
+      try {
+        return this.profileSwitcher.getSwitchHistory();
+      } catch (error) {
+        this.logger.error('Error getting switch history:', error);
+        throw error;
       }
     });
 
