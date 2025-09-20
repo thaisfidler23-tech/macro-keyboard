@@ -1,0 +1,86 @@
+# Default Macro Keyboard Profile
+# This is the default profile configuration
+
+version: "1.0.0"
+
+profile:
+  name: "default"
+  description: "Default macro keyboard configuration with basic shortcuts"
+  createdAt: "2024-01-15T00:00:00.000Z"
+  modifiedAt: "2024-01-15T00:00:00.000Z"
+
+device:
+  serialPort: null
+  baudRate: 9600
+  connectionTimeout: 5000
+  buttons: 8
+  encoders: 0
+
+logging:
+  level: "info"
+  file: "logs/macro-keyboard.log"
+  maxSize: 5242880
+  maxFiles: 5
+
+security:
+  commandExecution:
+    enabled: true
+    mode: "blacklist"
+    allowedCommands: []
+    timeout: 10000
+    maxLength: 1000
+
+profiles:
+  active: "default"
+  available: ["default"]
+
+buttons:
+  button1:
+    description: "Volume Up"
+    type: "keypress"
+    action: "VolumeUp"
+    enabled: true
+  
+  button2:
+    description: "Volume Down"
+    type: "keypress"
+    action: "VolumeDown"
+    enabled: true
+  
+  button3:
+    description: "Mute"
+    type: "keypress"
+    action: "AudioMute"
+    enabled: true
+  
+  button4:
+    description: "Calculator"
+    type: "application"
+    action: "calc"
+    enabled: true
+  
+  button5:
+    description: "Screenshot"
+    type: "keypress"
+    action: "cmd+shift+3"
+    enabled: true
+  
+  button6:
+    description: "Open Terminal"
+    type: "application"
+    action: "Terminal"
+    enabled: true
+  
+  button7:
+    description: "Lock Screen"
+    type: "keypress"
+    action: "cmd+ctrl+q"
+    enabled: true
+  
+  button8:
+    description: "Custom Command"
+    type: "command"
+    action: "echo 'Button 8 pressed'"
+    enabled: true
+
+encoders: {}

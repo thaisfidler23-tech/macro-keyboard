@@ -2,6 +2,7 @@ const robot = require('robotjs');
 const { spawn, exec } = require('child_process');
 const path = require('path');
 const os = require('os');
+const SecurityManager = require('./SecurityManager');
 
 /**
  * Action Execution Engine for Macro Keyboard
@@ -12,20 +13,11 @@ const os = require('os');
  * - application: Application launching
  */
 class ActionExecutor {
-  constructor(logger) {
-    this.logger = logger;
-    this.platform = process.platform;
-    this.commandTimeout = 10000; // 10 second timeout for commands
-    this.maxCommandLength = 1000; // Maximum command length for security
-    
-    // Initialize robotjs settings for better performance
-    robot.setDelay(10);
-    robot.setKeyboardDelay(10);
-    
-    this.logger.info('Action Executor initialized for platform:', this.platform);
-  }
-
-  /**
+    constructor(config, logger) {
+        this.config = config;
+        this.logger = logger;
+        this.securityManager = new SecurityManager(config, logger);
+    }  /**
    * Execute an action based on its configuration
    * @param {Object} actionConfig - Configuration object with type and action
    * @param {string} context - Context for logging (button1, encoder1:CW, etc.)
@@ -65,11 +57,25 @@ class ActionExecutor {
    */
   async executeKeypress(keyAction, context) {
     try {
+      // Security validation using SecurityManager
+      const validationResult = this.securityManager.validateAction({
+        type: 'keypress',
+        action: keyAction
+      }, context);
+
+      if (!validationResult.isValid) {
+        this.logger.error(`Keypress failed security validation: ${validationResult.reason} - ${keyAction} for ${context}`);
+        return false;
+      }
+
+      // Apply security sanitization
+      const sanitizedKeyAction = this.securityManager.sanitizeKeypress(keyAction);
+      
       // Parse and normalize key combinations
-      const normalizedKeys = this.normalizeKeyCombo(keyAction);
+      const normalizedKeys = this.normalizeKeyCombo(sanitizedKeyAction);
       
       if (normalizedKeys.length === 0) {
-        this.logger.error(`Invalid key combination: ${keyAction} for ${context}`);
+        this.logger.error(`Invalid key combination: ${sanitizedKeyAction} for ${context}`);
         return false;
       }
 
@@ -101,16 +107,24 @@ class ActionExecutor {
   async executeCommand(command, context) {
     return new Promise((resolve) => {
       try {
-        // Security validation
-        if (!this.validateCommand(command)) {
-          this.logger.error(`Command failed security validation: ${command} for ${context}`);
+        // Security validation using SecurityManager
+        const validationResult = this.securityManager.validateAction({
+          type: 'command',
+          action: command
+        }, context);
+
+        if (!validationResult.isValid) {
+          this.logger.error(`Command failed security validation: ${validationResult.reason} - ${command} for ${context}`);
           resolve(false);
           return;
         }
 
-        this.logger.info(`Executing command for ${context}: ${command}`);
+        // Apply security sanitization
+        const sanitizedCommand = this.securityManager.sanitizeCommand(command);
         
-        const child = exec(command, {
+        this.logger.info(`Executing command for ${context}: ${sanitizedCommand}`);
+        
+        const child = exec(sanitizedCommand, {
           timeout: this.commandTimeout,
           maxBuffer: 1024 * 1024, // 1MB max output
           env: { ...process.env, PATH: process.env.PATH } // Inherit PATH but nothing else sensitive
@@ -146,6 +160,21 @@ class ActionExecutor {
   async launchApplication(appName, context) {
     return new Promise((resolve) => {
       try {
+        // Security validation using SecurityManager
+        const validationResult = this.securityManager.validateAction({
+          type: 'application',
+          action: appName
+        }, context);
+
+        if (!validationResult.isValid) {
+          this.logger.error(`Application failed security validation: ${validationResult.reason} - ${appName} for ${context}`);
+          resolve(false);
+          return;
+        }
+
+        // Apply security sanitization
+        const sanitizedAppName = this.securityManager.sanitizeApplication(appName);
+
         let command;
         let args = [];
 
@@ -153,25 +182,25 @@ class ActionExecutor {
         switch (this.platform) {
           case 'darwin': // macOS
             command = 'open';
-            if (appName.endsWith('.app') || appName.startsWith('/')) {
-              args = ['-a', appName];
+            if (sanitizedAppName.endsWith('.app') || sanitizedAppName.startsWith('/')) {
+              args = ['-a', sanitizedAppName];
             } else {
-              args = ['-a', appName];
+              args = ['-a', sanitizedAppName];
             }
             break;
           
           case 'win32': // Windows
             command = 'start';
-            args = ['""', appName]; // Empty title for start command
+            args = ['""', sanitizedAppName]; // Empty title for start command
             break;
           
           default: // Linux and others
             command = 'xdg-open';
-            args = [appName];
+            args = [sanitizedAppName];
             break;
         }
 
-        this.logger.info(`Launching application for ${context}: ${appName}`);
+        this.logger.info(`Launching application for ${context}: ${sanitizedAppName}`);
 
         const child = spawn(command, args, {
           detached: true,
@@ -181,12 +210,12 @@ class ActionExecutor {
         child.unref(); // Allow parent to exit without waiting
 
         child.on('error', (error) => {
-          this.logger.error(`Failed to launch application ${appName} for ${context}:`, error);
+          this.logger.error(`Failed to launch application ${sanitizedAppName} for ${context}:`, error);
           resolve(false);
         });
 
         child.on('spawn', () => {
-          this.logger.info(`Application launched successfully for ${context}: ${appName}`);
+          this.logger.info(`Application launched successfully for ${context}: ${sanitizedAppName}`);
           resolve(true);
         });
 
@@ -291,51 +320,6 @@ class ActionExecutor {
   }
 
   /**
-   * Validate command for security (basic sandboxing)
-   * @param {string} command - Command to validate
-   * @returns {boolean} True if command is safe to execute
-   */
-  validateCommand(command) {
-    if (!command || typeof command !== 'string') {
-      return false;
-    }
-
-    // Length check
-    if (command.length > this.maxCommandLength) {
-      this.logger.error(`Command too long: ${command.length} characters`);
-      return false;
-    }
-
-    // Dangerous patterns (basic protection)
-    const dangerousPatterns = [
-      /rm\s+-rf/i,           // Dangerous file deletion
-      /\|\s*rm/i,            // Piped deletion
-      />\s*\/dev\//i,        // Device access
-      /sudo\s/i,             // Privilege escalation
-      /passwd\s/i,           // Password changes
-      /chmod\s.*777/i,       // Dangerous permissions
-      /wget.*\|.*sh/i,       // Download and execute
-      /curl.*\|.*sh/i,       // Download and execute
-      /;\s*rm/i,             // Chained deletion
-      /&&\s*rm/i,            // Conditional deletion
-      /\/etc\/passwd/i,      // System file access
-      /\/etc\/shadow/i,      // System file access
-      /\$\(.*\)/,            // Command substitution
-      /`.*`/,                // Backtick execution
-      /<\s*\(/,              // Process substitution
-    ];
-
-    for (const pattern of dangerousPatterns) {
-      if (pattern.test(command)) {
-        this.logger.error(`Command contains dangerous pattern: ${pattern} in "${command}"`);
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  /**
    * Get platform-specific information for debugging
    * @returns {Object} Platform information
    */
@@ -347,6 +331,16 @@ class ActionExecutor {
       robotjsSupported: true
     };
   }
+
+  /**
+   * Get security statistics from SecurityManager
+   * @returns {Object} Security statistics
+   */
+  getSecurityStats() {
+    return this.securityManager.getStatistics();
+  }
 }
+
+module.exports = ActionExecutor;
 
 module.exports = ActionExecutor;

@@ -21,6 +21,64 @@ describe('Configuration Tests', () => {
     expect(defaultConfig).toHaveProperty('buttons');
     expect(defaultConfig).toHaveProperty('encoders');
     expect(defaultConfig).toHaveProperty('logging');
+    expect(defaultConfig).toHaveProperty('security');
+  });
+
+  test('security config has required structure', () => {
+    expect(defaultConfig.security).toHaveProperty('commandExecution');
+    expect(defaultConfig.security).toHaveProperty('applicationExecution');
+    expect(defaultConfig.security).toHaveProperty('keypressValidation');
+  });
+
+  test('command execution security config is valid', () => {
+    const cmdSec = defaultConfig.security.commandExecution;
+    
+    expect(cmdSec).toHaveProperty('mode');
+    expect(['allowlist', 'blacklist', 'disabled']).toContain(cmdSec.mode);
+    expect(cmdSec).toHaveProperty('timeout');
+    expect(typeof cmdSec.timeout).toBe('number');
+    expect(cmdSec.timeout).toBeGreaterThan(0);
+    expect(cmdSec).toHaveProperty('maxLength');
+    expect(typeof cmdSec.maxLength).toBe('number');
+    expect(cmdSec.maxLength).toBeGreaterThan(0);
+    
+    if (cmdSec.allowedCommands) {
+      expect(Array.isArray(cmdSec.allowedCommands)).toBe(true);
+    }
+    if (cmdSec.blockedCommands) {
+      expect(Array.isArray(cmdSec.blockedCommands)).toBe(true);
+    }
+  });
+
+  test('application execution security config is valid', () => {
+    const appSec = defaultConfig.security.applicationExecution;
+    
+    expect(appSec).toHaveProperty('mode');
+    expect(['allowlist', 'blacklist', 'disabled']).toContain(appSec.mode);
+    expect(appSec).toHaveProperty('maxPathLength');
+    expect(typeof appSec.maxPathLength).toBe('number');
+    expect(appSec.maxPathLength).toBeGreaterThan(0);
+    
+    if (appSec.allowedApplications) {
+      expect(Array.isArray(appSec.allowedApplications)).toBe(true);
+    }
+    if (appSec.blockedApplications) {
+      expect(Array.isArray(appSec.blockedApplications)).toBe(true);
+    }
+  });
+
+  test('keypress validation security config is valid', () => {
+    const keySec = defaultConfig.security.keypressValidation;
+    
+    expect(keySec).toHaveProperty('enabled');
+    expect(typeof keySec.enabled).toBe('boolean');
+    expect(keySec).toHaveProperty('maxKeyCombinations');
+    expect(typeof keySec.maxKeyCombinations).toBe('number');
+    expect(keySec.maxKeyCombinations).toBeGreaterThan(0);
+    
+    if (keySec.blockedKeys) {
+      expect(Array.isArray(keySec.blockedKeys)).toBe(true);
+    }
   });
 
   test('device config has required fields', () => {

@@ -25,6 +25,14 @@ Electron based application to drive a physical macro keyboard with Arduino integ
 - **Shell Commands**: Execute system commands and scripts (with security validation)
 - **Application Launch**: Launch applications and programs
 
+### Security & Protection
+- **Input Validation**: Comprehensive validation of all user actions
+- **Command Sanitization**: Automatic cleaning and normalization of inputs
+- **Dangerous Pattern Detection**: Blocks malicious commands and system access attempts
+- **Configurable Security Policies**: Allowlist/blacklist modes for fine-grained control
+- **Cross-platform Protection**: Platform-specific security patterns and controls
+- **Security Logging**: Complete audit trail of all security events
+
 ### Logging & Monitoring
 - Comprehensive logging with Winston
 - Activity monitoring and debugging
@@ -150,6 +158,7 @@ npm run icons:validate # Validate icon setup
 ### Documentation
 - [Development Guide](docs/DEVELOPMENT.md) - Setup and development workflow
 - [Action Execution](docs/ACTION_EXECUTION.md) - How actions are processed and executed
+- [Security Architecture](docs/SECURITY_ARCHITECTURE.md) - Security features and configuration
 - [Icons & Branding](docs/ICONS_AND_BRANDING.md) - Application icons and visual identity
 - [Arduino README](arduino/README.md) - Hardware setup and firmware details
 

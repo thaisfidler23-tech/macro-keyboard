@@ -1,0 +1,266 @@
+{
+  "$id": "https://github.com/jmassardo/macro-keyboard/config/schema.json",
+  "title": "Macro Keyboard Configuration Schema",
+  "description": "JSON Schema for validating macro keyboard configuration files",
+  "type": "object",
+  "required": ["version", "device", "buttons", "encoders", "logging"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Configuration schema version (semver format)",
+      "examples": ["1.0.0"]
+    },
+    "device": {
+      "type": "object",
+      "description": "Hardware device configuration",
+      "required": ["baudRate", "buttons", "encoders"],
+      "additionalProperties": false,
+      "properties": {
+        "serialPort": {
+          "oneOf": [
+            { "type": "string", "minLength": 1 },
+            { "type": "null" }
+          ],
+          "description": "Serial port path (null for auto-detection)",
+          "examples": ["/dev/ttyUSB0", "COM3", null]
+        },
+        "baudRate": {
+          "type": "integer",
+          "minimum": 1200,
+          "maximum": 115200,
+          "description": "Serial communication baud rate",
+          "default": 9600,
+          "examples": [9600, 115200]
+        },
+        "buttons": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32,
+          "description": "Number of physical buttons on the device",
+          "default": 8,
+          "examples": [8, 12, 16, 24, 32]
+        },
+        "encoders": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8,
+          "description": "Number of rotary encoders on the device",
+          "default": 0,
+          "examples": [0, 2, 4, 8]
+        },
+        "connectionTimeout": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 30000,
+          "description": "Connection timeout in milliseconds",
+          "default": 5000
+        }
+      }
+    },
+    "buttons": {
+      "type": "object",
+      "description": "Button action configurations",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^button([1-9]|[12][0-9]|3[0-2])$": {
+          "$ref": "#/$defs/buttonConfig"
+        }
+      }
+    },
+    "encoders": {
+      "type": "object",
+      "description": "Rotary encoder action configurations",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^encoder[1-8]$": {
+          "$ref": "#/$defs/encoderConfig"
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "description": "Application logging configuration",
+      "required": ["level"],
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error"],
+          "description": "Minimum log level to output",
+          "default": "info"
+        },
+        "file": {
+          "type": "string",
+          "description": "Log file path (relative to app directory)",
+          "default": "logs/macro-keyboard.log",
+          "examples": ["logs/macro-keyboard.log", "/var/log/macro-keyboard.log"]
+        },
+        "maxSize": {
+          "type": "integer",
+          "minimum": 1048576,
+          "maximum": 104857600,
+          "description": "Maximum log file size in bytes (1MB - 100MB)",
+          "default": 5242880
+        },
+        "maxFiles": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Maximum number of log files to retain",
+          "default": 5
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "description": "Security and execution policies",
+      "additionalProperties": false,
+      "properties": {
+        "commandExecution": {
+          "type": "object",
+          "description": "Command execution security settings",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Allow command-type actions",
+              "default": true
+            },
+            "mode": {
+              "type": "string",
+              "enum": ["blacklist", "allowlist"],
+              "description": "Command validation mode",
+              "default": "blacklist"
+            },
+            "allowedCommands": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "List of allowed commands (allowlist mode)",
+              "default": []
+            },
+            "timeout": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 60000,
+              "description": "Command execution timeout in milliseconds",
+              "default": 10000
+            },
+            "maxLength": {
+              "type": "integer",
+              "minimum": 10,
+              "maximum": 2000,
+              "description": "Maximum command length in characters",
+              "default": 1000
+            }
+          }
+        }
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "description": "Configuration profiles for different use cases",
+      "additionalProperties": false,
+      "properties": {
+        "active": {
+          "type": "string",
+          "description": "Currently active profile name",
+          "default": "default"
+        },
+        "available": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "List of available profile names",
+          "default": ["default"]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "buttonConfig": {
+      "type": "object",
+      "description": "Configuration for a single button",
+      "required": ["type", "action"],
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Human-readable description of the button action"
+        },
+        "type": {
+          "$ref": "#/$defs/actionType"
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "Action to execute when button is pressed"
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether this button action is enabled",
+          "default": true
+        }
+      }
+    },
+    "encoderConfig": {
+      "type": "object",
+      "description": "Configuration for a single rotary encoder",
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Human-readable description of the encoder"
+        },
+        "typeCW": {
+          "$ref": "#/$defs/actionType",
+          "description": "Action type for clockwise rotation"
+        },
+        "actionCW": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "Action to execute on clockwise rotation"
+        },
+        "typeCCW": {
+          "$ref": "#/$defs/actionType",
+          "description": "Action type for counter-clockwise rotation"
+        },
+        "actionCCW": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "Action to execute on counter-clockwise rotation"
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether this encoder is enabled",
+          "default": true
+        }
+      },
+      "anyOf": [
+        {
+          "required": ["typeCW", "actionCW"]
+        },
+        {
+          "required": ["typeCCW", "actionCCW"]
+        }
+      ]
+    },
+    "actionType": {
+      "type": "string",
+      "enum": ["keypress", "command", "application"],
+      "description": "Type of action to execute",
+      "examples": ["keypress", "command", "application"]
+    }
+  }
+}

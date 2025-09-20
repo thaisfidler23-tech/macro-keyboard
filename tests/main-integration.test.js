@@ -35,7 +35,19 @@ jest.mock('electron', () => ({
 jest.mock('fs', () => ({
   existsSync: jest.fn().mockReturnValue(true),
   mkdirSync: jest.fn(),
-  readFileSync: jest.fn().mockReturnValue('device:\n  buttons: 8\n  encoders: 0'),
+  readFileSync: jest.fn().mockImplementation((path, encoding) => {
+    // Return different content based on file type
+    if (path.includes('schema.json')) {
+      // Return actual schema content for schema.json
+      const actualFs = jest.requireActual('fs');
+      return actualFs.readFileSync(path, encoding);
+    } else if (path.includes('default.yaml') || path.includes('.yaml')) {
+      // Return mock YAML content for config files
+      return 'device:\n  buttons: 8\n  encoders: 0\nbaudRate: 9600\nbuttons:\n  button1:\n    description: "Test"\n    type: "keypress"\n    action: "ctrl+c"\nlogging:\n  level: "info"';
+    }
+    // Default return for other files
+    return 'default content';
+  }),
   writeFileSync: jest.fn()
 }));
 

@@ -1,0 +1,101 @@
+# Development Profile
+# Optimized for software development workflow
+
+version: "1.0.0"
+
+profile:
+  name: "development"
+  description: "Development-focused macro configuration for programmers"
+  createdAt: "2024-01-15T00:00:00.000Z"
+  modifiedAt: "2024-01-15T00:00:00.000Z"
+
+device:
+  serialPort: null
+  baudRate: 9600
+  connectionTimeout: 5000
+  buttons: 8
+  encoders: 2
+
+logging:
+  level: "debug"
+  file: "logs/macro-keyboard.log"
+  maxSize: 10485760
+  maxFiles: 10
+
+security:
+  commandExecution:
+    enabled: true
+    mode: "allowlist"
+    allowedCommands: ["code", "git", "npm", "yarn", "docker"]
+    timeout: 15000
+    maxLength: 500
+
+profiles:
+  active: "development"
+  available: ["default", "development"]
+
+buttons:
+  button1:
+    description: "Open VS Code"
+    type: "application"
+    action: "code"
+    enabled: true
+  
+  button2:
+    description: "Git Status"
+    type: "command"
+    action: "cd ~/code && git status"
+    enabled: true
+  
+  button3:
+    description: "Run Tests"
+    type: "command"
+    action: "npm test"
+    enabled: true
+  
+  button4:
+    description: "Build Project"
+    type: "command"
+    action: "npm run build"
+    enabled: true
+  
+  button5:
+    description: "Format Code"
+    type: "keypress"
+    action: "cmd+shift+p"
+    enabled: true
+  
+  button6:
+    description: "Toggle Terminal"
+    type: "keypress"
+    action: "cmd+`"
+    enabled: true
+  
+  button7:
+    description: "Quick Search"
+    type: "keypress"
+    action: "cmd+shift+f"
+    enabled: true
+  
+  button8:
+    description: "Debug Mode"
+    type: "keypress"
+    action: "F5"
+    enabled: true
+
+encoders:
+  encoder1:
+    description: "Volume Control"
+    typeCW: "keypress"
+    actionCW: "VolumeUp"
+    typeCCW: "keypress"
+    actionCCW: "VolumeDown"
+    enabled: true
+  
+  encoder2:
+    description: "Zoom Control"
+    typeCW: "keypress"
+    actionCW: "cmd+plus"
+    typeCCW: "keypress"
+    actionCCW: "cmd+minus"
+    enabled: true

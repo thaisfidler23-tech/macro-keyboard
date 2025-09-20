@@ -6,6 +6,8 @@ const winston = require('winston');
 const ActionExecutor = require('./ActionExecutor');
 const { ErrorHandler, ErrorTypes } = require('./ErrorHandler');
 const { SerialConnectionManager } = require('./SerialConnectionManager');
+const { ConfigValidator } = require('./ConfigValidator');
+const ProfileManager = require('./ProfileManager');
 
 class MacroKeyboardApp {
   constructor() {
@@ -14,6 +16,8 @@ class MacroKeyboardApp {
     this.config = {};
     this.logger = null; // Will be initialized first
     this.errorHandler = null; // Will be initialized after logger
+    this.configValidator = null; // Will be initialized after logger
+    this.profileManager = null; // Will be initialized after configValidator
     this.actionExecutor = null; // Will be initialized after error handler
     this.serialManager = null; // New serial connection manager
     this.serialPort = null; // Deprecated - will be removed
@@ -110,6 +114,13 @@ class MacroKeyboardApp {
     this.errorHandler = new ErrorHandler(this.logger);
     this.setupErrorHandlerListeners();
     
+    // Initialize configuration validator
+    this.configValidator = new ConfigValidator(this.logger);
+    
+    // Initialize profile manager
+    this.profileManager = new ProfileManager(this.logger, this.configValidator, this.errorHandler);
+    await this.profileManager.initializeProfilesDirectory();
+    
     // Initialize action executor with error handler
     this.actionExecutor = new ActionExecutor(this.logger);
     
@@ -176,29 +187,66 @@ class MacroKeyboardApp {
   }
 
   /**
-   * Load configuration with error handling
+   * Load configuration with validation, migration, and error handling
    */
   async safeLoadConfig() {
     const configPath = path.join(__dirname, '..', 'config', 'default.yaml');
     
     try {
+      let rawConfig = null;
+      
       if (fs.existsSync(configPath)) {
         const configFile = fs.readFileSync(configPath, 'utf8');
-        this.config = yaml.load(configFile);
-        
-        // Validate configuration
-        this.validateConfig(this.config);
-        
-        this.logger.info('Configuration loaded and validated successfully');
+        rawConfig = yaml.load(configFile);
+        this.logger.info('Configuration file loaded');
       } else {
-        this.logger.info('Configuration file not found, creating default');
-        this.config = this.getDefaultConfig();
-        await this.safeSaveConfig();
+        this.logger.info('Configuration file not found, using default configuration');
+        rawConfig = this.getDefaultConfig();
       }
+      
+      // Validate and potentially migrate configuration
+      const validationResult = this.configValidator.validateConfig(rawConfig);
+      
+      if (!validationResult.valid) {
+        const configError = this.errorHandler.createError(
+          ErrorTypes.CONFIGURATION.CONFIG_VALIDATION_ERROR,
+          `Configuration validation failed: ${validationResult.errors.join('; ')}`,
+          null,
+          { configPath, errors: validationResult.errors }
+        );
+        
+        await this.errorHandler.handleError(configError, 'Configuration');
+        
+        // Fall back to default configuration
+        this.config = this.getDefaultConfig();
+        this.logger.warn('Using default configuration due to validation errors');
+        return;
+      }
+      
+      // Use validated/migrated configuration
+      this.config = validationResult.migratedConfig;
+      
+      // Log any warnings (like migrations)
+      if (validationResult.warnings.length > 0) {
+        validationResult.warnings.forEach(warning => {
+          this.logger.warn('Configuration warning:', warning);
+        });
+        
+        // Save migrated configuration back to file
+        const saveSuccess = await this.configValidator.saveConfig(this.config, configPath);
+        if (saveSuccess) {
+          this.logger.info('Migrated configuration saved');
+        } else {
+          this.logger.warn('Failed to save migrated configuration');
+        }
+      }
+      
+      this.logger.info('Configuration loaded and validated successfully');
+      
     } catch (error) {
       const configError = this.errorHandler.createError(
         ErrorTypes.CONFIGURATION.CONFIG_PARSE_ERROR,
-        'Failed to load configuration file',
+        'Failed to load or parse configuration file',
         error,
         { configPath }
       );
@@ -207,52 +255,50 @@ class MacroKeyboardApp {
       
       // Fall back to default configuration
       this.config = this.getDefaultConfig();
-      this.logger.warn('Using default configuration due to load error');
+      this.logger.warn('Using default configuration due to load/parse error');
     }
   }
 
   /**
-   * Validate configuration structure
-   */
-  validateConfig(config) {
-    const required = ['device', 'buttons', 'encoders', 'logging'];
-    
-    for (const key of required) {
-      if (!(key in config)) {
-        throw new Error(`Missing required configuration section: ${key}`);
-      }
-    }
-    
-    // Validate device configuration
-    if (!config.device.baudRate || config.device.baudRate < 1200) {
-      throw new Error('Invalid baud rate in device configuration');
-    }
-    
-    // Validate button counts
-    if (config.device.buttons && (config.device.buttons < 1 || config.device.buttons > 32)) {
-      throw new Error('Button count must be between 1 and 32');
-    }
-    
-    // Validate encoder counts
-    if (config.device.encoders && (config.device.encoders < 0 || config.device.encoders > 8)) {
-      throw new Error('Encoder count must be between 0 and 8');
-    }
-  }
-
-  /**
-   * Save configuration with error handling
+   * Save configuration with validation and error handling
    */
   async safeSaveConfig() {
     const configPath = path.join(__dirname, '..', 'config', 'default.yaml');
     
     try {
-      if (!fs.existsSync(path.dirname(configPath))) {
-        fs.mkdirSync(path.dirname(configPath), { recursive: true });
+      // Validate configuration before saving
+      const validationResult = this.configValidator.validateConfig(this.config);
+      
+      if (!validationResult.valid) {
+        const saveError = this.errorHandler.createError(
+          ErrorTypes.CONFIGURATION.CONFIG_VALIDATION_ERROR,
+          `Cannot save invalid configuration: ${validationResult.errors.join('; ')}`,
+          null,
+          { configPath, errors: validationResult.errors }
+        );
+        
+        await this.errorHandler.handleError(saveError, 'Configuration');
+        return false;
       }
       
-      const configYaml = yaml.dump(this.config, { indent: 2 });
-      fs.writeFileSync(configPath, configYaml);
-      this.logger.info('Configuration saved successfully');
+      // Use validator's save method which includes backup creation
+      const success = await this.configValidator.saveConfig(validationResult.migratedConfig, configPath);
+      
+      if (success) {
+        this.logger.info('Configuration saved successfully');
+        return true;
+      } else {
+        const saveError = this.errorHandler.createError(
+          ErrorTypes.CONFIGURATION.CONFIG_SAVE_FAILED,
+          'ConfigValidator failed to save configuration',
+          null,
+          { configPath }
+        );
+        
+        await this.errorHandler.handleError(saveError, 'Configuration');
+        return false;
+      }
+      
     } catch (error) {
       const saveError = this.errorHandler.createError(
         ErrorTypes.CONFIGURATION.CONFIG_SAVE_FAILED,
@@ -262,22 +308,40 @@ class MacroKeyboardApp {
       );
       
       await this.errorHandler.handleError(saveError, 'Configuration');
+      return false;
     }
   }
 
   getDefaultConfig() {
     return {
+      version: '1.0.0',
       device: {
         serialPort: null,
         baudRate: 9600,
         buttons: 8,
-        encoders: 0
+        encoders: 0,
+        connectionTimeout: 5000
       },
       buttons: {},
       encoders: {},
       logging: {
         level: 'info',
-        file: 'logs/macro-keyboard.log'
+        file: 'logs/macro-keyboard.log',
+        maxSize: 5242880,
+        maxFiles: 5
+      },
+      security: {
+        commandExecution: {
+          enabled: true,
+          mode: 'blacklist',
+          allowedCommands: [],
+          timeout: 10000,
+          maxLength: 1000
+        }
+      },
+      profiles: {
+        active: 'default',
+        available: ['default']
       }
     };
   }
@@ -514,9 +578,66 @@ class MacroKeyboardApp {
     });
 
     ipcMain.handle('save-config', async (event, newConfig) => {
-      this.config = newConfig;
-      await this.saveConfig();
-      return true;
+      try {
+        // Validate configuration before saving
+        const validationResult = this.configValidator.validateConfig(newConfig);
+        
+        if (!validationResult.valid) {
+          return {
+            success: false,
+            errors: validationResult.errors,
+            warnings: validationResult.warnings
+          };
+        }
+        
+        this.config = validationResult.migratedConfig;
+        const success = await this.safeSaveConfig();
+        
+        return {
+          success,
+          errors: success ? [] : ['Failed to save configuration'],
+          warnings: validationResult.warnings
+        };
+      } catch (error) {
+        this.logger.error('Error saving config via IPC:', error);
+        return {
+          success: false,
+          errors: [error.message],
+          warnings: []
+        };
+      }
+    });
+
+    ipcMain.handle('validate-config', async (event, configToValidate) => {
+      try {
+        const validationResult = this.configValidator.validateConfig(configToValidate);
+        return validationResult;
+      } catch (error) {
+        this.logger.error('Error validating config via IPC:', error);
+        return {
+          valid: false,
+          errors: [error.message],
+          warnings: [],
+          migratedConfig: null
+        };
+      }
+    });
+
+    ipcMain.handle('get-config-schema', () => {
+      try {
+        return {
+          success: true,
+          schema: this.configValidator.schema,
+          version: this.configValidator.getCurrentVersion(),
+          stats: this.configValidator.getStats()
+        };
+      } catch (error) {
+        this.logger.error('Error getting config schema via IPC:', error);
+        return {
+          success: false,
+          error: error.message
+        };
+      }
     });
 
     ipcMain.handle('reload-config', async () => {
@@ -559,6 +680,139 @@ class MacroKeyboardApp {
 
     ipcMain.handle('reset-arduino', async () => {
       return this.resetArduino();
+    });
+
+    // Connection status handlers
+    ipcMain.handle('get-connection-status', () => {
+      if (!this.serialManager) {
+        return { state: 'DISCONNECTED', port: null, isConnected: false };
+      }
+      return this.serialManager.getConnectionInfo();
+    });
+
+    ipcMain.handle('test-connection', async (event, options) => {
+      return this.testSerialConnection(options);
+    });
+
+    // Profile Management IPC handlers
+    ipcMain.handle('get-profiles', async () => {
+      try {
+        return this.profileManager.getAvailableProfiles();
+      } catch (error) {
+        this.logger.error('Error getting profiles:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-active-profile-name', async () => {
+      try {
+        return this.profileManager.getActiveProfileName();
+      } catch (error) {
+        this.logger.error('Error getting active profile name:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('activate-profile', async (event, profileName) => {
+      try {
+        const success = this.profileManager.setActiveProfile(profileName);
+        if (success) {
+          this.config = this.profileManager.getActiveProfileConfig();
+          // Notify renderer of config change
+          if (this.mainWindow) {
+            this.mainWindow.webContents.send('config-reloaded', this.config);
+          }
+          return success;
+        }
+        throw new Error(`Failed to activate profile: ${profileName}`);
+      } catch (error) {
+        this.logger.error('Error activating profile:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('create-profile', async (event, profileName, baseConfig = null, description = '') => {
+      try {
+        return await this.profileManager.createProfile(profileName, baseConfig, description);
+      } catch (error) {
+        this.logger.error('Error creating profile:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('update-profile', async (event, profileName, newConfig, description = null) => {
+      try {
+        return await this.profileManager.updateProfile(profileName, newConfig, description);
+      } catch (error) {
+        this.logger.error('Error updating profile:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('delete-profile', async (event, profileName) => {
+      try {
+        return await this.profileManager.deleteProfile(profileName);
+      } catch (error) {
+        this.logger.error('Error deleting profile:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('duplicate-profile', async (event, sourceProfileName, newProfileName, description = '') => {
+      try {
+        return await this.profileManager.duplicateProfile(sourceProfileName, newProfileName, description);
+      } catch (error) {
+        this.logger.error('Error duplicating profile:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('export-profile', async (event, profileName, exportPath) => {
+      try {
+        return await this.profileManager.exportProfile(profileName, exportPath);
+      } catch (error) {
+        this.logger.error('Error exporting profile:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('import-profile', async (event, importPath, profileName = null, overwrite = false) => {
+      try {
+        return await this.profileManager.importProfile(importPath, profileName, overwrite);
+      } catch (error) {
+        this.logger.error('Error importing profile:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-profile-statistics', async () => {
+      try {
+        return this.profileManager.getProfileStatistics();
+      } catch (error) {
+        this.logger.error('Error getting profile statistics:', error);
+        throw error;
+      }
+    });
+
+    // File dialog handlers for profile import/export
+    ipcMain.handle('show-save-dialog', async (event, options) => {
+      const { dialog } = require('electron');
+      try {
+        return await dialog.showSaveDialog(this.mainWindow, options);
+      } catch (error) {
+        this.logger.error('Error showing save dialog:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('show-open-dialog', async (event, options) => {
+      const { dialog } = require('electron');
+      try {
+        return await dialog.showOpenDialog(this.mainWindow, options);
+      } catch (error) {
+        this.logger.error('Error showing open dialog:', error);
+        throw error;
+      }
     });
   }
 
@@ -618,6 +872,14 @@ class MacroKeyboardApp {
    */
   async executeButtonAction(buttonId) {
     try {
+      // Send action start notification
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('action-started', { 
+          type: 'button', 
+          id: buttonId 
+        });
+      }
+
       const buttonConfig = this.config.buttons[`button${buttonId}`];
       
       if (!buttonConfig || !buttonConfig.action || !buttonConfig.type) {
@@ -629,6 +891,16 @@ class MacroKeyboardApp {
         );
         
         await this.errorHandler.handleError(configError, 'ButtonAction');
+        
+        // Send failure notification
+        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+          this.mainWindow.webContents.send('action-failed', { 
+            type: 'button', 
+            id: buttonId,
+            error: 'No valid action configured',
+            config: buttonConfig
+          });
+        }
         return false;
       }
 
@@ -643,6 +915,15 @@ class MacroKeyboardApp {
         );
         
         await this.errorHandler.handleError(systemError, 'ButtonAction');
+        
+        // Send failure notification
+        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+          this.mainWindow.webContents.send('action-failed', { 
+            type: 'button', 
+            id: buttonId,
+            error: 'Action executor not initialized'
+          });
+        }
         return false;
       }
 
@@ -657,6 +938,25 @@ class MacroKeyboardApp {
         );
         
         await this.errorHandler.handleError(actionError, 'ButtonAction');
+        
+        // Send failure notification  
+        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+          this.mainWindow.webContents.send('action-failed', { 
+            type: 'button', 
+            id: buttonId,
+            error: 'Action execution failed',
+            config: buttonConfig
+          });
+        }
+      } else {
+        // Send success notification
+        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+          this.mainWindow.webContents.send('action-completed', { 
+            type: 'button', 
+            id: buttonId,
+            config: buttonConfig
+          });
+        }
       }
       
       return success;
@@ -669,6 +969,15 @@ class MacroKeyboardApp {
       );
       
       await this.errorHandler.handleError(unexpectedError, 'ButtonAction');
+      
+      // Send failure notification
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('action-failed', { 
+          type: 'button', 
+          id: buttonId,
+          error: error.message || 'Unexpected error'
+        });
+      }
       return false;
     }
   }
@@ -678,6 +987,15 @@ class MacroKeyboardApp {
    */
   async executeEncoderAction(encoderId, direction) {
     try {
+      // Send action start notification
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('action-started', { 
+          type: 'encoder', 
+          id: encoderId,
+          direction: direction 
+        });
+      }
+
       const encoderConfig = this.config.encoders[`encoder${encoderId}`];
       
       if (!encoderConfig) {
@@ -689,6 +1007,16 @@ class MacroKeyboardApp {
         );
         
         await this.errorHandler.handleError(configError, 'EncoderAction');
+        
+        // Send failure notification
+        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+          this.mainWindow.webContents.send('action-failed', { 
+            type: 'encoder', 
+            id: encoderId,
+            direction: direction,
+            error: 'No encoder configuration found'
+          });
+        }
         return false;
       }
       
@@ -706,6 +1034,17 @@ class MacroKeyboardApp {
         );
         
         await this.errorHandler.handleError(configError, 'EncoderAction');
+        
+        // Send failure notification
+        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+          this.mainWindow.webContents.send('action-failed', { 
+            type: 'encoder', 
+            id: encoderId,
+            direction: direction,
+            error: `No ${direction} action configured`,
+            config: encoderConfig
+          });
+        }
         return false;
       }
       
@@ -720,6 +1059,16 @@ class MacroKeyboardApp {
         );
         
         await this.errorHandler.handleError(systemError, 'EncoderAction');
+        
+        // Send failure notification
+        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+          this.mainWindow.webContents.send('action-failed', { 
+            type: 'encoder', 
+            id: encoderId,
+            direction: direction,
+            error: 'Action executor not initialized'
+          });
+        }
         return false;
       }
 
@@ -735,6 +1084,27 @@ class MacroKeyboardApp {
         );
         
         await this.errorHandler.handleError(actionError, 'EncoderAction');
+        
+        // Send failure notification  
+        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+          this.mainWindow.webContents.send('action-failed', { 
+            type: 'encoder', 
+            id: encoderId,
+            direction: direction,
+            error: 'Action execution failed',
+            config: actionConfig
+          });
+        }
+      } else {
+        // Send success notification
+        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+          this.mainWindow.webContents.send('action-completed', { 
+            type: 'encoder', 
+            id: encoderId,
+            direction: direction,
+            config: actionConfig
+          });
+        }
       }
       
       return success;
@@ -747,6 +1117,16 @@ class MacroKeyboardApp {
       );
       
       await this.errorHandler.handleError(unexpectedError, 'EncoderAction');
+      
+      // Send failure notification
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('action-failed', { 
+          type: 'encoder', 
+          id: encoderId,
+          direction: direction,
+          error: error.message || 'Unexpected error'
+        });
+      }
       return false;
     }
   }
@@ -976,6 +1356,90 @@ class MacroKeyboardApp {
     } catch (error) {
       this.logger.error('Error resetting Arduino:', error);
       throw error;
+    }
+  }
+
+  async testSerialConnection(options) {
+    const { port, baudRate } = options;
+    
+    try {
+      this.logger.info(`Testing connection to ${port} at ${baudRate} baud`);
+      
+      // Import SerialPort class
+      const { SerialPort } = require('serialport');
+      
+      // Create a temporary connection for testing
+      const testPort = new SerialPort({
+        path: port,
+        baudRate: baudRate || 115200,
+        autoOpen: false
+      });
+      
+      return new Promise((resolve) => {
+        let timeout;
+        let responded = false;
+        
+        const cleanup = () => {
+          if (timeout) clearTimeout(timeout);
+          if (testPort.isOpen) {
+            testPort.close();
+          }
+        };
+        
+        const succeed = () => {
+          if (responded) return;
+          responded = true;
+          cleanup();
+          resolve({ success: true });
+        };
+        
+        const fail = (error) => {
+          if (responded) return;
+          responded = true;
+          cleanup();
+          resolve({ success: false, error: error.message || 'Connection test failed' });
+        };
+        
+        // Set timeout for test
+        timeout = setTimeout(() => {
+          fail({ message: 'Connection test timed out' });
+        }, 5000);
+        
+        // Handle port events
+        testPort.on('open', () => {
+          this.logger.info(`Test port ${port} opened successfully`);
+          
+          // Send a simple test command
+          testPort.write('CONFIG:TEST\n', (writeError) => {
+            if (writeError) {
+              fail(writeError);
+              return;
+            }
+            
+            // Wait briefly for any response, then consider success
+            setTimeout(() => {
+              succeed();
+            }, 1000);
+          });
+        });
+        
+        testPort.on('error', (error) => {
+          this.logger.error(`Test port error: ${error.message}`);
+          fail(error);
+        });
+        
+        // Attempt to open the port
+        testPort.open((openError) => {
+          if (openError) {
+            this.logger.error(`Failed to open test port ${port}: ${openError.message}`);
+            fail(openError);
+          }
+        });
+      });
+      
+    } catch (error) {
+      this.logger.error('Error testing serial connection:', error);
+      return { success: false, error: error.message };
     }
   }
 }

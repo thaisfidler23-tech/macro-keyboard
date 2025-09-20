@@ -17,12 +17,17 @@ jest.mock('child_process', () => ({
   }))
 }));
 
+// Mock SecurityManager
+jest.mock('../src/SecurityManager');
+
 describe('ActionExecutor', () => {
   let actionExecutor;
   let mockLogger;
+  let mockConfig;
   let mockRobot;
   let mockExec;
   let mockSpawn;
+  let MockSecurityManager;
 
   beforeEach(() => {
     // Reset all mocks
@@ -36,24 +41,64 @@ describe('ActionExecutor', () => {
       debug: jest.fn()
     };
 
+    // Create mock config
+    mockConfig = {
+      security: {
+        commandExecution: {
+          mode: 'blacklist',
+          allowedCommands: ['ls', 'echo'],
+          blockedCommands: ['rm', 'sudo'],
+          timeout: 5000,
+          maxLength: 200
+        },
+        applicationExecution: {
+          mode: 'allowlist',
+          allowedApplications: ['Calculator', 'TextEdit'],
+          blockedApplications: ['Terminal'],
+          maxPathLength: 500
+        },
+        keypressValidation: {
+          enabled: true,
+          maxKeyCombinations: 5,
+          blockedKeys: ['alt+f4']
+        }
+      }
+    };
+
     // Get mocked modules
     mockRobot = require('robotjs');
     const childProcess = require('child_process');
     mockExec = childProcess.exec;
     mockSpawn = childProcess.spawn;
 
+    // Mock SecurityManager
+    MockSecurityManager = require('../src/SecurityManager');
+    MockSecurityManager.mockImplementation(() => ({
+      validateAction: jest.fn(() => ({ isValid: true, reason: 'Valid' })),
+      sanitizeCommand: jest.fn(cmd => cmd),
+      sanitizeApplication: jest.fn(app => app),
+      sanitizeKeypress: jest.fn(key => key),
+      getStatistics: jest.fn(() => ({ totalValidations: 0, blockedActions: 0 }))
+    }));
+
     // Create ActionExecutor instance
-    actionExecutor = new ActionExecutor(mockLogger);
+    actionExecutor = new ActionExecutor(mockConfig, mockLogger);
   });
 
   describe('Constructor', () => {
     test('initializes properly', () => {
+      expect(actionExecutor.config).toBe(mockConfig);
       expect(actionExecutor.logger).toBe(mockLogger);
+      expect(actionExecutor.securityManager).toBeDefined();
       expect(actionExecutor.platform).toBe(process.platform);
       expect(actionExecutor.commandTimeout).toBe(10000);
       expect(actionExecutor.maxCommandLength).toBe(1000);
       expect(mockRobot.setDelay).toHaveBeenCalledWith(10);
       expect(mockRobot.setKeyboardDelay).toHaveBeenCalledWith(10);
+    });
+
+    test('initializes SecurityManager with config and logger', () => {
+      expect(MockSecurityManager).toHaveBeenCalledWith(mockConfig, mockLogger);
     });
   });
 
@@ -370,6 +415,79 @@ describe('ActionExecutor', () => {
       
       expect(result).toBe(true);
       expect(actionExecutor.launchApplication).toHaveBeenCalledWith('calculator', 'test');
+    });
+  });
+
+  describe('Security Integration', () => {
+    test('validates commands through SecurityManager', async () => {
+      mockExec.mockImplementation((cmd, options, callback) => {
+        callback(null, 'success', '');
+      });
+
+      const result = await actionExecutor.executeCommand('ls -la', 'test');
+      
+      expect(actionExecutor.securityManager.validateAction).toHaveBeenCalledWith({
+        type: 'command',
+        action: 'ls -la'
+      }, 'test');
+      expect(actionExecutor.securityManager.sanitizeCommand).toHaveBeenCalledWith('ls -la');
+      expect(result).toBe(true);
+    });
+
+    test('blocks invalid commands through SecurityManager', async () => {
+      // Mock SecurityManager to return invalid
+      actionExecutor.securityManager.validateAction.mockReturnValue({
+        isValid: false,
+        reason: 'Command contains dangerous pattern'
+      });
+
+      const result = await actionExecutor.executeCommand('rm -rf /', 'test');
+      
+      expect(result).toBe(false);
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Command failed security validation: Command contains dangerous pattern')
+      );
+    });
+
+    test('validates applications through SecurityManager', async () => {
+      mockSpawn.mockReturnValue({
+        unref: jest.fn(),
+        on: jest.fn((event, callback) => {
+          if (event === 'spawn') {
+            setTimeout(callback, 10);
+          }
+        })
+      });
+
+      const result = await actionExecutor.launchApplication('Calculator', 'test');
+      
+      expect(actionExecutor.securityManager.validateAction).toHaveBeenCalledWith({
+        type: 'application',
+        action: 'Calculator'
+      }, 'test');
+      expect(actionExecutor.securityManager.sanitizeApplication).toHaveBeenCalledWith('Calculator');
+      expect(result).toBe(true);
+    });
+
+    test('validates keypresses through SecurityManager', async () => {
+      const result = await actionExecutor.executeKeypress('cmd+c', 'test');
+      
+      expect(actionExecutor.securityManager.validateAction).toHaveBeenCalledWith({
+        type: 'keypress',
+        action: 'cmd+c'
+      }, 'test');
+      expect(actionExecutor.securityManager.sanitizeKeypress).toHaveBeenCalledWith('cmd+c');
+      expect(result).toBe(true);
+    });
+
+    test('getSecurityStats returns SecurityManager statistics', () => {
+      const mockStats = { totalValidations: 10, blockedActions: 2 };
+      actionExecutor.securityManager.getStatistics.mockReturnValue(mockStats);
+
+      const stats = actionExecutor.getSecurityStats();
+      
+      expect(stats).toBe(mockStats);
+      expect(actionExecutor.securityManager.getStatistics).toHaveBeenCalled();
     });
   });
 });
