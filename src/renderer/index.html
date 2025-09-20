@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Macro Keyboard Configuration</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="plugin-manager.css">
 </head>
 <body>
   <div class="container">
@@ -18,6 +19,7 @@
         <button id="validate-config">Validate Config</button>
         <button id="reload-config">Reload Config</button>
         <button id="save-config">Save Config</button>
+        <button id="plugin-manager-btn">Plugin Manager</button>
       </div>
     </header>
 
@@ -338,12 +340,26 @@
     </div>
   </div>
 
+  <!-- Plugin Manager Modal -->
+  <div id="plugin-manager-modal" class="modal plugin-manager-modal" style="display: none;">
+    <div class="modal-content plugin-manager-content">
+      <div class="modal-header">
+        <h3>Plugin Management</h3>
+        <button class="modal-close" onclick="hidePluginManager()">&times;</button>
+      </div>
+      <div class="modal-body plugin-manager-body">
+        <!-- Plugin Manager UI will be rendered here -->
+      </div>
+    </div>
+  </div>
+
   <script src="KeyboardShortcutPicker.js"></script>
   <script src="ButtonStatePreview.js"></script>
   <script src="ProfileManagerUI.js"></script>
   <script src="UpdateUI.js"></script>
   <script src="LogViewer.js"></script>
   <script src="PerformanceUI.js"></script>
+  <script src="PluginManagerUI.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

@@ -11,6 +11,7 @@ const ProfileManager = require('./ProfileManager');
 const UpdateManager = require('./UpdateManager');
 const LogManager = require('./LogManager');
 const PerformanceMonitor = require('./PerformanceMonitor');
+const PluginManager = require('./PluginManager');
 
 class MacroKeyboardApp {
   constructor() {
@@ -26,6 +27,7 @@ class MacroKeyboardApp {
     this.serialManager = null; // New serial connection manager
     this.updateManager = null; // Will be initialized after logger
     this.performanceMonitor = null; // Will be initialized after logManager
+    this.pluginManager = null; // Will be initialized after errorHandler
     this.serialPort = null; // Deprecated - will be removed
     this.isDev = process.argv.includes('--dev');
     
@@ -136,6 +138,15 @@ class MacroKeyboardApp {
     
     // Initialize action executor with configuration and error handler
     this.actionExecutor = new ActionExecutor(this.config, this.logger);
+    
+    // Initialize plugin manager with configuration and error handler
+    this.pluginManager = new PluginManager(
+      this.config?.plugins || {},
+      this.logger,
+      this.errorHandler,
+      this.actionExecutor
+    );
+    await this.pluginManager.initialize();
     
     // Initialize update manager with configuration
     this.updateManager = new UpdateManager(this.logger, this.config.updates);
@@ -1078,6 +1089,143 @@ class MacroKeyboardApp {
     this.performanceMonitor.on('optimization-suggestion', (suggestion) => {
       if (this.mainWindow && !this.mainWindow.isDestroyed()) {
         this.mainWindow.webContents.send('optimization-suggestion', suggestion);
+      }
+    });
+
+    // Plugin Management IPC handlers
+    ipcMain.handle('get-plugins', async () => {
+      try {
+        return this.pluginManager.getAllPlugins();
+      } catch (error) {
+        this.logger.error('Error getting plugins:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-plugin-details', async (event, pluginId) => {
+      try {
+        return this.pluginManager.getPluginDetails(pluginId);
+      } catch (error) {
+        this.logger.error('Error getting plugin details:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('enable-plugin', async (event, pluginId) => {
+      try {
+        const success = await this.pluginManager.enablePlugin(pluginId);
+        return { success };
+      } catch (error) {
+        this.logger.error('Error enabling plugin:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('disable-plugin', async (event, pluginId) => {
+      try {
+        const success = await this.pluginManager.disablePlugin(pluginId);
+        return { success };
+      } catch (error) {
+        this.logger.error('Error disabling plugin:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('reload-plugin', async (event, pluginId) => {
+      try {
+        const success = await this.pluginManager.reloadPlugin(pluginId);
+        return { success };
+      } catch (error) {
+        this.logger.error('Error reloading plugin:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('uninstall-plugin', async (event, pluginId) => {
+      try {
+        const success = await this.pluginManager.uninstallPlugin(pluginId);
+        return { success };
+      } catch (error) {
+        this.logger.error('Error uninstalling plugin:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-plugin-config', async (event, pluginId) => {
+      try {
+        return this.pluginManager.getPluginConfig(pluginId);
+      } catch (error) {
+        this.logger.error('Error getting plugin config:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('update-plugin-config', async (event, pluginId, config) => {
+      try {
+        const success = await this.pluginManager.updatePluginConfig(pluginId, config);
+        return { success };
+      } catch (error) {
+        this.logger.error('Error updating plugin config:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-plugin-logs', async (event, pluginId, limit = 100) => {
+      try {
+        return await this.pluginManager.getPluginLogs(pluginId, limit);
+      } catch (error) {
+        this.logger.error('Error getting plugin logs:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('load-plugin-from-path', async (event, pluginPath) => {
+      try {
+        const plugin = await this.pluginManager.loadPluginFromPath(pluginPath);
+        return plugin;
+      } catch (error) {
+        this.logger.error('Error loading plugin from path:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('create-plugin-template', async (event, options) => {
+      try {
+        return await this.pluginManager.createPluginTemplate(options);
+      } catch (error) {
+        this.logger.error('Error creating plugin template:', error);
+        throw error;
+      }
+    });
+
+    // Set up real-time plugin event forwarding to renderer
+    this.pluginManager.on('plugin-loaded', (pluginData) => {
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('plugin-loaded', pluginData);
+      }
+    });
+
+    this.pluginManager.on('plugin-enabled', (pluginData) => {
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('plugin-enabled', pluginData);
+      }
+    });
+
+    this.pluginManager.on('plugin-disabled', (pluginData) => {
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('plugin-disabled', pluginData);
+      }
+    });
+
+    this.pluginManager.on('plugin-error', (errorData) => {
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('plugin-error', errorData);
+      }
+    });
+
+    this.pluginManager.on('plugin-unloaded', (pluginData) => {
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('plugin-unloaded', pluginData);
       }
     });
   }

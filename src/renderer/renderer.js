@@ -63,6 +63,19 @@ window.electronAPI = {
   exportPerformanceData: (format, startDate, endDate) => ipcRenderer.invoke('export-performance-data', format, startDate, endDate),
   clearPerformanceData: () => ipcRenderer.invoke('clear-performance-data'),
   
+  // Plugin management methods
+  getPlugins: () => ipcRenderer.invoke('get-plugins'),
+  getPluginDetails: (pluginId) => ipcRenderer.invoke('get-plugin-details', pluginId),
+  enablePlugin: (pluginId) => ipcRenderer.invoke('enable-plugin', pluginId),
+  disablePlugin: (pluginId) => ipcRenderer.invoke('disable-plugin', pluginId),
+  reloadPlugin: (pluginId) => ipcRenderer.invoke('reload-plugin', pluginId),
+  uninstallPlugin: (pluginId) => ipcRenderer.invoke('uninstall-plugin', pluginId),
+  getPluginConfig: (pluginId) => ipcRenderer.invoke('get-plugin-config', pluginId),
+  updatePluginConfig: (pluginId, config) => ipcRenderer.invoke('update-plugin-config', pluginId, config),
+  getPluginLogs: (pluginId, limit) => ipcRenderer.invoke('get-plugin-logs', pluginId, limit),
+  loadPluginFromPath: (pluginPath) => ipcRenderer.invoke('load-plugin-from-path', pluginPath),
+  createPluginTemplate: (options) => ipcRenderer.invoke('create-plugin-template', options),
+  
   // Log event listener
   on: (channel, callback) => {
     if (channel === 'log-entry') {
@@ -73,6 +86,16 @@ window.electronAPI = {
       ipcRenderer.on('performance-alert', (event, alert) => callback(event, alert));
     } else if (channel === 'optimization-suggestion') {
       ipcRenderer.on('optimization-suggestion', (event, suggestion) => callback(event, suggestion));
+    } else if (channel === 'plugin-loaded') {
+      ipcRenderer.on('plugin-loaded', (event, data) => callback(event, data));
+    } else if (channel === 'plugin-enabled') {
+      ipcRenderer.on('plugin-enabled', (event, data) => callback(event, data));
+    } else if (channel === 'plugin-disabled') {
+      ipcRenderer.on('plugin-disabled', (event, data) => callback(event, data));
+    } else if (channel === 'plugin-error') {
+      ipcRenderer.on('plugin-error', (event, data) => callback(event, data));
+    } else if (channel === 'plugin-unloaded') {
+      ipcRenderer.on('plugin-unloaded', (event, data) => callback(event, data));
     }
   },
   
@@ -94,6 +117,7 @@ class ConfigUI {
     this.updateUI = null;
     this.logViewer = null;
     this.performanceUI = null;
+    this.pluginManagerUI = null;
     this.init();
   }
 
@@ -109,6 +133,7 @@ class ConfigUI {
     this.initializeUpdateUI();
     this.initializeLogViewer();
     this.initializePerformanceUI();
+    this.initializePluginManagerUI();
     
     // Perform initial configuration validation
     await this.validateCurrentConfig();
@@ -1071,6 +1096,27 @@ class ConfigUI {
   }
 
   /**
+   * Initialize plugin manager UI
+   */
+  initializePluginManagerUI() {
+    if (typeof PluginManagerUI !== 'undefined') {
+      this.pluginManagerUI = new PluginManagerUI();
+      
+      // Set up plugin manager button handler
+      const pluginManagerBtn = document.getElementById('plugin-manager-btn');
+      if (pluginManagerBtn) {
+        pluginManagerBtn.addEventListener('click', () => {
+          this.showPluginManager();
+        });
+      }
+      
+      console.log('PluginManagerUI initialized');
+    } else {
+      console.warn('PluginManagerUI class not available');
+    }
+  }
+
+  /**
    * Add performance UI to the performance monitoring section
    */
   addPerformanceUIToSection() {
@@ -1796,6 +1842,47 @@ class ConfigUI {
     if (currentAction) {
       picker.setShortcut(currentAction);
     }
+  }
+
+  /**
+   * Show Plugin Manager modal
+   */
+  showPluginManager() {
+    const modal = document.getElementById('plugin-manager-modal');
+    if (modal && this.pluginManagerUI) {
+      const modalBody = modal.querySelector('.plugin-manager-body');
+      if (modalBody) {
+        // Clear previous content
+        modalBody.innerHTML = '';
+        
+        // Render plugin manager UI
+        this.pluginManagerUI.render(modalBody);
+        this.pluginManagerUI.setVisible(true);
+      }
+      
+      modal.style.display = 'flex';
+    }
+  }
+
+  /**
+   * Hide Plugin Manager modal
+   */
+  hidePluginManager() {
+    const modal = document.getElementById('plugin-manager-modal');
+    if (modal) {
+      modal.style.display = 'none';
+      
+      if (this.pluginManagerUI) {
+        this.pluginManagerUI.setVisible(false);
+      }
+    }
+  }
+}
+
+// Global function for hiding Plugin Manager modal (called from HTML)
+function hidePluginManager() {
+  if (window.configUI) {
+    window.configUI.hidePluginManager();
   }
 }
 

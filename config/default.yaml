@@ -139,6 +139,61 @@ performance:
     includeSystemInfo: true # Include system information in exports
     compressionEnabled: true # Enable compression for exported data
 
+# Plugin system configuration
+plugins:
+  enabled: true             # Enable plugin system
+  pluginsDir: "plugins"     # Plugins directory (relative to app data directory)
+  
+  # Plugin loading configuration
+  autoLoad: true            # Automatically load plugins on startup
+  hotReload: true           # Enable hot-reload for development
+  watchPlugins: true        # Watch plugin files for changes
+  
+  # Plugin security and sandboxing
+  security:
+    sandboxEnabled: true    # Enable VM sandbox for plugin execution
+    timeoutMs: 5000         # Plugin operation timeout (ms)
+    memoryLimitMB: 100      # Memory limit per plugin (MB)
+    allowedModules:         # Node.js modules plugins can require
+      - "fs"
+      - "path"
+      - "crypto"
+      - "url"
+      - "util"
+    
+  # Plugin API configuration
+  api:
+    version: "1.0.0"        # Current plugin API version
+    enableLegacy: false     # Support legacy API versions
+    rateLimit: 100          # Max API calls per plugin per minute
+    
+  # Plugin lifecycle configuration
+  lifecycle:
+    loadTimeoutMs: 10000    # Plugin load timeout (ms)
+    unloadTimeoutMs: 5000   # Plugin unload timeout (ms)
+    enableDisposalChecks: true # Verify proper resource cleanup
+    
+  # Plugin communication
+  communication:
+    enableInterPlugin: true # Allow plugins to communicate with each other
+    messageQueueSize: 1000  # Maximum queued messages per plugin
+    maxMessageSize: 10240   # Maximum message size in bytes
+    
+  # Plugin development features
+  development:
+    enableDevMode: false    # Enable development mode features
+    verboseLogging: false   # Enable verbose plugin logging
+    enableInspection: false # Enable plugin inspection tools
+    reloadOnError: false    # Auto-reload plugins after errors
+  
+  # Plugin discovery and management
+  discovery:
+    enableAutoDiscovery: true # Automatically discover new plugins
+    scanInterval: 60000     # Directory scan interval (ms)
+    supportedFormats:       # Supported plugin formats
+      - "js"
+      - "json"
+
 # Profile management
 profiles:
   active: "default"         # Currently active profile
