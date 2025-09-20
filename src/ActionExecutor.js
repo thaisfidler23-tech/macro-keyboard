@@ -40,6 +40,8 @@ class ActionExecutor {
           return await this.executeCommand(action, context);
         case 'application':
           return await this.launchApplication(action, context);
+        case 'macro_sequence':
+          return await this.executeMacroSequence(actionConfig, context);
         default:
           this.logger.error(`Unknown action type: ${type} for ${context}`);
           return false;
@@ -317,6 +319,74 @@ class ActionExecutor {
     }
 
     return normalized;
+  }
+
+  /**
+   * Execute a macro sequence action
+   * @param {Object} actionConfig - Full action configuration with sequence data
+   * @param {string} context - Context for logging
+   */
+  async executeMacroSequence(actionConfig, context) {
+    try {
+      const { action: sequenceName, sequence } = actionConfig;
+      
+      // Get MacroRecorder instance if available
+      if (this.macroRecorder) {
+        this.logger.info(`Executing macro sequence via MacroRecorder: ${sequenceName} for ${context}`);
+        return await this.macroRecorder.playSequence(sequenceName);
+      }
+      
+      // Fallback: Execute sequence directly if provided in action config
+      if (sequence && Array.isArray(sequence)) {
+        this.logger.info(`Executing inline macro sequence for ${context} (${sequence.length} steps)`);
+        
+        for (let i = 0; i < sequence.length; i++) {
+          const step = sequence[i];
+          
+          // Apply delay if specified
+          if (step.delay && step.delay > 0) {
+            await this.delay(step.delay);
+          }
+          
+          // Execute the step
+          const stepContext = `${context}_step_${i + 1}`;
+          const success = await this.executeAction(step, stepContext);
+          
+          if (!success) {
+            this.logger.error(`Macro sequence step failed at ${i + 1}/${sequence.length} for ${context}`);
+            return false;
+          }
+          
+          this.logger.debug(`Executed macro sequence step ${i + 1}/${sequence.length}: ${step.description || step.type}`);
+        }
+        
+        this.logger.info(`Completed inline macro sequence for ${context}`);
+        return true;
+      }
+      
+      // No sequence data available
+      this.logger.error(`No macro sequence data available for ${sequenceName} in ${context}`);
+      return false;
+      
+    } catch (error) {
+      this.logger.error(`Error executing macro sequence for ${context}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Set the MacroRecorder instance for sequence playback
+   */
+  setMacroRecorder(macroRecorder) {
+    this.macroRecorder = macroRecorder;
+    this.logger.info('MacroRecorder instance attached to ActionExecutor');
+  }
+
+  /**
+   * Utility delay function for macro sequences
+   */
+  delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**

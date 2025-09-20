@@ -103,6 +103,43 @@ window.electronAPI = {
     if (channel === 'log-entry') {
       ipcRenderer.removeAllListeners('log-entry');
     }
+  },
+  
+  // Macro Recording methods
+  startMacroRecording: (sequenceName) => ipcRenderer.invoke('start-macro-recording', sequenceName),
+  stopMacroRecording: () => ipcRenderer.invoke('stop-macro-recording'),
+  cancelMacroRecording: () => ipcRenderer.invoke('cancel-macro-recording'),
+  playMacroSequence: (sequenceName) => ipcRenderer.invoke('play-macro-sequence', sequenceName),
+  stopMacroPlayback: () => ipcRenderer.invoke('stop-macro-playback'),
+  getSavedSequences: () => ipcRenderer.invoke('get-saved-sequences'),
+  deleteMacroSequence: (sequenceName) => ipcRenderer.invoke('delete-macro-sequence', sequenceName),
+  duplicateMacroSequence: (sourceName, newName) => ipcRenderer.invoke('duplicate-macro-sequence', sourceName, newName),
+  getMacroStatistics: () => ipcRenderer.invoke('get-macro-statistics'),
+  
+  // Macro Recording event listeners
+  onMacroRecordingStarted: (callback) => {
+    ipcRenderer.on('macro-recording-started', (event, data) => callback(data));
+  },
+  onMacroActionRecorded: (callback) => {
+    ipcRenderer.on('macro-action-recorded', (event, action) => callback(action));
+  },
+  onMacroRecordingStopped: (callback) => {
+    ipcRenderer.on('macro-recording-stopped', (event, sequenceData) => callback(sequenceData));
+  },
+  onMacroPlaybackStarted: (callback) => {
+    ipcRenderer.on('macro-playback-started', (event, data) => callback(data));
+  },
+  onMacroPlaybackProgress: (callback) => {
+    ipcRenderer.on('macro-playback-progress', (event, progress) => callback(progress));
+  },
+  onMacroPlaybackCompleted: (callback) => {
+    ipcRenderer.on('macro-playback-completed', (event, data) => callback(data));
+  },
+  onMacroPlaybackStopped: (callback) => {
+    ipcRenderer.on('macro-playback-stopped', (event, data) => callback(data));
+  },
+  onMacroPlaybackError: (callback) => {
+    ipcRenderer.on('macro-playback-error', (event, error) => callback(error));
   }
 };
 
@@ -1110,6 +1147,16 @@ class ConfigUI {
         });
       }
       
+      // Set up macro recorder button handler
+      const macroRecorderBtn = document.getElementById('macro-recorder-btn');
+      if (macroRecorderBtn) {
+        macroRecorderBtn.addEventListener('click', () => {
+          if (window.macroRecorderUI) {
+            window.macroRecorderUI.show();
+          }
+        });
+      }
+      
       console.log('PluginManagerUI initialized');
     } else {
       console.warn('PluginManagerUI class not available');
@@ -1890,6 +1937,10 @@ function hidePluginManager() {
 document.addEventListener('DOMContentLoaded', () => {
   window.configUI = new ConfigUI();
   window.profileManagerUI = new ProfileManagerUI();
+  
+  // Initialize the MacroRecorderUI
+  window.macroRecorderUI = new MacroRecorderUI();
+  document.body.appendChild(window.macroRecorderUI.getElement());
   
   // Initialize profile manager with the necessary dependencies
   window.profileManagerUI.initialize().catch(error => {

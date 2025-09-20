@@ -12,6 +12,7 @@ const UpdateManager = require('./UpdateManager');
 const LogManager = require('./LogManager');
 const PerformanceMonitor = require('./PerformanceMonitor');
 const PluginManager = require('./PluginManager');
+const MacroRecorder = require('./MacroRecorder');
 
 class MacroKeyboardApp {
   constructor() {
@@ -28,6 +29,7 @@ class MacroKeyboardApp {
     this.updateManager = null; // Will be initialized after logger
     this.performanceMonitor = null; // Will be initialized after logManager
     this.pluginManager = null; // Will be initialized after errorHandler
+    this.macroRecorder = null; // Will be initialized after actionExecutor
     this.serialPort = null; // Deprecated - will be removed
     this.isDev = process.argv.includes('--dev');
     
@@ -138,6 +140,10 @@ class MacroKeyboardApp {
     
     // Initialize action executor with configuration and error handler
     this.actionExecutor = new ActionExecutor(this.config, this.logger);
+    
+    // Initialize macro recorder after action executor
+    this.macroRecorder = new MacroRecorder(this.logger, this.actionExecutor);
+    this.actionExecutor.setMacroRecorder(this.macroRecorder);
     
     // Initialize plugin manager with configuration and error handler
     this.pluginManager = new PluginManager(
@@ -1195,6 +1201,164 @@ class MacroKeyboardApp {
       } catch (error) {
         this.logger.error('Error creating plugin template:', error);
         throw error;
+      }
+    });
+
+    // Macro Recording IPC handlers
+    ipcMain.handle('start-macro-recording', async (event, sequenceName) => {
+      try {
+        const recordingName = await this.macroRecorder.startRecording(sequenceName);
+        return { success: true, recordingName };
+      } catch (error) {
+        this.logger.error('Error starting macro recording:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('stop-macro-recording', async () => {
+      try {
+        const sequenceData = await this.macroRecorder.stopRecording();
+        return { success: true, sequence: sequenceData };
+      } catch (error) {
+        this.logger.error('Error stopping macro recording:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('cancel-macro-recording', async () => {
+      try {
+        this.macroRecorder.cancelRecording();
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error cancelling macro recording:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('record-macro-action', async (event, actionConfig, description) => {
+      try {
+        const recordedAction = this.macroRecorder.recordAction(actionConfig, description);
+        return { success: true, action: recordedAction };
+      } catch (error) {
+        this.logger.error('Error recording macro action:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('play-macro-sequence', async (event, sequenceName) => {
+      try {
+        const success = await this.macroRecorder.playSequence(sequenceName);
+        return { success };
+      } catch (error) {
+        this.logger.error('Error playing macro sequence:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('stop-macro-playback', async () => {
+      try {
+        const success = this.macroRecorder.stopPlayback();
+        return { success };
+      } catch (error) {
+        this.logger.error('Error stopping macro playback:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-saved-sequences', async () => {
+      try {
+        return this.macroRecorder.getSavedSequences();
+      } catch (error) {
+        this.logger.error('Error getting saved sequences:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('delete-macro-sequence', async (event, sequenceName) => {
+      try {
+        const success = this.macroRecorder.deleteSequence(sequenceName);
+        return { success };
+      } catch (error) {
+        this.logger.error('Error deleting macro sequence:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('rename-macro-sequence', async (event, oldName, newName) => {
+      try {
+        const success = this.macroRecorder.renameSequence(oldName, newName);
+        return { success };
+      } catch (error) {
+        this.logger.error('Error renaming macro sequence:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('duplicate-macro-sequence', async (event, sourceName, newName) => {
+      try {
+        const duplicatedData = this.macroRecorder.duplicateSequence(sourceName, newName);
+        return { success: true, sequence: duplicatedData };
+      } catch (error) {
+        this.logger.error('Error duplicating macro sequence:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-macro-statistics', async () => {
+      try {
+        return this.macroRecorder.getStatistics();
+      } catch (error) {
+        this.logger.error('Error getting macro statistics:', error);
+        throw error;
+      }
+    });
+
+    // Set up real-time macro recording event forwarding to renderer
+    this.macroRecorder.on('recordingStarted', (data) => {
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('macro-recording-started', data);
+      }
+    });
+
+    this.macroRecorder.on('actionRecorded', (action) => {
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('macro-action-recorded', action);
+      }
+    });
+
+    this.macroRecorder.on('recordingStopped', (sequenceData) => {
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('macro-recording-stopped', sequenceData);
+      }
+    });
+
+    this.macroRecorder.on('playbackStarted', (data) => {
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('macro-playback-started', data);
+      }
+    });
+
+    this.macroRecorder.on('playbackProgress', (progress) => {
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('macro-playback-progress', progress);
+      }
+    });
+
+    this.macroRecorder.on('playbackCompleted', (data) => {
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('macro-playback-completed', data);
+      }
+    });
+
+    this.macroRecorder.on('playbackStopped', (data) => {
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('macro-playback-stopped', data);
+      }
+    });
+
+    this.macroRecorder.on('playbackError', (error) => {
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('macro-playback-error', error);
       }
     });
 
