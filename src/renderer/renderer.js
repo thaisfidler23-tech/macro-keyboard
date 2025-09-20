@@ -53,10 +53,26 @@ window.electronAPI = {
   exportLogs: (startDate, endDate, format) => ipcRenderer.invoke('export-logs', startDate, endDate, format),
   clearLogs: () => ipcRenderer.invoke('clear-logs'),
   
+  // Performance monitoring methods
+  startPerformanceMonitoring: (options) => ipcRenderer.invoke('start-performance-monitoring', options),
+  stopPerformanceMonitoring: () => ipcRenderer.invoke('stop-performance-monitoring'),
+  getPerformanceMetrics: () => ipcRenderer.invoke('get-performance-metrics'),
+  getPerformanceHistory: (metricType, limit) => ipcRenderer.invoke('get-performance-history', metricType, limit),
+  getOperationPerformance: () => ipcRenderer.invoke('get-operation-performance'),
+  getOptimizationSuggestions: () => ipcRenderer.invoke('get-optimization-suggestions'),
+  exportPerformanceData: (format, startDate, endDate) => ipcRenderer.invoke('export-performance-data', format, startDate, endDate),
+  clearPerformanceData: () => ipcRenderer.invoke('clear-performance-data'),
+  
   // Log event listener
   on: (channel, callback) => {
     if (channel === 'log-entry') {
       ipcRenderer.on('log-entry', (event, logData) => callback(event, logData));
+    } else if (channel === 'performance-metrics') {
+      ipcRenderer.on('performance-metrics', (event, metrics) => callback(event, metrics));
+    } else if (channel === 'performance-alert') {
+      ipcRenderer.on('performance-alert', (event, alert) => callback(event, alert));
+    } else if (channel === 'optimization-suggestion') {
+      ipcRenderer.on('optimization-suggestion', (event, suggestion) => callback(event, suggestion));
     }
   },
   
@@ -77,6 +93,7 @@ class ConfigUI {
     this.buttonStatePreview = null;
     this.updateUI = null;
     this.logViewer = null;
+    this.performanceUI = null;
     this.init();
   }
 
@@ -91,6 +108,7 @@ class ConfigUI {
     this.initializeHardwarePreview();
     this.initializeUpdateUI();
     this.initializeLogViewer();
+    this.initializePerformanceUI();
     
     // Perform initial configuration validation
     await this.validateCurrentConfig();
@@ -1031,6 +1049,37 @@ class ConfigUI {
       this.logViewer.setVisible(true);
       
       console.log('LogViewer added to UI');
+    }
+  }
+
+  /**
+   * Initialize performance monitoring UI
+   */
+  initializePerformanceUI() {
+    if (typeof PerformanceUI !== 'undefined') {
+      this.performanceUI = new PerformanceUI();
+      
+      // Delay to ensure DOM is ready
+      setTimeout(() => {
+        this.addPerformanceUIToSection();
+      }, 100);
+      
+      console.log('PerformanceUI initialized');
+    } else {
+      console.warn('PerformanceUI class not available');
+    }
+  }
+
+  /**
+   * Add performance UI to the performance monitoring section
+   */
+  addPerformanceUIToSection() {
+    const performanceContent = document.getElementById('performance-content');
+    if (performanceContent && this.performanceUI) {
+      // Render the performance UI directly into the section
+      this.performanceUI.render(performanceContent);
+      
+      console.log('PerformanceUI added to performance monitoring section');
     }
   }
 

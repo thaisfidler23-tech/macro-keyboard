@@ -104,6 +104,41 @@ updates:
   notify: true              # Show update notifications to user
   silent: false             # Silent update mode (no user interaction)
 
+# Performance monitoring configuration
+performance:
+  enabled: true             # Enable performance monitoring
+  updateInterval: 1000      # Metrics collection interval (ms)
+  historyLimit: 1000        # Number of historical data points to keep
+  enableGC: true            # Monitor garbage collection metrics
+  enableOperations: true    # Track operation performance
+  enableOptimizations: true # Generate optimization suggestions
+  
+  # Monitoring thresholds
+  thresholds:
+    memory: 1073741824      # Memory warning threshold (1GB in bytes)
+    eventLoopLag: 100       # Event loop lag warning threshold (ms)
+    operationTime: 500      # Operation time warning threshold (ms)
+    gcDuration: 50          # GC duration warning threshold (ms)
+  
+  # Alert configuration
+  alerts:
+    enabled: true           # Enable performance alerts
+    showNotifications: true # Show desktop notifications for critical alerts
+    criticalThresholds:
+      memory: 2147483648    # Critical memory threshold (2GB in bytes)
+      eventLoopLag: 1000    # Critical event loop lag (ms)
+      operationTime: 2000   # Critical operation time (ms)
+  
+  # Data retention and export
+  retention:
+    enabled: true           # Enable automatic data cleanup
+    maxAge: 86400000        # Maximum age of performance data (24 hours in ms)
+    cleanupInterval: 3600000 # Cleanup check interval (1 hour in ms)
+  
+  export:
+    includeSystemInfo: true # Include system information in exports
+    compressionEnabled: true # Enable compression for exported data
+
 # Profile management
 profiles:
   active: "default"         # Currently active profile

@@ -10,6 +10,7 @@ const { ConfigValidator } = require('./ConfigValidator');
 const ProfileManager = require('./ProfileManager');
 const UpdateManager = require('./UpdateManager');
 const LogManager = require('./LogManager');
+const PerformanceMonitor = require('./PerformanceMonitor');
 
 class MacroKeyboardApp {
   constructor() {
@@ -24,6 +25,7 @@ class MacroKeyboardApp {
     this.actionExecutor = null; // Will be initialized after error handler
     this.serialManager = null; // New serial connection manager
     this.updateManager = null; // Will be initialized after logger
+    this.performanceMonitor = null; // Will be initialized after logManager
     this.serialPort = null; // Deprecated - will be removed
     this.isDev = process.argv.includes('--dev');
     
@@ -114,6 +116,9 @@ class MacroKeyboardApp {
     this.logManager = new LogManager(this.config?.logging || {});
     this.logger = this.logManager.getLogger(); // Get Winston logger instance for backward compatibility
     this.logger.info('Macro Keyboard application starting...');
+    
+    // Initialize performance monitor
+    this.performanceMonitor = new PerformanceMonitor(this.config?.performance || {}, this.logManager);
     
     // Initialize error handler
     this.errorHandler = new ErrorHandler(this.logger);
@@ -978,6 +983,101 @@ class MacroKeyboardApp {
     this.logManager.on('log-entry', (logData) => {
       if (this.mainWindow && !this.mainWindow.isDestroyed()) {
         this.mainWindow.webContents.send('log-entry', logData);
+      }
+    });
+
+    // Performance monitoring IPC handlers
+    ipcMain.handle('start-performance-monitoring', async (event, options = {}) => {
+      try {
+        this.performanceMonitor.startMonitoring(options);
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error starting performance monitoring:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('stop-performance-monitoring', async () => {
+      try {
+        this.performanceMonitor.stopMonitoring();
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error stopping performance monitoring:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-performance-metrics', async () => {
+      try {
+        return this.performanceMonitor.getMetrics();
+      } catch (error) {
+        this.logger.error('Error getting performance metrics:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-performance-history', async (event, metricType = 'all', limit = 100) => {
+      try {
+        return this.performanceMonitor.getHistory(metricType, limit);
+      } catch (error) {
+        this.logger.error('Error getting performance history:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-operation-performance', async () => {
+      try {
+        return this.performanceMonitor.getOperationPerformance();
+      } catch (error) {
+        this.logger.error('Error getting operation performance:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-optimization-suggestions', async () => {
+      try {
+        return this.performanceMonitor.getOptimizationSuggestions();
+      } catch (error) {
+        this.logger.error('Error getting optimization suggestions:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('export-performance-data', async (event, format = 'json', startDate = null, endDate = null) => {
+      try {
+        return await this.performanceMonitor.exportData(format, startDate, endDate);
+      } catch (error) {
+        this.logger.error('Error exporting performance data:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('clear-performance-data', async () => {
+      try {
+        this.performanceMonitor.clearData();
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error clearing performance data:', error);
+        throw error;
+      }
+    });
+
+    // Set up real-time performance data forwarding to renderer
+    this.performanceMonitor.on('metrics-updated', (metrics) => {
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('performance-metrics', metrics);
+      }
+    });
+
+    this.performanceMonitor.on('performance-alert', (alert) => {
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('performance-alert', alert);
+      }
+    });
+
+    this.performanceMonitor.on('optimization-suggestion', (suggestion) => {
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('optimization-suggestion', suggestion);
       }
     });
   }
