@@ -80,6 +80,34 @@
   const int ENCODER_B_PINS[MAX_ENCODERS] = {14, 15, 16, 17, 18, 19, 20, 21};
 #endif
 
+// RGB LED Configuration
+// WS2812B (NeoPixel) LED strip support
+#define RGB_LED_ENABLED true     // Enable/disable RGB LED support
+#define RGB_LED_PIN 22           // Data pin for WS2812B LED strip (use available digital pin)
+#define RGB_LED_COUNT MAX_BUTTONS // One LED per button (matches button count)
+#define RGB_BRIGHTNESS 128       // Default brightness (0-255)
+
+// LED update timing
+#define LED_UPDATE_INTERVAL 50   // ms - How often to update LED animations
+#define LED_FADE_SPEED 5        // Speed of fade animations (1-10)
+
+// Default LED colors (RGB values 0-255)
+#define RGB_DEFAULT_R 50
+#define RGB_DEFAULT_G 50  
+#define RGB_DEFAULT_B 100
+
+#define RGB_ACTIVE_R 0
+#define RGB_ACTIVE_G 255
+#define RGB_ACTIVE_B 0
+
+#define RGB_PRESSED_R 255
+#define RGB_PRESSED_G 100
+#define RGB_PRESSED_B 0
+
+#define RGB_ERROR_R 255
+#define RGB_ERROR_G 0
+#define RGB_ERROR_B 0
+
 // Hardware-specific settings
 #define LED_PIN 13  // Built-in LED pin for status indication
 
@@ -90,8 +118,9 @@
 //   Digital pins 4-7: Column pins
 //   Analog pins A0-A7: Encoder A channels (if using encoders)
 //   Digital pins 14-21: Encoder B channels (if using encoders)
+//   Digital pin 22: RGB LED data pin (WS2812B strip)
 //
 // For larger configurations, adjust pins accordingly
-// Ensure no pin conflicts between button matrix and encoders
+// Ensure no pin conflicts between button matrix, encoders, and LEDs
 
 #endif // CONFIG_H

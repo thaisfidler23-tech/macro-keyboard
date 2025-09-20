@@ -145,7 +145,42 @@ window.electronAPI = {
   // Context Manager event listeners
   on: (channel, callback) => {
     ipcRenderer.on(channel, callback);
-  }
+  },
+
+  // System Integration methods
+  getSystemIntegrationStatus: () => ipcRenderer.invoke('get-system-integration-status'),
+  registerGlobalShortcut: (shortcut, action, metadata) => ipcRenderer.invoke('register-global-shortcut', shortcut, action, metadata),
+  unregisterGlobalShortcut: (shortcut) => ipcRenderer.invoke('unregister-global-shortcut', shortcut),
+  getClipboardHistory: (limit) => ipcRenderer.invoke('get-clipboard-history', limit),
+  setClipboardContent: (content, metadata) => ipcRenderer.invoke('set-clipboard-content', content, metadata),
+  getActiveWindow: () => ipcRenderer.invoke('get-active-window'),
+  executeSystemCommand: (command, args) => ipcRenderer.invoke('execute-system-command', command, args),
+  getSystemState: () => ipcRenderer.invoke('get-system-state'),
+  addApplicationIntegration: (appName, config) => ipcRenderer.invoke('add-application-integration', appName, config),
+  removeApplicationIntegration: (appName) => ipcRenderer.invoke('remove-application-integration', appName),
+  exportSystemIntegrationSettings: () => ipcRenderer.invoke('export-system-integration-settings'),
+  importSystemIntegrationSettings: (settings) => ipcRenderer.invoke('import-system-integration-settings', settings),
+
+  // Voice Recognition methods
+  getVoiceRecognitionStatus: () => ipcRenderer.invoke('get-voice-recognition-status'),
+  startVoiceListening: () => ipcRenderer.invoke('start-voice-listening'),
+  stopVoiceListening: () => ipcRenderer.invoke('stop-voice-listening'),
+  pauseVoiceListening: () => ipcRenderer.invoke('pause-voice-listening'),
+  resumeVoiceListening: () => ipcRenderer.invoke('resume-voice-listening'),
+  addVoiceCommand: (phrase, action, options) => ipcRenderer.invoke('add-voice-command', phrase, action, options),
+  removeVoiceCommand: (phrase) => ipcRenderer.invoke('remove-voice-command', phrase),
+  getVoiceCommands: () => ipcRenderer.invoke('get-voice-commands'),
+  testVoiceCommand: (phrase) => ipcRenderer.invoke('test-voice-command', phrase),
+  switchVoiceProfile: (profileName) => ipcRenderer.invoke('switch-voice-profile', profileName),
+  getVoiceProfiles: () => ipcRenderer.invoke('get-voice-profiles'),
+  createVoiceProfile: (name, config) => ipcRenderer.invoke('create-voice-profile', name, config),
+  getVoiceRecognitionStatistics: () => ipcRenderer.invoke('get-voice-recognition-statistics'),
+  resetVoiceRecognitionStatistics: () => ipcRenderer.invoke('reset-voice-recognition-statistics'),
+  saveVoiceRecognitionConfiguration: () => ipcRenderer.invoke('save-voice-recognition-configuration'),
+  setVoiceGain: (gain) => ipcRenderer.invoke('set-voice-gain', gain),
+  setVoiceNoiseThreshold: (threshold) => ipcRenderer.invoke('set-voice-noise-threshold', threshold),
+  setVoiceConfidenceThreshold: (threshold) => ipcRenderer.invoke('set-voice-confidence-threshold', threshold),
+  startVoiceTraining: (mode) => ipcRenderer.invoke('start-voice-training', mode)
 };
 
 class ConfigUI {
@@ -1172,6 +1207,36 @@ class ConfigUI {
         });
       }
       
+      // Set up LED manager button handler
+      const ledManagerBtn = document.getElementById('led-manager-btn');
+      if (ledManagerBtn) {
+        ledManagerBtn.addEventListener('click', () => {
+          if (window.ledManagerUI) {
+            window.ledManagerUI.show();
+          }
+        });
+      }
+      
+      // Set up system integration button handler
+      const systemIntegrationBtn = document.getElementById('system-integration-btn');
+      if (systemIntegrationBtn) {
+        systemIntegrationBtn.addEventListener('click', () => {
+          if (window.systemIntegrationUI) {
+            window.systemIntegrationUI.show();
+          }
+        });
+      }
+      
+      // Set up voice recognition button handler
+      const voiceRecognitionBtn = document.getElementById('voice-recognition-btn');
+      if (voiceRecognitionBtn) {
+        voiceRecognitionBtn.addEventListener('click', () => {
+          if (window.voiceRecognitionUI) {
+            window.voiceRecognitionUI.show();
+          }
+        });
+      }
+      
       console.log('PluginManagerUI initialized');
     } else {
       console.warn('PluginManagerUI class not available');
@@ -1963,6 +2028,30 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('ContextManagerUI initialized successfully');
   } else {
     console.warn('ContextManagerUI class not available');
+  }
+  
+  // Initialize the LEDManagerUI
+  if (typeof LEDManagerUI !== 'undefined') {
+    window.ledManagerUI = new LEDManagerUI();
+    console.log('LEDManagerUI initialized successfully');
+  } else {
+    console.warn('LEDManagerUI class not available');
+  }
+  
+  // Initialize the SystemIntegrationUI
+  if (typeof SystemIntegrationUI !== 'undefined') {
+    window.systemIntegrationUI = new SystemIntegrationUI();
+    console.log('SystemIntegrationUI initialized successfully');
+  } else {
+    console.warn('SystemIntegrationUI class not available');
+  }
+  
+  // Initialize the VoiceRecognitionUI
+  if (typeof VoiceRecognitionUI !== 'undefined') {
+    window.voiceRecognitionUI = new VoiceRecognitionUI();
+    console.log('VoiceRecognitionUI initialized successfully');
+  } else {
+    console.warn('VoiceRecognitionUI class not available');
   }
   
   // Initialize profile manager with the necessary dependencies

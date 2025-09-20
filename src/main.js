@@ -15,6 +15,9 @@ const PluginManager = require('./PluginManager');
 const MacroRecorder = require('./MacroRecorder');
 const ContextManager = require('./ContextManager');
 const ProfileSwitcher = require('./ProfileSwitcher');
+const LEDController = require('./LEDController');
+const SystemIntegrationManager = require('./SystemIntegrationManager');
+const VoiceRecognitionManager = require('./VoiceRecognitionManager');
 
 class MacroKeyboardApp {
   constructor() {
@@ -34,6 +37,9 @@ class MacroKeyboardApp {
     this.macroRecorder = null; // Will be initialized after actionExecutor
     this.contextManager = null; // Will be initialized after profileManager
     this.profileSwitcher = null; // Will be initialized after contextManager
+    this.ledController = null; // Will be initialized after serialManager
+    this.systemIntegrationManager = null; // Will be initialized after logger
+    this.voiceRecognitionManager = null; // Will be initialized after logger
     this.serialPort = null; // Deprecated - will be removed
     this.isDev = process.argv.includes('--dev');
     
@@ -593,6 +599,24 @@ class MacroKeyboardApp {
       // Initialize the manager
       await this.serialManager.initialize();
       
+      // Initialize LED controller after serial manager is ready
+      this.ledController = new LEDController(this.serialManager);
+      await this.ledController.initialize();
+      
+      // Initialize system integration manager for advanced OS features
+      this.systemIntegrationManager = new SystemIntegrationManager(this.logger);
+      await this.systemIntegrationManager.initialize();
+      
+      // Initialize voice recognition manager for hands-free operation
+      this.voiceRecognitionManager = new VoiceRecognitionManager(this.logger);
+      await this.voiceRecognitionManager.initialize();
+      
+      // Set up system integration event listeners
+      this.setupSystemIntegrationListeners();
+      
+      // Set up voice recognition event listeners
+      this.setupVoiceRecognitionListeners();
+      
       this.logger.info('Serial communication manager initialized');
     } catch (error) {
       const serialError = this.errorHandler.createError(
@@ -643,6 +667,142 @@ class MacroKeyboardApp {
       
       if (this.mainWindow && !this.mainWindow.isDestroyed()) {
         this.mainWindow.webContents.send('offline-mode', enabled);
+      }
+    });
+  }
+
+  /**
+   * Set up system integration manager event listeners
+   */
+  setupSystemIntegrationListeners() {
+    if (!this.systemIntegrationManager) return;
+    
+    this.systemIntegrationManager.on('shortcut-triggered', (data) => {
+      this.logger.debug('Global shortcut triggered:', data);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('system-integration-event', 'shortcut-triggered', data);
+      }
+    });
+    
+    this.systemIntegrationManager.on('clipboard-changed', (data) => {
+      this.logger.debug('Clipboard changed:', data);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('system-integration-event', 'clipboard-changed', data);
+      }
+    });
+    
+    this.systemIntegrationManager.on('window-focus-changed', (data) => {
+      this.logger.debug('Window focus changed:', data);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('system-integration-event', 'window-focus-changed', data);
+      }
+    });
+    
+    this.systemIntegrationManager.on('system-state-changed', (data) => {
+      this.logger.debug('System state changed:', data);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('system-integration-event', 'system-state-changed', data);
+      }
+    });
+    
+    this.systemIntegrationManager.on('error', (data) => {
+      this.logger.error('System integration error:', data);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('system-integration-event', 'error', data);
+      }
+    });
+  }
+
+  /**
+   * Set up voice recognition event listeners
+   */
+  setupVoiceRecognitionListeners() {
+    if (!this.voiceRecognitionManager) return;
+    
+    this.voiceRecognitionManager.on('command-executed', (data) => {
+      this.logger.info('Voice command executed:', data);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('voice-recognition-event', 'command-executed', data);
+      }
+    });
+    
+    this.voiceRecognitionManager.on('execute-command', async (context) => {
+      try {
+        // Execute the voice command through action executor
+        const result = await this.actionExecutor.executeAction(context.action, context.parameters);
+        
+        this.logger.info('Voice command action executed:', {
+          action: context.action,
+          success: result.success
+        });
+        
+        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+          this.mainWindow.webContents.send('voice-recognition-event', 'action-result', {
+            context,
+            result
+          });
+        }
+      } catch (error) {
+        this.logger.error('Failed to execute voice command action:', error);
+        
+        if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+          this.mainWindow.webContents.send('voice-recognition-event', 'action-error', {
+            context,
+            error: error.message
+          });
+        }
+      }
+    });
+    
+    this.voiceRecognitionManager.on('listening-started', () => {
+      this.logger.debug('Voice recognition listening started');
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('voice-recognition-event', 'listening-started');
+      }
+    });
+    
+    this.voiceRecognitionManager.on('listening-stopped', () => {
+      this.logger.debug('Voice recognition listening stopped');
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('voice-recognition-event', 'listening-stopped');
+      }
+    });
+    
+    this.voiceRecognitionManager.on('interim-result', (data) => {
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('voice-recognition-event', 'interim-result', data);
+      }
+    });
+    
+    this.voiceRecognitionManager.on('recognition-error', (data) => {
+      this.logger.warn('Voice recognition error:', data);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('voice-recognition-event', 'recognition-error', data);
+      }
+    });
+    
+    this.voiceRecognitionManager.on('unrecognized-command', (data) => {
+      this.logger.debug('Unrecognized voice command:', data);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('voice-recognition-event', 'unrecognized-command', data);
+      }
+    });
+    
+    this.voiceRecognitionManager.on('profile-switched', (data) => {
+      this.logger.info('Voice profile switched:', data);
+      
+      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+        this.mainWindow.webContents.send('voice-recognition-event', 'profile-switched', data);
       }
     });
   }
@@ -1577,6 +1737,713 @@ class MacroKeyboardApp {
         this.mainWindow.webContents.send('plugin-unloaded', pluginData);
       }
     });
+
+    // RGB LED IPC handlers
+    ipcMain.handle('get-led-status', async () => {
+      try {
+        if (!this.ledController) {
+          return { enabled: false, buttonCount: 0, brightness: 0, currentColors: {}, currentEffect: null };
+        }
+        return this.ledController.getState();
+      } catch (error) {
+        this.logger.error('Error getting LED status:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('set-led-brightness', async (event, brightness) => {
+      try {
+        if (!this.ledController) {
+          throw new Error('LED system not available');
+        }
+        await this.ledController.setBrightness(brightness);
+        return { success: true, brightness };
+      } catch (error) {
+        this.logger.error('Error setting LED brightness:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('set-led-button-color', async (event, buttonId, color) => {
+      try {
+        if (!this.ledController) {
+          throw new Error('LED system not available');
+        }
+        await this.ledController.setButtonColor(buttonId, color);
+        return { success: true, buttonId, color };
+      } catch (error) {
+        this.logger.error('Error setting button LED color:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('set-led-all-buttons', async (event, color) => {
+      try {
+        if (!this.ledController) {
+          throw new Error('LED system not available');
+        }
+        await this.ledController.setAllButtons(color);
+        return { success: true, color };
+      } catch (error) {
+        this.logger.error('Error setting all button LED colors:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('clear-all-leds', async () => {
+      try {
+        if (!this.ledController) {
+          throw new Error('LED system not available');
+        }
+        await this.ledController.clearAll();
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error clearing LEDs:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('start-led-effect', async (event, effectName, speed = 5) => {
+      try {
+        if (!this.ledController) {
+          throw new Error('LED system not available');
+        }
+        await this.ledController.startEffect(effectName, speed);
+        return { success: true, effectName, speed };
+      } catch (error) {
+        this.logger.error('Error starting LED effect:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('stop-led-effect', async () => {
+      try {
+        if (!this.ledController) {
+          throw new Error('LED system not available');
+        }
+        await this.ledController.stopEffect();
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error stopping LED effect:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('run-led-test-pattern', async () => {
+      try {
+        if (!this.ledController) {
+          throw new Error('LED system not available');
+        }
+        
+        // Run a simple test pattern
+        const colors = [
+          { r: 255, g: 0, b: 0 },   // Red
+          { r: 0, g: 255, b: 0 },   // Green
+          { r: 0, g: 0, b: 255 },   // Blue
+          { r: 255, g: 255, b: 0 }, // Yellow
+          { r: 255, g: 0, b: 255 }, // Magenta
+          { r: 0, g: 255, b: 255 }  // Cyan
+        ];
+        
+        // Cycle through colors on all buttons
+        for (let i = 0; i < colors.length; i++) {
+          await this.ledController.setAllButtons(colors[i], false);
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        // Return to default
+        await this.ledController.setAllButtons(this.ledController.defaultColors.default);
+        
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error running LED test pattern:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('save-led-theme', async (event, profileId, theme) => {
+      try {
+        if (!this.ledController || !this.profileManager) {
+          throw new Error('LED system or Profile system not available');
+        }
+        
+        // Save theme to profile data
+        const profile = this.profileManager.getProfile(profileId);
+        if (!profile) {
+          throw new Error(`Profile not found: ${profileId}`);
+        }
+        
+        profile.ledTheme = theme;
+        await this.profileManager.updateProfile(profileId, profile.config, profile.description);
+        
+        return { success: true, profileId, theme };
+      } catch (error) {
+        this.logger.error('Error saving LED theme:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('apply-led-theme', async (event, profileId) => {
+      try {
+        if (!this.ledController || !this.profileManager) {
+          throw new Error('LED system or Profile system not available');
+        }
+        
+        const profile = this.profileManager.getProfile(profileId);
+        if (!profile || !profile.ledTheme) {
+          throw new Error(`LED theme not found for profile: ${profileId}`);
+        }
+        
+        await this.ledController.applyProfileTheme(profileId, profile.ledTheme);
+        
+        return { success: true, profileId, theme: profile.ledTheme };
+      } catch (error) {
+        this.logger.error('Error applying LED theme:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('delete-led-theme', async (event, profileId) => {
+      try {
+        if (!this.profileManager) {
+          throw new Error('Profile system not available');
+        }
+        
+        const profile = this.profileManager.getProfile(profileId);
+        if (!profile) {
+          throw new Error(`Profile not found: ${profileId}`);
+        }
+        
+        delete profile.ledTheme;
+        await this.profileManager.updateProfile(profileId, profile.config, profile.description);
+        
+        return { success: true, profileId };
+      } catch (error) {
+        this.logger.error('Error deleting LED theme:', error);
+        throw error;
+      }
+    });
+
+    // ===== SYSTEM INTEGRATION HANDLERS =====
+    ipcMain.handle('get-system-integration-status', async () => {
+      try {
+        if (!this.systemIntegrationManager) {
+          throw new Error('System integration not available');
+        }
+        
+        return this.systemIntegrationManager.getStatus();
+      } catch (error) {
+        this.logger.error('Error getting system integration status:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('register-global-shortcut', async (event, shortcut, action, metadata = {}) => {
+      try {
+        if (!this.systemIntegrationManager) {
+          throw new Error('System integration not available');
+        }
+        
+        this.systemIntegrationManager.registerGlobalShortcut(shortcut, action, metadata);
+        return { success: true, shortcut };
+      } catch (error) {
+        this.logger.error('Error registering global shortcut:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('unregister-global-shortcut', async (event, shortcut) => {
+      try {
+        if (!this.systemIntegrationManager) {
+          throw new Error('System integration not available');
+        }
+        
+        this.systemIntegrationManager.unregisterGlobalShortcut(shortcut);
+        return { success: true, shortcut };
+      } catch (error) {
+        this.logger.error('Error unregistering global shortcut:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-clipboard-history', async (event, limit = 10) => {
+      try {
+        if (!this.systemIntegrationManager) {
+          throw new Error('System integration not available');
+        }
+        
+        return this.systemIntegrationManager.getClipboardHistory(limit);
+      } catch (error) {
+        this.logger.error('Error getting clipboard history:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('set-clipboard-content', async (event, content, metadata = {}) => {
+      try {
+        if (!this.systemIntegrationManager) {
+          throw new Error('System integration not available');
+        }
+        
+        this.systemIntegrationManager.setClipboardContent(content, metadata);
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error setting clipboard content:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-active-window', async () => {
+      try {
+        if (!this.systemIntegrationManager) {
+          throw new Error('System integration not available');
+        }
+        
+        const windowInfo = await this.systemIntegrationManager.getActiveWindow();
+        return windowInfo;
+      } catch (error) {
+        this.logger.error('Error getting active window:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('execute-system-command', async (event, command, args = []) => {
+      try {
+        if (!this.systemIntegrationManager) {
+          throw new Error('System integration not available');
+        }
+        
+        const result = await this.systemIntegrationManager.executeSystemCommand(command, args);
+        return { success: true, result };
+      } catch (error) {
+        this.logger.error('Error executing system command:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-system-state', async () => {
+      try {
+        if (!this.systemIntegrationManager) {
+          throw new Error('System integration not available');
+        }
+        
+        return this.systemIntegrationManager.systemState;
+      } catch (error) {
+        this.logger.error('Error getting system state:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('add-application-integration', async (event, appName, config) => {
+      try {
+        if (!this.systemIntegrationManager) {
+          throw new Error('System integration not available');
+        }
+        
+        this.systemIntegrationManager.appIntegrations.set(appName, config);
+        return { success: true, appName };
+      } catch (error) {
+        this.logger.error('Error adding application integration:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('remove-application-integration', async (event, appName) => {
+      try {
+        if (!this.systemIntegrationManager) {
+          throw new Error('System integration not available');
+        }
+        
+        const removed = this.systemIntegrationManager.appIntegrations.delete(appName);
+        return { success: removed, appName };
+      } catch (error) {
+        this.logger.error('Error removing application integration:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('export-system-integration-settings', async () => {
+      try {
+        if (!this.systemIntegrationManager) {
+          throw new Error('System integration not available');
+        }
+        
+        const settings = {
+          shortcuts: Array.from(this.systemIntegrationManager.registeredShortcuts.entries()),
+          appIntegrations: Array.from(this.systemIntegrationManager.appIntegrations.entries()),
+          automationRules: Array.from(this.systemIntegrationManager.automationRules.entries()),
+          status: this.systemIntegrationManager.getStatus()
+        };
+        
+        return settings;
+      } catch (error) {
+        this.logger.error('Error exporting system integration settings:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('import-system-integration-settings', async (event, settings) => {
+      try {
+        if (!this.systemIntegrationManager) {
+          throw new Error('System integration not available');
+        }
+        
+        // Import shortcuts
+        if (settings.shortcuts) {
+          for (const [shortcut, data] of settings.shortcuts) {
+            try {
+              this.systemIntegrationManager.registerGlobalShortcut(shortcut, data.action, data.metadata);
+            } catch (err) {
+              this.logger.warn(`Failed to import shortcut ${shortcut}:`, err);
+            }
+          }
+        }
+        
+        // Import app integrations
+        if (settings.appIntegrations) {
+          for (const [appName, config] of settings.appIntegrations) {
+            this.systemIntegrationManager.appIntegrations.set(appName, config);
+          }
+        }
+        
+        return { success: true, imported: true };
+      } catch (error) {
+        this.logger.error('Error importing system integration settings:', error);
+        throw error;
+      }
+    });
+
+    // Voice Recognition IPC Handlers
+    ipcMain.handle('get-voice-recognition-status', async () => {
+      try {
+        if (!this.voiceRecognitionManager) {
+          throw new Error('Voice recognition not available');
+        }
+        
+        return this.voiceRecognitionManager.getStatus();
+      } catch (error) {
+        this.logger.error('Error getting voice recognition status:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('start-voice-listening', async () => {
+      try {
+        if (!this.voiceRecognitionManager) {
+          throw new Error('Voice recognition not available');
+        }
+        
+        await this.voiceRecognitionManager.startListening();
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error starting voice recognition:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('stop-voice-listening', async () => {
+      try {
+        if (!this.voiceRecognitionManager) {
+          throw new Error('Voice recognition not available');
+        }
+        
+        this.voiceRecognitionManager.stopListening();
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error stopping voice recognition:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('pause-voice-listening', async () => {
+      try {
+        if (!this.voiceRecognitionManager) {
+          throw new Error('Voice recognition not available');
+        }
+        
+        this.voiceRecognitionManager.pauseListening();
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error pausing voice recognition:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('resume-voice-listening', async () => {
+      try {
+        if (!this.voiceRecognitionManager) {
+          throw new Error('Voice recognition not available');
+        }
+        
+        await this.voiceRecognitionManager.resumeListening();
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error resuming voice recognition:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('add-voice-command', async (event, phrase, action, options = {}) => {
+      try {
+        if (!this.voiceRecognitionManager) {
+          throw new Error('Voice recognition not available');
+        }
+        
+        this.voiceRecognitionManager.addVoiceCommand(phrase, action, options);
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error adding voice command:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('remove-voice-command', async (event, phrase) => {
+      try {
+        if (!this.voiceRecognitionManager) {
+          throw new Error('Voice recognition not available');
+        }
+        
+        const removed = this.voiceRecognitionManager.removeVoiceCommand(phrase);
+        return { success: true, removed };
+      } catch (error) {
+        this.logger.error('Error removing voice command:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-voice-commands', async () => {
+      try {
+        if (!this.voiceRecognitionManager) {
+          throw new Error('Voice recognition not available');
+        }
+        
+        const commands = [];
+        for (const [phrase, config] of this.voiceRecognitionManager.voiceCommands) {
+          commands.push({
+            phrase,
+            action: config.action,
+            confidence: config.confidence,
+            parameters: config.parameters || {}
+          });
+        }
+        
+        return commands;
+      } catch (error) {
+        this.logger.error('Error getting voice commands:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('test-voice-command', async (event, phrase) => {
+      try {
+        if (!this.voiceRecognitionManager) {
+          throw new Error('Voice recognition not available');
+        }
+        
+        // Test command parsing
+        let matched = false;
+        let action = null;
+        let confidence = 0;
+        
+        for (const [parserName, parser] of this.voiceRecognitionManager.commandParsers) {
+          const result = parser(phrase);
+          if (result) {
+            matched = true;
+            action = result.action;
+            confidence = result.confidence || 0.8;
+            break;
+          }
+        }
+        
+        return {
+          matched,
+          action,
+          confidence,
+          suggestions: matched ? [] : this.getSimilarCommands(phrase, 3)
+        };
+      } catch (error) {
+        this.logger.error('Error testing voice command:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('switch-voice-profile', async (event, profileName) => {
+      try {
+        if (!this.voiceRecognitionManager) {
+          throw new Error('Voice recognition not available');
+        }
+        
+        await this.voiceRecognitionManager.switchProfile(profileName);
+        return { success: true, profile: profileName };
+      } catch (error) {
+        this.logger.error('Error switching voice profile:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-voice-profiles', async () => {
+      try {
+        if (!this.voiceRecognitionManager) {
+          throw new Error('Voice recognition not available');
+        }
+        
+        const profiles = [];
+        for (const [name, profile] of this.voiceRecognitionManager.voiceProfiles) {
+          profiles.push({
+            name,
+            language: profile.language,
+            commandCount: profile.commands.size,
+            active: name === this.voiceRecognitionManager.currentProfile
+          });
+        }
+        
+        return profiles;
+      } catch (error) {
+        this.logger.error('Error getting voice profiles:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('create-voice-profile', async (event, name, config) => {
+      try {
+        if (!this.voiceRecognitionManager) {
+          throw new Error('Voice recognition not available');
+        }
+        
+        const profileData = {
+          language: config.language || 'en-US',
+          commands: new Map(),
+          vocabulary: new Set(),
+          settings: config.settings || {}
+        };
+        
+        this.voiceRecognitionManager.voiceProfiles.set(name, profileData);
+        return { success: true, profile: name };
+      } catch (error) {
+        this.logger.error('Error creating voice profile:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('get-voice-recognition-statistics', async () => {
+      try {
+        if (!this.voiceRecognitionManager) {
+          throw new Error('Voice recognition not available');
+        }
+        
+        return this.voiceRecognitionManager.getStatistics();
+      } catch (error) {
+        this.logger.error('Error getting voice recognition statistics:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('reset-voice-recognition-statistics', async () => {
+      try {
+        if (!this.voiceRecognitionManager) {
+          throw new Error('Voice recognition not available');
+        }
+        
+        // Reset statistics
+        this.voiceRecognitionManager.recognitionStats = {
+          totalCommands: 0,
+          successfulCommands: 0,
+          failedCommands: 0,
+          averageConfidence: 0,
+          recognitionStartTime: null,
+          totalListeningTime: 0
+        };
+        
+        this.voiceRecognitionManager.commandHistory = [];
+        
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error resetting voice recognition statistics:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('save-voice-recognition-configuration', async () => {
+      try {
+        if (!this.voiceRecognitionManager) {
+          throw new Error('Voice recognition not available');
+        }
+        
+        const config = this.voiceRecognitionManager.exportConfiguration();
+        const configPath = path.join(__dirname, '..', 'config', 'voice-profiles.json');
+        await fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+        
+        return { success: true };
+      } catch (error) {
+        this.logger.error('Error saving voice recognition configuration:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('set-voice-gain', async (event, gain) => {
+      try {
+        if (!this.voiceRecognitionManager || !this.voiceRecognitionManager.gainNode) {
+          throw new Error('Voice recognition or audio processing not available');
+        }
+        
+        this.voiceRecognitionManager.gainNode.gain.value = gain;
+        return { success: true, gain };
+      } catch (error) {
+        this.logger.error('Error setting voice gain:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('set-voice-noise-threshold', async (event, threshold) => {
+      try {
+        if (!this.voiceRecognitionManager) {
+          throw new Error('Voice recognition not available');
+        }
+        
+        this.voiceRecognitionManager.options.noiseThreshold = threshold;
+        return { success: true, threshold };
+      } catch (error) {
+        this.logger.error('Error setting voice noise threshold:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('set-voice-confidence-threshold', async (event, threshold) => {
+      try {
+        if (!this.voiceRecognitionManager) {
+          throw new Error('Voice recognition not available');
+        }
+        
+        this.voiceRecognitionManager.options.confidenceThreshold = threshold;
+        return { success: true, threshold };
+      } catch (error) {
+        this.logger.error('Error setting voice confidence threshold:', error);
+        throw error;
+      }
+    });
+
+    ipcMain.handle('start-voice-training', async (event, mode) => {
+      try {
+        if (!this.voiceRecognitionManager) {
+          throw new Error('Voice recognition not available');
+        }
+        
+        // Return training session data (placeholder implementation)
+        const trainingPhrases = {
+          command: Array.from(this.voiceRecognitionManager.voiceCommands.keys()),
+          vocabulary: Array.from(this.voiceRecognitionManager.customVocabulary),
+          accent: ['The quick brown fox jumps over the lazy dog', 'She sells seashells by the seashore']
+        };
+        
+        return {
+          currentPhrase: trainingPhrases[mode][0] || 'No phrases available',
+          progress: { completed: 0, total: trainingPhrases[mode].length, percentage: 0 }
+        };
+      } catch (error) {
+        this.logger.error('Error starting voice training:', error);
+        throw error;
+      }
+    });
   }
 
   async initSerial() {
@@ -1926,6 +2793,62 @@ class MacroKeyboardApp {
   }
 
   /**
+   * Get similar voice commands for suggestions
+   */
+  getSimilarCommands(inputPhrase, limit = 5) {
+    if (!this.voiceRecognitionManager) return [];
+    
+    const similarities = [];
+    const normalizedInput = inputPhrase.toLowerCase().trim();
+    
+    for (const [phrase] of this.voiceRecognitionManager.voiceCommands) {
+      const similarity = this.calculateStringSimilarity(normalizedInput, phrase);
+      if (similarity > 0.3) { // Only include reasonably similar phrases
+        similarities.push({ phrase, similarity });
+      }
+    }
+    
+    return similarities
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, limit)
+      .map(item => item.phrase);
+  }
+
+  /**
+   * Calculate string similarity using Levenshtein distance
+   */
+  calculateStringSimilarity(str1, str2) {
+    const matrix = [];
+    const len1 = str1.length;
+    const len2 = str2.length;
+
+    for (let i = 0; i <= len2; i++) {
+      matrix[i] = [i];
+    }
+
+    for (let j = 0; j <= len1; j++) {
+      matrix[0][j] = j;
+    }
+
+    for (let i = 1; i <= len2; i++) {
+      for (let j = 1; j <= len1; j++) {
+        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
+          );
+        }
+      }
+    }
+
+    const maxLen = Math.max(len1, len2);
+    return maxLen > 0 ? (maxLen - matrix[len2][len1]) / maxLen : 1;
+  }
+
+  /**
    * Graceful shutdown with cleanup
    */
   async gracefulShutdown(exitCode = 0) {
@@ -1951,6 +2874,16 @@ class MacroKeyboardApp {
       // Clean up update manager
       if (this.updateManager) {
         this.updateManager.cleanup();
+      }
+      
+      // Clean up system integration manager
+      if (this.systemIntegrationManager) {
+        this.systemIntegrationManager.cleanup();
+      }
+      
+      // Clean up voice recognition manager
+      if (this.voiceRecognitionManager) {
+        this.voiceRecognitionManager.cleanup();
       }
       
       // Clean up error handler

@@ -1,0 +1,359 @@
+{
+  "version": "1.0",
+  "default": {
+    "language": "en-US",
+    "commands": {
+      "start recording": {
+        "action": "start-macro-recording",
+        "confidence": 0.8
+      },
+      "stop recording": {
+        "action": "stop-macro-recording",
+        "confidence": 0.8
+      },
+      "start macro": {
+        "action": "start-macro-recording",
+        "confidence": 0.7
+      },
+      "stop macro": {
+        "action": "stop-macro-recording",
+        "confidence": 0.7
+      },
+      "play macro": {
+        "action": "play-macro",
+        "confidence": 0.8
+      },
+      "pause macro": {
+        "action": "pause-macro",
+        "confidence": 0.8
+      },
+      "resume macro": {
+        "action": "resume-macro",
+        "confidence": 0.8
+      },
+      "show macro keyboard": {
+        "action": "show-main-window",
+        "confidence": 0.7
+      },
+      "hide macro keyboard": {
+        "action": "hide-main-window",
+        "confidence": 0.7
+      },
+      "open macro manager": {
+        "action": "show-main-window",
+        "confidence": 0.7
+      },
+      "close macro manager": {
+        "action": "hide-main-window",
+        "confidence": 0.7
+      },
+      "switch to profile": {
+        "action": "switch-profile",
+        "confidence": 0.8,
+        "parameters": {
+          "profileName": "default"
+        }
+      },
+      "toggle rgb": {
+        "action": "toggle-rgb-mode",
+        "confidence": 0.7
+      },
+      "change rgb color": {
+        "action": "change-rgb-color",
+        "confidence": 0.7
+      },
+      "set rgb effect": {
+        "action": "set-rgb-effect",
+        "confidence": 0.8
+      },
+      "help": {
+        "action": "show-help",
+        "confidence": 0.6
+      },
+      "voice help": {
+        "action": "show-voice-help",
+        "confidence": 0.8
+      },
+      "settings": {
+        "action": "show-settings",
+        "confidence": 0.6
+      },
+      "voice settings": {
+        "action": "show-voice-settings",
+        "confidence": 0.8
+      },
+      "status": {
+        "action": "show-status",
+        "confidence": 0.6
+      },
+      "voice status": {
+        "action": "show-voice-status",
+        "confidence": 0.8
+      }
+    },
+    "vocabulary": [
+      "macro",
+      "keyboard",
+      "recording",
+      "playback",
+      "profile",
+      "rgb",
+      "led",
+      "color",
+      "effect",
+      "pattern",
+      "start",
+      "stop",
+      "pause",
+      "resume",
+      "play",
+      "show",
+      "hide",
+      "open",
+      "close",
+      "switch",
+      "toggle",
+      "change",
+      "set",
+      "help",
+      "settings",
+      "status"
+    ],
+    "settings": {
+      "continuous": true,
+      "interimResults": true,
+      "voiceFeedback": true,
+      "adaptiveMode": true
+    }
+  },
+  "development": {
+    "language": "en-US",
+    "commands": {
+      "start recording": {
+        "action": "start-macro-recording",
+        "confidence": 0.8
+      },
+      "stop recording": {
+        "action": "stop-macro-recording",
+        "confidence": 0.8
+      },
+      "debug mode": {
+        "action": "toggle-debug-mode",
+        "confidence": 0.8
+      },
+      "reload application": {
+        "action": "reload-application",
+        "confidence": 0.9
+      },
+      "open developer tools": {
+        "action": "open-dev-tools",
+        "confidence": 0.8
+      },
+      "close developer tools": {
+        "action": "close-dev-tools",
+        "confidence": 0.8
+      },
+      "clear console": {
+        "action": "clear-console",
+        "confidence": 0.7
+      },
+      "run test": {
+        "action": "run-tests",
+        "confidence": 0.8
+      },
+      "build application": {
+        "action": "build-app",
+        "confidence": 0.8
+      }
+    },
+    "vocabulary": [
+      "debug",
+      "developer",
+      "tools",
+      "console",
+      "test",
+      "build",
+      "reload",
+      "clear"
+    ],
+    "settings": {
+      "continuous": true,
+      "interimResults": true,
+      "voiceFeedback": true,
+      "adaptiveMode": true
+    }
+  },
+  "gaming": {
+    "language": "en-US", 
+    "commands": {
+      "quick save": {
+        "action": "execute-shortcut",
+        "confidence": 0.9,
+        "parameters": {
+          "shortcut": "F5"
+        }
+      },
+      "quick load": {
+        "action": "execute-shortcut",
+        "confidence": 0.9,
+        "parameters": {
+          "shortcut": "F9"
+        }
+      },
+      "pause game": {
+        "action": "execute-shortcut",
+        "confidence": 0.8,
+        "parameters": {
+          "shortcut": "Space"
+        }
+      },
+      "screenshot": {
+        "action": "execute-shortcut",
+        "confidence": 0.8,
+        "parameters": {
+          "shortcut": "F12"
+        }
+      },
+      "toggle fullscreen": {
+        "action": "execute-shortcut",
+        "confidence": 0.8,
+        "parameters": {
+          "shortcut": "Alt+Enter"
+        }
+      },
+      "inventory": {
+        "action": "execute-shortcut",
+        "confidence": 0.8,
+        "parameters": {
+          "shortcut": "I"
+        }
+      },
+      "map": {
+        "action": "execute-shortcut",
+        "confidence": 0.7,
+        "parameters": {
+          "shortcut": "M"
+        }
+      }
+    },
+    "vocabulary": [
+      "save",
+      "load",
+      "pause",
+      "screenshot",
+      "fullscreen",
+      "inventory",
+      "map",
+      "game",
+      "quick"
+    ],
+    "settings": {
+      "continuous": false,
+      "interimResults": false,
+      "voiceFeedback": false,
+      "adaptiveMode": true
+    }
+  },
+  "productivity": {
+    "language": "en-US",
+    "commands": {
+      "copy": {
+        "action": "execute-shortcut",
+        "confidence": 0.8,
+        "parameters": {
+          "shortcut": "Ctrl+C"
+        }
+      },
+      "paste": {
+        "action": "execute-shortcut",
+        "confidence": 0.8,
+        "parameters": {
+          "shortcut": "Ctrl+V"
+        }
+      },
+      "cut": {
+        "action": "execute-shortcut",
+        "confidence": 0.8,
+        "parameters": {
+          "shortcut": "Ctrl+X"
+        }
+      },
+      "undo": {
+        "action": "execute-shortcut",
+        "confidence": 0.8,
+        "parameters": {
+          "shortcut": "Ctrl+Z"
+        }
+      },
+      "redo": {
+        "action": "execute-shortcut",
+        "confidence": 0.8,
+        "parameters": {
+          "shortcut": "Ctrl+Y"
+        }
+      },
+      "save": {
+        "action": "execute-shortcut",
+        "confidence": 0.9,
+        "parameters": {
+          "shortcut": "Ctrl+S"
+        }
+      },
+      "new document": {
+        "action": "execute-shortcut",
+        "confidence": 0.8,
+        "parameters": {
+          "shortcut": "Ctrl+N"
+        }
+      },
+      "open document": {
+        "action": "execute-shortcut",
+        "confidence": 0.8,
+        "parameters": {
+          "shortcut": "Ctrl+O"
+        }
+      },
+      "close document": {
+        "action": "execute-shortcut",
+        "confidence": 0.8,
+        "parameters": {
+          "shortcut": "Ctrl+W"
+        }
+      },
+      "find": {
+        "action": "execute-shortcut",
+        "confidence": 0.8,
+        "parameters": {
+          "shortcut": "Ctrl+F"
+        }
+      },
+      "find and replace": {
+        "action": "execute-shortcut",
+        "confidence": 0.8,
+        "parameters": {
+          "shortcut": "Ctrl+H"
+        }
+      }
+    },
+    "vocabulary": [
+      "copy",
+      "paste",
+      "cut",
+      "undo",
+      "redo",
+      "save",
+      "new",
+      "open",
+      "close",
+      "find",
+      "replace",
+      "document"
+    ],
+    "settings": {
+      "continuous": true,
+      "interimResults": true,
+      "voiceFeedback": true,
+      "adaptiveMode": true
+    }
+  }
+}
