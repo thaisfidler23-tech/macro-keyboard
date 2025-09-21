@@ -54,49 +54,22 @@ Electron based application to drive a physical macro keyboard with Arduino integ
 
 ## Quick Start
 
-### 1. Hardware Setup
-1. Wire your buttons and encoders according to the [Arduino README](arduino/README.md)
-2. Flash the appropriate firmware to your Arduino Micro
-3. Connect the Arduino to your computer via USB
+### New to Macro Keyboards?
+👉 **[Complete Getting Started Guide](docs/GETTING_STARTED.md)** - Everything you need to know in 30 minutes
 
-### 2. Application Installation
+### Already Know What You're Doing?
 
-#### Development Mode
-```bash
-# Clone the repository
-git clone https://github.com/jmassardo/macro-keyboard.git
-cd macro-keyboard
+#### 1. Get the Software
+- **[Download Latest Release](https://github.com/jmassardo/macro-keyboard/releases)** (Recommended)
+- Or build from source (see [Development Guide](docs/DEVELOPMENT.md))
 
-# Install dependencies
-npm install
+#### 2. Hardware Setup
+- Wire your button matrix with diodes ([Wiring Guide](docs/GETTING_STARTED.md#hardware-setup))
+- Flash Arduino firmware ([Arduino Guide](arduino/README.md))
+- Connect via USB and configure in the app
 
-# Start in development mode
-npm run dev
-```
-
-#### Production Build
-```bash
-# Build for your platform
-npm run build:mac    # macOS
-npm run build:win    # Windows  
-npm run build:linux  # Linux
-
-# Or build for all platforms
-npm run build
-```
-
-### 3. Configuration
-
-The application uses a YAML configuration file located at `config/default.yaml`.
-
-#### Example Configuration
+#### 3. Configure Your Actions
 ```yaml
-device:
-  serialPort: "/dev/tty.usbmodem1234"  # Adjust for your system
-  baudRate: 9600
-  buttons: 8
-  encoders: 2
-
 buttons:
   button1:
     description: "Volume Up"
@@ -104,25 +77,17 @@ buttons:
     action: "VolumeUp"
   
   button2:
-    description: "Launch Terminal"
+    description: "Launch Calculator"
     type: "application"
-    action: "Terminal"
+    action: "Calculator"
   
   button3:
-    description: "Custom Script"
-    type: "command"
-    action: "echo 'Hello from macro!'"
-
-encoders:
-  encoder1:
-    description: "Volume Control"
-    typeCW: "keypress"
-    actionCW: "VolumeUp" 
-    typeCCW: "keypress"
-    actionCCW: "VolumeDown"
+    description: "Take Screenshot"
+    type: "keypress"
+    action: "cmd+shift+3"  # macOS example
 ```
 
-For detailed action configuration options and cross-platform examples, see the [Action Execution Documentation](docs/ACTION_EXECUTION.md).
+**Need Help?** Check our [Troubleshooting Guide](docs/TROUBLESHOOTING.md) or [FAQ](docs/FAQ.md)
 
 ## Arduino Firmware
 
@@ -170,12 +135,30 @@ npm run icons:validate # Validate icon setup
 ```
 
 ### Documentation
-- [Development Guide](docs/DEVELOPMENT.md) - Setup and development workflow
-- [Action Execution](docs/ACTION_EXECUTION.md) - How actions are processed and executed
-- [Context-Aware Profiles](docs/CONTEXT_AWARE_PROFILES.md) - Automatic profile switching system
-- [Security Architecture](docs/SECURITY_ARCHITECTURE.md) - Security features and configuration
-- [Icons & Branding](docs/ICONS_AND_BRANDING.md) - Application icons and visual identity
-- [Arduino README](arduino/README.md) - Hardware setup and firmware details
+
+#### 📚 **[Complete Documentation Index](docs/DOCUMENTATION_INDEX.md)**
+*Your guide to all available documentation - start here to find exactly what you need*
+
+#### Essential Guides
+- **[Getting Started Guide](docs/GETTING_STARTED.md)** - Complete setup process for new users
+- **[User Manual](docs/USER_MANUAL.md)** - Comprehensive feature reference  
+- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Solutions for common problems
+- **[FAQ](docs/FAQ.md)** - Quick answers to frequent questions
+
+#### Developer Resources
+- **[API Reference](docs/API_REFERENCE.md)** - Complete API documentation
+- **[Plugin Development Tutorial](docs/PLUGIN_DEVELOPMENT.md)** - Step-by-step plugin creation
+- **[Contributing Guide](docs/CONTRIBUTING.md)** - How to contribute to the project
+- **[Development Guide](docs/DEVELOPMENT.md)** - Development environment setup
+
+#### Advanced Features
+- **[Context-Aware Profiles](docs/CONTEXT_AWARE_PROFILES.md)** - Automatic profile switching
+- **[Security Architecture](docs/SECURITY_ARCHITECTURE.md)** - Security model and configuration
+- **[Plugin Architecture](docs/PLUGIN_ARCHITECTURE.md)** - Plugin system design
+- **[Performance Monitoring](docs/PERFORMANCE_MONITORING.md)** - Performance tracking and optimization
+
+#### Hardware Documentation
+- **[Arduino Setup Guide](arduino/README.md)** - Hardware setup and firmware installation
 
 ### Automated Releases
 
