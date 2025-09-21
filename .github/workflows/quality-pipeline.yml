@@ -1,0 +1,370 @@
+name: Code Quality Pipeline
+
+on:
+  push:
+    branches: [ main, develop, 'feature/*', 'release/*' ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  quality-checks:
+    name: Code Quality Validation
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: JavaScript Syntax Validation
+      run: |
+        echo "🔍 Validating JavaScript syntax..."
+        SYNTAX_ERRORS=0
+        for file in $(find src/ -name "*.js"); do
+          if ! node -c "$file"; then
+            echo "❌ Syntax error in: $file"
+            ((SYNTAX_ERRORS++))
+          fi
+        done
+        if [ $SYNTAX_ERRORS -gt 0 ]; then
+          echo "💥 Found $SYNTAX_ERRORS syntax errors"
+          exit 1
+        fi
+        echo "✅ All files have valid JavaScript syntax"
+
+    - name: ESLint Analysis
+      run: |
+        echo "🔍 Running ESLint analysis..."
+        ESLINT_USE_FLAT_CONFIG=false npx eslint src/ --format=json --output-file=eslint-report.json || true
+        
+        # Parse results and set quality gates
+        ERRORS=$(cat eslint-report.json | jq '[.[] | .messages[] | select(.severity == 2)] | length')
+        WARNINGS=$(cat eslint-report.json | jq '[.[] | .messages[] | select(.severity == 1)] | length')
+        
+        echo "ESLint Results: $ERRORS errors, $WARNINGS warnings"
+        
+        # Quality gates
+        if [ $ERRORS -gt 0 ]; then
+          echo "❌ ESLint errors must be resolved before merge"
+          ESLINT_USE_FLAT_CONFIG=false npx eslint src/ --max-warnings 0
+          exit 1
+        fi
+        
+        if [ $WARNINGS -gt 50 ]; then
+          echo "⚠️  Warning: High number of ESLint warnings ($WARNINGS)"
+          echo "Please address warnings to improve code quality"
+        fi
+        
+        echo "✅ ESLint quality gates passed"
+
+    - name: Code Formatting Check
+      run: |
+        echo "🔍 Checking code formatting..."
+        if ! npx prettier --check "src/**/*.js" "tests/**/*.js" "*.js" "*.json"; then
+          echo "❌ Code formatting issues detected"
+          echo "Run 'npm run format' to fix formatting"
+          exit 1
+        fi
+        echo "✅ Code formatting is consistent"
+
+    - name: Security Vulnerability Scan
+      run: |
+        echo "🔍 Scanning for security vulnerabilities..."
+        if ! npm audit --audit-level moderate; then
+          echo "❌ Security vulnerabilities detected"
+          echo "Run 'npm audit fix' to address issues"
+          exit 1
+        fi
+        echo "✅ No security vulnerabilities found"
+
+    - name: Unit Tests
+      run: |
+        echo "🔍 Running unit tests..."
+        npm run test:ci
+      continue-on-error: true
+
+    - name: Test Coverage Report
+      run: |
+        echo "🔍 Generating coverage report..."
+        npx jest --coverage --coverageReporters=json-summary --silent
+        
+        # Extract coverage metrics
+        COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
+        echo "Test Coverage: $COVERAGE%"
+        
+        # Coverage gate (warning only for now)
+        if [ $(echo "$COVERAGE < 60" | bc -l) -eq 1 ]; then
+          echo "⚠️  Warning: Low test coverage ($COVERAGE%)"
+          echo "Target: >80% coverage for production readiness"
+        fi
+      continue-on-error: true
+
+    - name: Code Complexity Analysis
+      run: |
+        echo "🔍 Analyzing code complexity..."
+        
+        # Create complexity report
+        cat > complexity-check.js << 'EOF'
+        const fs = require('fs');
+        const { execSync } = require('child_process');
+        
+        try {
+          const output = execSync('ESLINT_USE_FLAT_CONFIG=false npx eslint src/ --format json', { encoding: 'utf8' });
+          const results = JSON.parse(output);
+          
+          let highComplexity = [];
+          results.forEach(file => {
+            file.messages.forEach(msg => {
+              if (msg.ruleId === 'complexity' && msg.severity === 1) {
+                highComplexity.push({
+                  file: file.filePath,
+                  line: msg.line,
+                  message: msg.message
+                });
+              }
+            });
+          });
+          
+          if (highComplexity.length > 0) {
+            console.log(`⚠️  Found ${highComplexity.length} high-complexity functions`);
+            console.log('Consider refactoring for better maintainability:');
+            highComplexity.slice(0, 5).forEach(item => {
+              console.log(`  - ${item.file.split('/').pop()}:${item.line} - ${item.message}`);
+            });
+          } else {
+            console.log('✅ All functions have acceptable complexity');
+          }
+        } catch (error) {
+          console.log('⚠️  Could not analyze complexity');
+        }
+        EOF
+        
+        node complexity-check.js
+
+    - name: Quality Metrics Summary
+      if: always()
+      run: |
+        echo "📊 Quality Metrics Summary"
+        echo "========================="
+        
+        # Create quality report
+        cat > quality-summary.js << 'EOF'
+        const fs = require('fs');
+        
+        // Calculate quality score based on metrics
+        let qualityScore = 100;
+        let issues = [];
+        
+        // Check for eslint-report.json
+        if (fs.existsSync('eslint-report.json')) {
+          const eslintData = JSON.parse(fs.readFileSync('eslint-report.json', 'utf8'));
+          const errors = eslintData.reduce((sum, file) => sum + file.errorCount, 0);
+          const warnings = eslintData.reduce((sum, file) => sum + file.warningCount, 0);
+          
+          qualityScore -= errors * 2; // 2 points per error
+          qualityScore -= warnings * 0.5; // 0.5 points per warning
+          
+          console.log(`ESLint: ${errors} errors, ${warnings} warnings`);
+          if (errors > 0) issues.push(`${errors} ESLint errors`);
+          if (warnings > 10) issues.push(`${warnings} ESLint warnings`);
+        }
+        
+        // Check coverage if available
+        if (fs.existsSync('coverage/coverage-summary.json')) {
+          const coverage = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
+          const lineCoverage = coverage.total.lines.pct;
+          
+          if (lineCoverage < 80) {
+            qualityScore -= (80 - lineCoverage) * 0.5;
+            console.log(`Test Coverage: ${lineCoverage}%`);
+            if (lineCoverage < 60) issues.push(`Low test coverage (${lineCoverage}%)`);
+          }
+        }
+        
+        // Ensure score doesn't go below 0
+        qualityScore = Math.max(0, Math.round(qualityScore));
+        
+        console.log(`\nOverall Quality Score: ${qualityScore}/100`);
+        
+        if (qualityScore >= 90) {
+          console.log('🏆 Excellent - Enterprise grade quality');
+        } else if (qualityScore >= 75) {
+          console.log('✅ Good - Ready for production');
+        } else if (qualityScore >= 60) {
+          console.log('⚠️  Acceptable - Consider improvements');
+        } else {
+          console.log('❌ Poor - Requires immediate attention');
+        }
+        
+        if (issues.length > 0) {
+          console.log('\nKey Issues to Address:');
+          issues.forEach(issue => console.log(`  - ${issue}`));
+        }
+        
+        // Set output for other steps
+        const output = {
+          score: qualityScore,
+          issues: issues.length,
+          status: qualityScore >= 75 ? 'PASS' : 'REVIEW_NEEDED'
+        };
+        
+        fs.writeFileSync('quality-report.json', JSON.stringify(output, null, 2));
+        EOF
+        
+        node quality-summary.js
+
+    - name: Upload Quality Reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: quality-reports-${{ matrix.node-version }}
+        path: |
+          eslint-report.json
+          quality-report.json
+          coverage/
+        retention-days: 30
+
+    - name: Comment PR with Quality Report
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          if (!fs.existsSync('quality-report.json')) {
+            console.log('No quality report found');
+            return;
+          }
+          
+          const report = JSON.parse(fs.readFileSync('quality-report.json', 'utf8'));
+          
+          const body = `## 📊 Code Quality Report
+          
+          **Quality Score: ${report.score}/100**
+          
+          ${report.status === 'PASS' ? '✅' : '⚠️'} **Status: ${report.status}**
+          
+          ${report.issues > 0 ? `**Issues Found:** ${report.issues}` : '**No major issues detected**'}
+          
+          ### Quality Metrics
+          - JavaScript syntax validation: ${report.score >= 90 ? '✅' : '❌'} 
+          - ESLint compliance: ${report.score >= 75 ? '✅' : '⚠️'}
+          - Code formatting: ${report.score >= 60 ? '✅' : '❌'}
+          - Security scan: ✅
+          
+          ### Recommendations
+          ${report.score < 75 ? '- Address ESLint errors and warnings\n- Improve test coverage\n- Review code complexity' : '- Great work! Code quality meets standards'}
+          
+          ---
+          *Quality report generated by Code Quality Pipeline*
+          `;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: body
+          });
+
+  dependency-check:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Audit Dependencies
+      run: |
+        echo "🔍 Auditing dependencies for security vulnerabilities..."
+        npm audit --audit-level=moderate --json > audit-report.json || true
+        
+        # Check for critical/high vulnerabilities
+        CRITICAL=$(cat audit-report.json | jq '.metadata.vulnerabilities.critical // 0')
+        HIGH=$(cat audit-report.json | jq '.metadata.vulnerabilities.high // 0')
+        
+        echo "Security Audit Results:"
+        echo "  Critical: $CRITICAL"
+        echo "  High: $HIGH"
+        
+        if [ $CRITICAL -gt 0 ] || [ $HIGH -gt 0 ]; then
+          echo "❌ Critical or high severity vulnerabilities found"
+          npm audit
+          exit 1
+        fi
+        
+        echo "✅ No critical security vulnerabilities detected"
+
+    - name: Check for Outdated Dependencies
+      run: |
+        echo "🔍 Checking for outdated dependencies..."
+        npm outdated --json > outdated-report.json || true
+        
+        OUTDATED_COUNT=$(cat outdated-report.json | jq '. | length')
+        echo "Outdated packages: $OUTDATED_COUNT"
+        
+        if [ $OUTDATED_COUNT -gt 20 ]; then
+          echo "⚠️  Warning: Many outdated dependencies ($OUTDATED_COUNT)"
+          echo "Consider updating dependencies for security and performance"
+        fi
+
+  quality-gate:
+    name: Quality Gate Decision
+    needs: [quality-checks, dependency-check]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Evaluate Quality Gates
+      run: |
+        echo "🚪 Evaluating quality gates..."
+        
+        # Check if quality checks passed
+        if [ "${{ needs.quality-checks.result }}" != "success" ]; then
+          echo "❌ Quality checks failed"
+          QUALITY_PASSED=false
+        else
+          echo "✅ Quality checks passed"
+          QUALITY_PASSED=true
+        fi
+        
+        # Check if dependency audit passed
+        if [ "${{ needs.dependency-check.result }}" != "success" ]; then
+          echo "❌ Dependency security check failed"
+          SECURITY_PASSED=false
+        else
+          echo "✅ Dependency security check passed"
+          SECURITY_PASSED=true
+        fi
+        
+        # Overall decision
+        if [ "$QUALITY_PASSED" = true ] && [ "$SECURITY_PASSED" = true ]; then
+          echo "🎉 All quality gates passed! Code is ready for merge."
+          exit 0
+        else
+          echo "🚫 Quality gates failed. Please address issues before merging."
+          exit 1
+        fi

@@ -1,0 +1,29 @@
+# Prettier ignore patterns
+# Build outputs
+node_modules/
+dist/
+build/
+coverage/
+out/
+release/
+
+# Arduino files
+arduino/build/
+arduino/libraries/
+
+# Generated files
+*.min.js
+*.min.css
+*.bundle.js
+
+# Documentation
+CHANGELOG.md
+LICENSE
+
+# Configuration files that need specific formatting
+package-lock.json
+yarn.lock
+
+# Test outputs
+.nyc_output/
+test-summary.txt
