@@ -8,7 +8,7 @@ class ProfileManagerUI {
     this.profileManager = null;
     this.currentProfiles = [];
     this.selectedProfile = null;
-    
+
     this.initializeEventListeners();
   }
 
@@ -26,14 +26,14 @@ class ProfileManagerUI {
    */
   initializeEventListeners() {
     // Profile selection
-    document.addEventListener('change', (event) => {
+    document.addEventListener('change', event => {
       if (event.target.id === 'profile-select') {
         this.handleProfileSelection(event.target.value);
       }
     });
 
     // Profile actions
-    document.addEventListener('click', (event) => {
+    document.addEventListener('click', event => {
       const action = event.target.dataset.profileAction;
       if (action) {
         event.preventDefault();
@@ -42,7 +42,7 @@ class ProfileManagerUI {
     });
 
     // Form submissions
-    document.addEventListener('submit', (event) => {
+    document.addEventListener('submit', event => {
       if (event.target.classList.contains('profile-form')) {
         event.preventDefault();
         this.handleFormSubmission(event.target);
@@ -50,7 +50,7 @@ class ProfileManagerUI {
     });
 
     // Import/Export handlers
-    document.addEventListener('change', (event) => {
+    document.addEventListener('change', event => {
       if (event.target.id === 'profile-import-file') {
         this.handleFileImport(event.target.files[0]);
       }
@@ -67,7 +67,7 @@ class ProfileManagerUI {
       this.updateProfileStatistics();
     } catch (error) {
       console.error('Failed to refresh profiles:', error);
-      this.showMessage('Failed to refresh profiles: ' + error.message, 'error');
+      this.showMessage(`Failed to refresh profiles: ${error.message}`, 'error');
     }
   }
 
@@ -77,10 +77,10 @@ class ProfileManagerUI {
   updateProfilesList() {
     const profileSelect = document.getElementById('profile-select');
     const profilesList = document.getElementById('profiles-list');
-    
+
     if (profileSelect) {
       profileSelect.innerHTML = '';
-      
+
       this.currentProfiles.forEach(profile => {
         const option = document.createElement('option');
         option.value = profile.name;
@@ -89,10 +89,10 @@ class ProfileManagerUI {
         profileSelect.appendChild(option);
       });
     }
-    
+
     if (profilesList) {
       profilesList.innerHTML = '';
-      
+
       this.currentProfiles.forEach(profile => {
         const profileItem = this.createProfileListItem(profile);
         profilesList.appendChild(profileItem);
@@ -107,11 +107,11 @@ class ProfileManagerUI {
     const item = document.createElement('div');
     item.className = 'profile-item';
     item.dataset.profileName = profile.name;
-    
+
     if (profile.isActive) {
       item.classList.add('active');
     }
-    
+
     item.innerHTML = `
       <div class="profile-info">
         <div class="profile-header">
@@ -135,36 +135,36 @@ class ProfileManagerUI {
         </div>
       </div>
       <div class="profile-actions">
-        <button class="btn btn-primary btn-sm" 
-                data-profile-action="activate" 
+        <button class="btn btn-primary btn-sm"
+                data-profile-action="activate"
                 data-profile-name="${profile.name}"
                 ${profile.isActive ? 'disabled' : ''}>
           ${profile.isActive ? 'Active' : 'Activate'}
         </button>
-        <button class="btn btn-secondary btn-sm" 
-                data-profile-action="edit" 
+        <button class="btn btn-secondary btn-sm"
+                data-profile-action="edit"
                 data-profile-name="${profile.name}">
           Edit
         </button>
-        <button class="btn btn-secondary btn-sm" 
-                data-profile-action="duplicate" 
+        <button class="btn btn-secondary btn-sm"
+                data-profile-action="duplicate"
                 data-profile-name="${profile.name}">
           Duplicate
         </button>
-        <button class="btn btn-secondary btn-sm" 
-                data-profile-action="export" 
+        <button class="btn btn-secondary btn-sm"
+                data-profile-action="export"
                 data-profile-name="${profile.name}">
           Export
         </button>
-        <button class="btn btn-danger btn-sm" 
-                data-profile-action="delete" 
+        <button class="btn btn-danger btn-sm"
+                data-profile-action="delete"
                 data-profile-name="${profile.name}"
                 ${profile.isActive ? 'disabled' : ''}>
           Delete
         </button>
       </div>
     `;
-    
+
     return item;
   }
 
@@ -173,10 +173,12 @@ class ProfileManagerUI {
    */
   updateProfileStatistics() {
     const statsElement = document.getElementById('profile-statistics');
-    if (!statsElement) return;
-    
+    if (!statsElement) {
+      return;
+    }
+
     const stats = this.calculateStatistics();
-    
+
     statsElement.innerHTML = `
       <div class="stats-grid">
         <div class="stat-card">
@@ -207,7 +209,8 @@ class ProfileManagerUI {
       totalProfiles: this.currentProfiles.length,
       totalButtons: this.currentProfiles.reduce((sum, p) => sum + p.buttonCount, 0),
       totalEncoders: this.currentProfiles.reduce((sum, p) => sum + p.encoderCount, 0),
-      profilesWithActions: this.currentProfiles.filter(p => p.buttonCount > 0 || p.encoderCount > 0).length
+      profilesWithActions: this.currentProfiles.filter(p => p.buttonCount > 0 || p.encoderCount > 0)
+        .length
     };
   }
 
@@ -215,15 +218,17 @@ class ProfileManagerUI {
    * Handle profile selection change
    */
   async handleProfileSelection(profileName) {
-    if (!profileName) return;
-    
+    if (!profileName) {
+      return;
+    }
+
     try {
       await window.electronAPI.activateProfile(profileName);
       await this.refreshProfiles();
       this.showMessage(`Activated profile: ${profileName}`, 'success');
     } catch (error) {
       console.error('Failed to activate profile:', error);
-      this.showMessage('Failed to activate profile: ' + error.message, 'error');
+      this.showMessage(`Failed to activate profile: ${error.message}`, 'error');
     }
   }
 
@@ -232,7 +237,7 @@ class ProfileManagerUI {
    */
   async handleProfileAction(action, dataset) {
     const profileName = dataset.profileName;
-    
+
     try {
       switch (action) {
         case 'activate':
@@ -276,7 +281,7 @@ class ProfileManagerUI {
       'Delete Profile',
       `Are you sure you want to delete the profile "${profileName}"? This action cannot be undone.`
     );
-    
+
     if (confirmed) {
       await window.electronAPI.deleteProfile(profileName);
       await this.refreshProfiles();
@@ -297,7 +302,7 @@ class ProfileManagerUI {
           { name: 'All Files', extensions: ['*'] }
         ]
       });
-      
+
       if (!result.canceled && result.filePath) {
         await window.electronAPI.exportProfile(profileName, result.filePath);
         this.showMessage(`Exported profile to: ${result.filePath}`, 'success');
@@ -311,8 +316,10 @@ class ProfileManagerUI {
    * Handle file import
    */
   async handleFileImport(file) {
-    if (!file) return;
-    
+    if (!file) {
+      return;
+    }
+
     try {
       const filePath = file.path;
       const profileName = await window.electronAPI.importProfile(filePath);
@@ -320,7 +327,7 @@ class ProfileManagerUI {
       this.showMessage(`Imported profile: ${profileName}`, 'success');
     } catch (error) {
       console.error('Failed to import profile:', error);
-      this.showMessage('Failed to import profile: ' + error.message, 'error');
+      this.showMessage(`Failed to import profile: ${error.message}`, 'error');
     }
   }
 
@@ -332,8 +339,10 @@ class ProfileManagerUI {
     if (modal) {
       // Reset form
       const form = modal.querySelector('form');
-      if (form) form.reset();
-      
+      if (form) {
+        form.reset();
+      }
+
       // Show modal
       modal.style.display = 'block';
       modal.classList.add('active');
@@ -345,27 +354,35 @@ class ProfileManagerUI {
    */
   async showEditProfileModal(profileName) {
     const modal = document.getElementById('edit-profile-modal');
-    if (!modal) return;
-    
+    if (!modal) {
+      return;
+    }
+
     try {
       const profile = this.currentProfiles.find(p => p.name === profileName);
-      if (!profile) throw new Error('Profile not found');
-      
+      if (!profile) {
+        throw new Error('Profile not found');
+      }
+
       // Populate form with current profile data
       const nameInput = modal.querySelector('#edit-profile-name');
       const descriptionInput = modal.querySelector('#edit-profile-description');
-      
-      if (nameInput) nameInput.value = profile.name;
-      if (descriptionInput) descriptionInput.value = profile.description;
-      
+
+      if (nameInput) {
+        nameInput.value = profile.name;
+      }
+      if (descriptionInput) {
+        descriptionInput.value = profile.description;
+      }
+
       // Store original name for update
       modal.dataset.originalName = profileName;
-      
+
       // Show modal
       modal.style.display = 'block';
       modal.classList.add('active');
     } catch (error) {
-      this.showMessage('Failed to load profile for editing: ' + error.message, 'error');
+      this.showMessage(`Failed to load profile for editing: ${error.message}`, 'error');
     }
   }
 
@@ -374,19 +391,25 @@ class ProfileManagerUI {
    */
   showDuplicateProfileModal(sourceProfileName) {
     const modal = document.getElementById('duplicate-profile-modal');
-    if (!modal) return;
-    
+    if (!modal) {
+      return;
+    }
+
     // Set source profile
     const sourceInput = modal.querySelector('#duplicate-source-name');
-    if (sourceInput) sourceInput.value = sourceProfileName;
-    
+    if (sourceInput) {
+      sourceInput.value = sourceProfileName;
+    }
+
     // Generate default new name
     const newNameInput = modal.querySelector('#duplicate-new-name');
-    if (newNameInput) newNameInput.value = `${sourceProfileName}_copy`;
-    
+    if (newNameInput) {
+      newNameInput.value = `${sourceProfileName}_copy`;
+    }
+
     // Store source name
     modal.dataset.sourceName = sourceProfileName;
-    
+
     // Show modal
     modal.style.display = 'block';
     modal.classList.add('active');
@@ -398,7 +421,7 @@ class ProfileManagerUI {
   async handleFormSubmission(form) {
     const formData = new FormData(form);
     const action = form.dataset.action;
-    
+
     try {
       switch (action) {
         case 'create-profile':
@@ -426,11 +449,11 @@ class ProfileManagerUI {
     const name = formData.get('name').trim();
     const description = formData.get('description').trim();
     const baseProfile = formData.get('baseProfile');
-    
+
     if (!name) {
       throw new Error('Profile name is required');
     }
-    
+
     await window.electronAPI.createProfile(name, baseProfile || null, description);
     await this.refreshProfiles();
     this.hideModal('create-profile-modal');
@@ -444,22 +467,22 @@ class ProfileManagerUI {
     const originalName = form.parentElement.dataset.originalName;
     const newName = formData.get('name').trim();
     const description = formData.get('description').trim();
-    
+
     if (!newName) {
       throw new Error('Profile name is required');
     }
-    
+
     if (newName !== originalName) {
       // If name changed, we need to create new and delete old
       await window.electronAPI.duplicateProfile(originalName, newName, description);
-      if (originalName !== await window.electronAPI.getActiveProfileName()) {
+      if (originalName !== (await window.electronAPI.getActiveProfileName())) {
         await window.electronAPI.deleteProfile(originalName);
       }
     } else {
       // Just update description
       await window.electronAPI.updateProfileDescription(originalName, description);
     }
-    
+
     await this.refreshProfiles();
     this.hideModal('edit-profile-modal');
     this.showMessage(`Updated profile: ${newName}`, 'success');
@@ -472,11 +495,11 @@ class ProfileManagerUI {
     const sourceName = form.parentElement.dataset.sourceName;
     const newName = formData.get('newName').trim();
     const description = formData.get('description').trim();
-    
+
     if (!newName) {
       throw new Error('New profile name is required');
     }
-    
+
     await window.electronAPI.duplicateProfile(sourceName, newName, description);
     await this.refreshProfiles();
     this.hideModal('duplicate-profile-modal');
@@ -487,7 +510,7 @@ class ProfileManagerUI {
    * Show confirmation dialog
    */
   showConfirmationDialog(title, message) {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const modal = document.createElement('div');
       modal.className = 'modal confirmation-modal';
       modal.innerHTML = `
@@ -504,8 +527,8 @@ class ProfileManagerUI {
           </div>
         </div>
       `;
-      
-      modal.addEventListener('click', (event) => {
+
+      modal.addEventListener('click', event => {
         const action = event.target.dataset.action;
         if (action === 'confirm') {
           resolve(true);
@@ -515,7 +538,7 @@ class ProfileManagerUI {
           document.body.removeChild(modal);
         }
       });
-      
+
       document.body.appendChild(modal);
     });
   }
@@ -541,28 +564,28 @@ class ProfileManagerUI {
       messageContainer = document.createElement('div');
       messageContainer.id = 'profile-messages';
       messageContainer.className = 'message-container';
-      
+
       const profilesContainer = document.getElementById('profiles-container');
       if (profilesContainer) {
         profilesContainer.insertBefore(messageContainer, profilesContainer.firstChild);
       }
     }
-    
+
     // Create message element
     const messageElement = document.createElement('div');
     messageElement.className = `message message-${type}`;
     messageElement.textContent = message;
-    
+
     // Add close button
     const closeButton = document.createElement('button');
     closeButton.className = 'message-close';
     closeButton.textContent = '×';
     closeButton.onclick = () => messageElement.remove();
     messageElement.appendChild(closeButton);
-    
+
     // Add to container
     messageContainer.appendChild(messageElement);
-    
+
     // Auto-remove after 5 seconds
     setTimeout(() => {
       if (messageElement.parentNode) {
@@ -592,13 +615,15 @@ class ProfileManagerUI {
    * Format date for display
    */
   formatDate(date) {
-    if (!date) return 'Unknown';
-    
+    if (!date) {
+      return 'Unknown';
+    }
+
     const d = new Date(date);
-    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {
+    return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], {
       hour: '2-digit',
       minute: '2-digit'
-    });
+    })}`;
   }
 }
 

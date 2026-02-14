@@ -252,15 +252,7 @@ buttons:
 
 # Encoder configurations
 # Each encoder can have different actions for clockwise and counter-clockwise rotation
-encoders:
-  # Example encoder configuration (uncomment when device.encoders > 0)
-  # encoder1:
-  #   description: "Volume Control"
-  #   typeCW: "keypress"
-  #   actionCW: "VolumeUp"
-  #   typeCCW: "keypress"
-  #   actionCCW: "VolumeDown"
-  #   enabled: true
+encoders: {}
 
 # Action type definitions:
 # - keypress: Send keyboard shortcuts (e.g., "cmd+c", "ctrl+alt+t")

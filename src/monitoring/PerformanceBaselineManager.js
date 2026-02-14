@@ -4,7 +4,7 @@ const path = require('path');
 
 /**
  * PerformanceBaselineManager - Manages performance baselines and historical data
- * 
+ *
  * Features:
  * - Statistical baseline calculation with confidence intervals
  * - Baseline version management and history tracking
@@ -14,16 +14,16 @@ const path = require('path');
 class PerformanceBaselineManager extends EventEmitter {
   constructor(config = {}, logManager = null) {
     super();
-    
+
     this.config = this.mergeConfig(config);
     this.logManager = logManager;
     this.isInitialized = false;
-    
+
     // Baseline storage
     this.baselines = new Map();
     this.historicalData = new Map();
     this.baselineMetadata = new Map();
-    
+
     // Statistical analysis configuration
     this.statisticalConfig = {
       confidenceLevel: 0.95,
@@ -32,12 +32,12 @@ class PerformanceBaselineManager extends EventEmitter {
       rollingWindowSize: 50,
       significanceLevel: 0.05
     };
-    
+
     // File paths
     this.baselinesPath = path.join(this.config.dataDirectory, 'performance-baselines.json');
     this.historyPath = path.join(this.config.dataDirectory, 'performance-history.json');
     this.metadataPath = path.join(this.config.dataDirectory, 'baseline-metadata.json');
-    
+
     this.init();
   }
 
@@ -53,7 +53,7 @@ class PerformanceBaselineManager extends EventEmitter {
       backupEnabled: true,
       backupInterval: 24 * 60 * 60 * 1000 // 24 hours
     };
-    
+
     return { ...defaultConfig, ...userConfig };
   }
 
@@ -64,23 +64,24 @@ class PerformanceBaselineManager extends EventEmitter {
     try {
       // Ensure data directory exists
       await this.ensureDataDirectory();
-      
+
       // Load existing baselines and historical data
       await this.loadBaselines();
       await this.loadHistoricalData();
       await this.loadMetadata();
-      
+
       // Setup periodic backup if enabled
       if (this.config.backupEnabled) {
         this.setupPeriodicBackup();
       }
-      
+
       this.isInitialized = true;
       this.log('info', 'PerformanceBaselineManager initialized');
       this.emit('initialized');
-      
     } catch (error) {
-      this.log('error', 'Failed to initialize PerformanceBaselineManager', { error: error.message });
+      this.log('error', 'Failed to initialize PerformanceBaselineManager', {
+        error: error.message
+      });
       throw error;
     }
   }
@@ -155,14 +156,17 @@ class PerformanceBaselineManager extends EventEmitter {
 
     // Remove outliers using Z-score
     const cleanValues = this.removeOutliers(values);
-    
+
     if (cleanValues.length < this.statisticalConfig.minSampleSize) {
       return null;
     }
 
     // Calculate statistical measures
     const stats = this.calculateStatistics(cleanValues);
-    const confidenceInterval = this.calculateConfidenceInterval(cleanValues, this.statisticalConfig.confidenceLevel);
+    const confidenceInterval = this.calculateConfidenceInterval(
+      cleanValues,
+      this.statisticalConfig.confidenceLevel
+    );
 
     return {
       value: stats.mean,
@@ -179,14 +183,14 @@ class PerformanceBaselineManager extends EventEmitter {
    */
   async updateBaseline(metricName) {
     const newBaseline = this.calculateBaseline(metricName);
-    
+
     if (!newBaseline) {
       this.log('warn', `Cannot calculate baseline for ${metricName}: insufficient data`);
       return false;
     }
 
     const existingBaseline = this.baselines.get(metricName);
-    
+
     // Check if update is statistically significant
     if (existingBaseline && !this.isSignificantChange(existingBaseline, newBaseline)) {
       this.log('debug', `Baseline update for ${metricName} not statistically significant`);
@@ -210,7 +214,9 @@ class PerformanceBaselineManager extends EventEmitter {
     this.log('info', `Baseline updated for ${metricName}`, {
       oldValue: existingBaseline?.value,
       newValue: newBaseline.value,
-      change: existingBaseline ? ((newBaseline.value - existingBaseline.value) / existingBaseline.value * 100).toFixed(2) + '%' : 'initial'
+      change: existingBaseline
+        ? `${(((newBaseline.value - existingBaseline.value) / existingBaseline.value) * 100).toFixed(2)}%`
+        : 'initial'
     });
 
     this.emit('baselineUpdated', metricName, newBaseline, existingBaseline);
@@ -222,17 +228,22 @@ class PerformanceBaselineManager extends EventEmitter {
    */
   isSignificantChange(oldBaseline, newBaseline) {
     // Use t-test for significance testing
-    const pooledStdDev = Math.sqrt((
-      (oldBaseline.sampleSize - 1) * Math.pow(oldBaseline.statistics.standardDeviation, 2) +
-      (newBaseline.sampleSize - 1) * Math.pow(newBaseline.statistics.standardDeviation, 2)
-    ) / (oldBaseline.sampleSize + newBaseline.sampleSize - 2));
+    const pooledStdDev = Math.sqrt(
+      ((oldBaseline.sampleSize - 1) * Math.pow(oldBaseline.statistics.standardDeviation, 2) +
+        (newBaseline.sampleSize - 1) * Math.pow(newBaseline.statistics.standardDeviation, 2)) /
+        (oldBaseline.sampleSize + newBaseline.sampleSize - 2)
+    );
 
-    const standardError = pooledStdDev * Math.sqrt(1/oldBaseline.sampleSize + 1/newBaseline.sampleSize);
+    const standardError =
+      pooledStdDev * Math.sqrt(1 / oldBaseline.sampleSize + 1 / newBaseline.sampleSize);
     const tStatistic = Math.abs(newBaseline.value - oldBaseline.value) / standardError;
-    
+
     // Critical t-value for 95% confidence level with df approximation
     const degreesOfFreedom = oldBaseline.sampleSize + newBaseline.sampleSize - 2;
-    const criticalTValue = this.getCriticalTValue(degreesOfFreedom, this.statisticalConfig.significanceLevel);
+    const criticalTValue = this.getCriticalTValue(
+      degreesOfFreedom,
+      this.statisticalConfig.significanceLevel
+    );
 
     return tStatistic > criticalTValue;
   }
@@ -242,9 +253,15 @@ class PerformanceBaselineManager extends EventEmitter {
    */
   getCriticalTValue(degreesOfFreedom, alpha) {
     // Simplified critical values for α = 0.05 (two-tailed)
-    if (degreesOfFreedom >= 30) return 1.96;
-    if (degreesOfFreedom >= 20) return 2.09;
-    if (degreesOfFreedom >= 10) return 2.23;
+    if (degreesOfFreedom >= 30) {
+      return 1.96;
+    }
+    if (degreesOfFreedom >= 20) {
+      return 2.09;
+    }
+    if (degreesOfFreedom >= 10) {
+      return 2.23;
+    }
     return 2.78; // Conservative estimate for small samples
   }
 
@@ -252,7 +269,9 @@ class PerformanceBaselineManager extends EventEmitter {
    * Remove outliers using Z-score method
    */
   removeOutliers(values) {
-    if (values.length < 3) return values;
+    if (values.length < 3) {
+      return values;
+    }
 
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
     const stdDev = Math.sqrt(values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length);
@@ -291,7 +310,11 @@ class PerformanceBaselineManager extends EventEmitter {
       min: sorted[0],
       max: sorted[n - 1],
       percentiles: {
-        p25, p50, p75, p90, p95
+        p25,
+        p50,
+        p75,
+        p90,
+        p95
       },
       coefficientOfVariation: standardDeviation / mean
     };
@@ -304,13 +327,13 @@ class PerformanceBaselineManager extends EventEmitter {
     const stats = this.calculateStatistics(values);
     const n = values.length;
     const alpha = 1 - confidenceLevel;
-    
+
     // Use t-distribution for small samples
     const degreesOfFreedom = n - 1;
     const tValue = this.getCriticalTValue(degreesOfFreedom, alpha);
-    
+
     const marginOfError = tValue * (stats.standardDeviation / Math.sqrt(n));
-    
+
     return {
       lower: stats.mean - marginOfError,
       upper: stats.mean + marginOfError,
@@ -355,10 +378,11 @@ class PerformanceBaselineManager extends EventEmitter {
 
     const change = currentValue - baseline.value;
     const percentChange = (change / baseline.value) * 100;
-    
+
     // Check if within confidence interval
-    const withinCI = currentValue >= baseline.confidenceInterval.lower && 
-                     currentValue <= baseline.confidenceInterval.upper;
+    const withinCI =
+      currentValue >= baseline.confidenceInterval.lower &&
+      currentValue <= baseline.confidenceInterval.upper;
 
     return {
       status: withinCI ? 'within_baseline' : 'outside_baseline',
@@ -377,11 +401,19 @@ class PerformanceBaselineManager extends EventEmitter {
    */
   assessSignificance(percentChange) {
     const absChange = Math.abs(percentChange);
-    
-    if (absChange < 5) return 'negligible';
-    if (absChange < 15) return 'minor';
-    if (absChange < 30) return 'moderate';
-    if (absChange < 50) return 'significant';
+
+    if (absChange < 5) {
+      return 'negligible';
+    }
+    if (absChange < 15) {
+      return 'minor';
+    }
+    if (absChange < 30) {
+      return 'moderate';
+    }
+    if (absChange < 50) {
+      return 'significant';
+    }
     return 'critical';
   }
 
@@ -523,15 +555,11 @@ class PerformanceBaselineManager extends EventEmitter {
   async createBackup() {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const backupDir = path.join(this.config.dataDirectory, 'backups', timestamp);
-    
+
     await fs.mkdir(backupDir, { recursive: true });
-    
+
     // Backup all data files
-    await Promise.all([
-      this.saveBaselines(),
-      this.saveHistoricalData(), 
-      this.saveMetadata()
-    ]);
+    await Promise.all([this.saveBaselines(), this.saveHistoricalData(), this.saveMetadata()]);
 
     // Copy files to backup directory
     const files = [
@@ -600,8 +628,12 @@ class PerformanceBaselineManager extends EventEmitter {
     return {
       initialized: this.isInitialized,
       metricsTracked: this.baselines.size,
-      totalDataPoints: Array.from(this.historicalData.values()).reduce((sum, data) => sum + data.length, 0),
-      lastUpdate: Math.max(...Array.from(this.baselines.values()).map(b => b.calculatedAt || 0)) || null
+      totalDataPoints: Array.from(this.historicalData.values()).reduce(
+        (sum, data) => sum + data.length,
+        0
+      ),
+      lastUpdate:
+        Math.max(...Array.from(this.baselines.values()).map(b => b.calculatedAt || 0)) || null
     };
   }
 
@@ -610,18 +642,14 @@ class PerformanceBaselineManager extends EventEmitter {
    */
   async cleanup() {
     if (this.config.autoSave) {
-      await Promise.all([
-        this.saveBaselines(),
-        this.saveHistoricalData(),
-        this.saveMetadata()
-      ]);
+      await Promise.all([this.saveBaselines(), this.saveHistoricalData(), this.saveMetadata()]);
     }
 
     this.baselines.clear();
     this.historicalData.clear();
     this.baselineMetadata.clear();
     this.removeAllListeners();
-    
+
     this.isInitialized = false;
     this.log('info', 'PerformanceBaselineManager cleaned up');
   }

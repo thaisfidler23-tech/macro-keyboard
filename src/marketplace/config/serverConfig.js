@@ -14,7 +14,7 @@ const defaultConfig = {
   // Database configuration
   database: {
     host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432'),
+    port: parseInt(process.env.DB_PORT || '5432', 10),
     database: process.env.DB_NAME || 'macro_keyboard_marketplace',
     username: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD || '',
@@ -26,8 +26,8 @@ const defaultConfig = {
       createTimeoutMillis: 30000,
       destroyTimeoutMillis: 5000,
       idleTimeoutMillis: 30000,
-      createRetryIntervalMillis: 200,
-    },
+      createRetryIntervalMillis: 200
+    }
   },
 
   // Authentication configuration
@@ -37,20 +37,20 @@ const defaultConfig = {
     bcryptRounds: 12,
     requireEmailVerification: true,
     allowRegistration: true,
-    sessionTimeout: 24 * 60 * 60 * 1000, // 24 hours
+    sessionTimeout: 24 * 60 * 60 * 1000 // 24 hours
   },
 
   // CORS configuration
   cors: {
-    allowedOrigins: process.env.CORS_ORIGINS ? 
-      process.env.CORS_ORIGINS.split(',') : 
-      ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    allowedOrigins: process.env.CORS_ORIGINS
+      ? process.env.CORS_ORIGINS.split(',')
+      : ['http://localhost:3000', 'http://127.0.0.1:3000']
   },
 
   // Rate limiting
   rateLimit: {
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
+    max: 100 // Limit each IP to 100 requests per windowMs
   },
 
   // File upload configuration
@@ -58,7 +58,7 @@ const defaultConfig = {
     maxFileSize: '50mb',
     allowedTypes: ['.js', '.zip', '.tar.gz'],
     uploadPath: process.env.UPLOAD_PATH || './uploads',
-    virusScan: false, // Enable in production with ClamAV
+    virusScan: false // Enable in production with ClamAV
   },
 
   // Plugin configuration
@@ -76,8 +76,8 @@ const defaultConfig = {
       'development',
       'utility',
       'system',
-      'security',
-    ],
+      'security'
+    ]
   },
 
   // Download configuration
@@ -86,7 +86,7 @@ const defaultConfig = {
     enableCDN: false,
     cdnUrl: process.env.CDN_URL,
     maxDownloadSize: '100mb',
-    downloadTimeout: 30000, // 30 seconds
+    downloadTimeout: 30000 // 30 seconds
   },
 
   // Review configuration
@@ -95,14 +95,14 @@ const defaultConfig = {
     maxReviewLength: 1000,
     enableModeration: true,
     requireVerifiedUser: false,
-    allowAnonymousReviews: false,
+    allowAnonymousReviews: false
   },
 
   // Logging configuration
   logging: {
     enabled: true,
     format: process.env.NODE_ENV === 'production' ? 'combined' : 'dev',
-    level: process.env.LOG_LEVEL || 'info',
+    level: process.env.LOG_LEVEL || 'info'
   },
 
   // Email configuration (for notifications)
@@ -110,13 +110,13 @@ const defaultConfig = {
     enabled: false,
     service: process.env.EMAIL_SERVICE || 'smtp',
     host: process.env.EMAIL_HOST,
-    port: parseInt(process.env.EMAIL_PORT || '587'),
+    port: parseInt(process.env.EMAIL_PORT || '587', 10),
     secure: process.env.EMAIL_SECURE === 'true',
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+      pass: process.env.EMAIL_PASS
     },
-    from: process.env.EMAIL_FROM || 'noreply@macrokeyboard.com',
+    from: process.env.EMAIL_FROM || 'noreply@macrokeyboard.com'
   },
 
   // Security configuration
@@ -124,7 +124,7 @@ const defaultConfig = {
     enableCSP: true,
     enableHSTS: true,
     trustProxy: false,
-    rateLimitSkipSuccessfulRequests: false,
+    rateLimitSkipSuccessfulRequests: false
   },
 
   // Performance configuration
@@ -132,8 +132,8 @@ const defaultConfig = {
     enableCompression: true,
     compressionLevel: 6,
     enableETag: true,
-    maxRequestSize: '50mb',
-  },
+    maxRequestSize: '50mb'
+  }
 };
 
 /**
@@ -150,7 +150,7 @@ function validateConfig(config) {
     'database.port',
     'database.database',
     'database.username',
-    'auth.jwtSecret',
+    'auth.jwtSecret'
   ];
 
   for (const field of required) {
@@ -221,7 +221,7 @@ function mergeWithEnvironment(config) {
     EMAIL_USER: 'email.auth.user',
     EMAIL_PASS: 'email.auth.pass',
     EMAIL_FROM: 'email.from',
-    LOG_LEVEL: 'logging.level',
+    LOG_LEVEL: 'logging.level'
   };
 
   for (const [envVar, configPath] of Object.entries(envMappings)) {
@@ -251,7 +251,7 @@ function setNestedValue(obj, path, value) {
 
   // Type conversion for specific fields
   if (path.includes('port') || path.includes('Port')) {
-    value = parseInt(value);
+    value = parseInt(value, 10);
   } else if (value === 'true' || value === 'false') {
     value = value === 'true';
   }
@@ -262,5 +262,5 @@ function setNestedValue(obj, path, value) {
 module.exports = {
   defaultConfig: mergeWithEnvironment(defaultConfig),
   validateConfig,
-  mergeWithEnvironment,
+  mergeWithEnvironment
 };

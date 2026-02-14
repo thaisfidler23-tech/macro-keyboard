@@ -1,6 +1,6 @@
 /**
  * LEDManagerUI - User interface for RGB LED configuration and control
- * 
+ *
  * This class provides a complete interface for managing RGB LED settings,
  * including per-button colors, effects, brightness, and profile themes.
  */
@@ -10,13 +10,13 @@ class LEDManagerUI {
     this.container = null;
     this.isVisible = false;
     this.ledController = null;
-    
+
     // UI state
     this.selectedButton = null;
     this.selectedColor = { r: 50, g: 50, b: 100 };
     this.currentBrightness = 128;
     this.isPreviewMode = false;
-    
+
     // Default color presets
     this.colorPresets = [
       { name: 'Soft Blue', color: { r: 50, g: 50, b: 100 } },
@@ -29,21 +29,25 @@ class LEDManagerUI {
       { name: 'White', color: { r: 255, g: 255, b: 255 } },
       { name: 'Off', color: { r: 0, g: 0, b: 0 } }
     ];
-    
+
     // Available effects
     this.availableEffects = [
-      { name: 'RAINBOW', displayName: 'Rainbow Cycle', description: 'Cycles through rainbow colors' },
+      {
+        name: 'RAINBOW',
+        displayName: 'Rainbow Cycle',
+        description: 'Cycles through rainbow colors'
+      },
       { name: 'BREATHE', displayName: 'Breathing', description: 'Gentle breathing effect' },
       { name: 'WAVE', displayName: 'Wave', description: 'Wave animation across buttons' },
       { name: 'RIPPLE', displayName: 'Ripple', description: 'Ripple effect from button presses' }
     ];
-    
+
     this.currentTheme = null;
-    
+
     this.initializeEventListeners();
     console.log('LEDManagerUI initialized');
   }
-  
+
   /**
    * Initialize the LED manager UI
    */
@@ -52,14 +56,14 @@ class LEDManagerUI {
       this.createUI();
       await this.loadLEDStatus();
       this.setupEventListeners();
-      
+
       console.log('LED Manager UI initialized successfully');
     } catch (error) {
       console.error('Failed to initialize LED Manager UI:', error);
       this.showError('Failed to initialize LED manager');
     }
   }
-  
+
   /**
    * Create the main UI structure
    */
@@ -67,7 +71,7 @@ class LEDManagerUI {
     this.container = document.createElement('div');
     this.container.className = 'led-manager-container';
     this.container.style.display = 'none';
-    
+
     this.container.innerHTML = `
       <div class="led-manager-content">
         <div class="led-manager-header">
@@ -78,7 +82,7 @@ class LEDManagerUI {
           </div>
           <button class="btn btn-small" id="close-led-manager">✕</button>
         </div>
-        
+
         <div class="led-manager-body">
           <!-- LED Status and Quick Controls -->
           <div class="led-section">
@@ -90,7 +94,7 @@ class LEDManagerUI {
               <button class="btn btn-secondary" id="led-stop-effects">Stop Effects</button>
             </div>
           </div>
-          
+
           <!-- Brightness Control -->
           <div class="led-section">
             <h3>Brightness</h3>
@@ -105,7 +109,7 @@ class LEDManagerUI {
               </div>
             </div>
           </div>
-          
+
           <!-- Button Color Configuration -->
           <div class="led-section">
             <h3>Button Colors</h3>
@@ -138,7 +142,7 @@ class LEDManagerUI {
               <button class="btn btn-secondary" id="paste-color" disabled>Paste Color</button>
             </div>
           </div>
-          
+
           <!-- LED Effects -->
           <div class="led-section">
             <h3>LED Effects</h3>
@@ -163,7 +167,7 @@ class LEDManagerUI {
               <span>Current Effect: <span id="current-effect-name">None</span></span>
             </div>
           </div>
-          
+
           <!-- Profile Themes -->
           <div class="led-section">
             <h3>Profile Themes</h3>
@@ -184,11 +188,11 @@ class LEDManagerUI {
               <!-- Theme preview will be shown here -->
             </div>
           </div>
-          
+
           <!-- Advanced Settings -->
           <div class="led-section collapsible">
             <h3 class="collapsible-header" id="advanced-header">
-              Advanced Settings 
+              Advanced Settings
               <span class="collapsible-arrow">▼</span>
             </h3>
             <div class="collapsible-content" id="advanced-content">
@@ -202,7 +206,7 @@ class LEDManagerUI {
                   <span class="option-description">Flash buttons when pressed</span>
                 </label>
                 <label>
-                  <input type="checkbox" id="profile-switch-feedback"> Profile Switch Feedback  
+                  <input type="checkbox" id="profile-switch-feedback"> Profile Switch Feedback
                   <span class="option-description">Show visual feedback when switching profiles</span>
                 </label>
                 <label>
@@ -219,24 +223,24 @@ class LEDManagerUI {
             </div>
           </div>
         </div>
-        
+
         <!-- Status Messages -->
         <div class="led-messages" id="led-messages"></div>
       </div>
     `;
-    
+
     document.body.appendChild(this.container);
     this.populateColorPresets();
     this.populateEffects();
     this.setupCollapsibleSections();
   }
-  
+
   /**
    * Populate color preset buttons
    */
   populateColorPresets() {
     const container = document.getElementById('color-presets');
-    
+
     this.colorPresets.forEach(preset => {
       const button = document.createElement('button');
       button.className = 'color-preset-btn';
@@ -244,38 +248,38 @@ class LEDManagerUI {
       button.style.backgroundColor = `rgb(${preset.color.r}, ${preset.color.g}, ${preset.color.b})`;
       button.dataset.color = JSON.stringify(preset.color);
       button.textContent = preset.name.charAt(0);
-      
+
       container.appendChild(button);
     });
   }
-  
+
   /**
    * Populate available effects
    */
   populateEffects() {
     const select = document.getElementById('effect-select');
-    
+
     this.availableEffects.forEach(effect => {
       const option = document.createElement('option');
       option.value = effect.name;
       option.textContent = effect.displayName;
       option.title = effect.description;
-      
+
       select.appendChild(option);
     });
   }
-  
+
   /**
    * Setup collapsible sections
    */
   setupCollapsibleSections() {
     const headers = document.querySelectorAll('.collapsible-header');
-    
+
     headers.forEach(header => {
       header.addEventListener('click', () => {
         const content = header.nextElementSibling;
         const arrow = header.querySelector('.collapsible-arrow');
-        
+
         if (content.style.display === 'none') {
           content.style.display = 'block';
           arrow.textContent = '▼';
@@ -286,77 +290,88 @@ class LEDManagerUI {
       });
     });
   }
-  
+
   /**
    * Create button grid based on hardware configuration
    */
   createButtonGrid(buttonCount) {
     const container = document.getElementById('button-grid');
     container.innerHTML = '';
-    
+
     // Determine grid layout based on button count
     let cols;
     switch (buttonCount) {
-      case 8: cols = 4; break;
-      case 12: cols = 4; break;
-      case 16: cols = 4; break;
-      case 24: cols = 6; break;
-      case 32: cols = 8; break;
-      default: cols = 4;
+      case 8:
+        cols = 4;
+        break;
+      case 12:
+        cols = 4;
+        break;
+      case 16:
+        cols = 4;
+        break;
+      case 24:
+        cols = 6;
+        break;
+      case 32:
+        cols = 8;
+        break;
+      default:
+        cols = 4;
     }
-    
+
     container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    
+
     for (let i = 1; i <= buttonCount; i++) {
       const button = document.createElement('button');
       button.className = 'led-button-preview';
       button.dataset.buttonId = i;
       button.textContent = i;
       button.title = `Button ${i} - Click to select`;
-      
+
       container.appendChild(button);
     }
   }
-  
+
   /**
    * Load LED status from hardware
    */
   async loadLEDStatus() {
     try {
       const status = await window.electronAPI.invoke('get-led-status');
-      
+
       this.updateStatusDisplay(status);
-      
+
       if (status.enabled) {
         this.createButtonGrid(status.buttonCount || 8);
         this.currentBrightness = status.brightness || 128;
         this.updateBrightnessDisplay(this.currentBrightness);
-        
+
         // Load current colors
         if (status.currentColors) {
           this.updateButtonColors(status.currentColors);
         }
-        
+
         // Load current effect
         if (status.currentEffect) {
           this.updateCurrentEffect(status.currentEffect);
         }
       }
-      
+
       await this.loadProfileList();
     } catch (error) {
       console.error('Failed to load LED status:', error);
       this.showError('Failed to load LED status');
     }
   }
-  
+
   /**
    * Update status display
    */
   updateStatusDisplay(status) {
     const indicator = document.getElementById('led-status-indicator');
     const text = document.getElementById('led-status-text');
-    
+
     if (status.enabled) {
       indicator.className = 'led-status-indicator enabled';
       text.textContent = `Enabled (${status.buttonCount} buttons)`;
@@ -364,17 +379,17 @@ class LEDManagerUI {
       indicator.className = 'led-status-indicator disabled';
       text.textContent = 'Disabled or Not Available';
     }
-    
+
     // Update hardware details
     this.updateHardwareDetails(status);
   }
-  
+
   /**
    * Update hardware details
    */
   updateHardwareDetails(status) {
     const container = document.getElementById('hardware-details');
-    
+
     container.innerHTML = `
       <div class="hardware-detail">
         <span class="label">Status:</span>
@@ -394,7 +409,7 @@ class LEDManagerUI {
       </div>
     `;
   }
-  
+
   /**
    * Setup event listeners
    */
@@ -403,76 +418,76 @@ class LEDManagerUI {
     document.getElementById('close-led-manager').addEventListener('click', () => {
       this.hide();
     });
-    
+
     // Quick controls
     document.getElementById('led-all-on').addEventListener('click', () => {
       this.setAllButtons(this.selectedColor);
     });
-    
+
     document.getElementById('led-all-off').addEventListener('click', () => {
       this.clearAllLEDs();
     });
-    
+
     document.getElementById('led-test-pattern').addEventListener('click', () => {
       this.runTestPattern();
     });
-    
+
     document.getElementById('led-stop-effects').addEventListener('click', () => {
       this.stopCurrentEffect();
     });
-    
+
     // Brightness controls
     const brightnessSlider = document.getElementById('brightness-slider');
-    brightnessSlider.addEventListener('input', (e) => {
-      const brightness = parseInt(e.target.value);
+    brightnessSlider.addEventListener('input', e => {
+      const brightness = parseInt(e.target.value, 10);
       this.updateBrightnessDisplay(brightness);
-      
+
       if (this.isPreviewMode) {
         this.setBrightness(brightness);
       }
     });
-    
-    brightnessSlider.addEventListener('change', (e) => {
-      const brightness = parseInt(e.target.value);
+
+    brightnessSlider.addEventListener('change', e => {
+      const brightness = parseInt(e.target.value, 10);
       this.setBrightness(brightness);
     });
-    
+
     // Brightness presets
     document.querySelectorAll('[data-brightness]').forEach(button => {
-      button.addEventListener('click', (e) => {
-        const brightness = parseInt(e.target.dataset.brightness);
+      button.addEventListener('click', e => {
+        const brightness = parseInt(e.target.dataset.brightness, 10);
         this.setBrightness(brightness);
         this.updateBrightnessDisplay(brightness);
       });
     });
-    
+
     // Color picker
     const colorPicker = document.getElementById('color-picker');
     const colorR = document.getElementById('color-r');
-    const colorG = document.getElementById('color-g'); 
+    const colorG = document.getElementById('color-g');
     const colorB = document.getElementById('color-b');
-    
-    colorPicker.addEventListener('input', (e) => {
+
+    colorPicker.addEventListener('input', e => {
       const hex = e.target.value;
       const color = this.hexToRgb(hex);
       this.updateColorInputs(color);
       this.selectedColor = color;
     });
-    
+
     [colorR, colorG, colorB].forEach(input => {
       input.addEventListener('input', () => {
         const color = {
-          r: parseInt(colorR.value),
-          g: parseInt(colorG.value),
-          b: parseInt(colorB.value)
+          r: parseInt(colorR.value, 10),
+          g: parseInt(colorG.value, 10),
+          b: parseInt(colorB.value, 10)
         };
         this.selectedColor = color;
         colorPicker.value = this.rgbToHex(color);
       });
     });
-    
+
     // Color presets
-    document.getElementById('color-presets').addEventListener('click', (e) => {
+    document.getElementById('color-presets').addEventListener('click', e => {
       if (e.target.classList.contains('color-preset-btn')) {
         const color = JSON.parse(e.target.dataset.color);
         this.selectedColor = color;
@@ -480,99 +495,99 @@ class LEDManagerUI {
         document.getElementById('color-picker').value = this.rgbToHex(color);
       }
     });
-    
+
     // Button grid
-    document.getElementById('button-grid').addEventListener('click', (e) => {
+    document.getElementById('button-grid').addEventListener('click', e => {
       if (e.target.classList.contains('led-button-preview')) {
-        this.selectButton(parseInt(e.target.dataset.buttonId));
+        this.selectButton(parseInt(e.target.dataset.buttonId, 10));
       }
     });
-    
+
     // Button actions
     document.getElementById('apply-color-selected').addEventListener('click', () => {
       if (this.selectedButton) {
         this.setButtonColor(this.selectedButton, this.selectedColor);
       }
     });
-    
+
     document.getElementById('apply-color-all').addEventListener('click', () => {
       this.setAllButtons(this.selectedColor);
     });
-    
+
     document.getElementById('copy-color').addEventListener('click', () => {
       this.copySelectedColor();
     });
-    
+
     document.getElementById('paste-color').addEventListener('click', () => {
       this.pasteColor();
     });
-    
+
     // Effects
     document.getElementById('start-effect').addEventListener('click', () => {
       this.startSelectedEffect();
     });
-    
+
     document.getElementById('stop-effect').addEventListener('click', () => {
       this.stopCurrentEffect();
     });
-    
+
     // Speed slider
-    document.getElementById('effect-speed').addEventListener('input', (e) => {
+    document.getElementById('effect-speed').addEventListener('input', e => {
       document.getElementById('speed-value').textContent = e.target.value;
     });
-    
+
     // Profile themes
     document.getElementById('save-theme').addEventListener('click', () => {
       this.saveCurrentTheme();
     });
-    
+
     document.getElementById('apply-theme').addEventListener('click', () => {
       this.applySelectedTheme();
     });
-    
+
     document.getElementById('delete-theme').addEventListener('click', () => {
       this.deleteSelectedTheme();
     });
-    
+
     // Advanced settings
-    document.getElementById('preview-mode').addEventListener('change', (e) => {
+    document.getElementById('preview-mode').addEventListener('change', e => {
       this.isPreviewMode = e.target.checked;
     });
-    
+
     // Set up IPC event listeners
     this.setupIPCEventListeners();
   }
-  
+
   /**
    * Setup IPC event listeners
    */
   setupIPCEventListeners() {
     // Listen for LED events from main process
-    window.electronAPI.on('led-brightness-changed', (brightness) => {
+    window.electronAPI.on('led-brightness-changed', brightness => {
       this.currentBrightness = brightness;
       this.updateBrightnessDisplay(brightness);
     });
-    
-    window.electronAPI.on('led-effect-started', (effect) => {
+
+    window.electronAPI.on('led-effect-started', effect => {
       this.updateCurrentEffect(effect);
     });
-    
+
     window.electronAPI.on('led-effect-stopped', () => {
       this.updateCurrentEffect(null);
     });
-    
-    window.electronAPI.on('led-colors-updated', (colors) => {
+
+    window.electronAPI.on('led-colors-updated', colors => {
       this.updateButtonColors(colors);
     });
   }
-  
+
   /**
    * Initialize event listeners for external communication
    */
   initializeEventListeners() {
     // This method can be overridden or extended
   }
-  
+
   /**
    * Show the LED manager
    */
@@ -580,16 +595,16 @@ class LEDManagerUI {
     if (!this.container) {
       this.initialize();
     }
-    
+
     this.container.style.display = 'block';
     this.isVisible = true;
-    
+
     // Refresh status when shown
     this.loadLEDStatus();
-    
+
     this.emit('shown');
   }
-  
+
   /**
    * Hide the LED manager
    */
@@ -598,10 +613,10 @@ class LEDManagerUI {
       this.container.style.display = 'none';
     }
     this.isVisible = false;
-    
+
     this.emit('hidden');
   }
-  
+
   /**
    * Update brightness display
    */
@@ -609,7 +624,7 @@ class LEDManagerUI {
     document.getElementById('brightness-value').textContent = brightness;
     document.getElementById('brightness-slider').value = brightness;
   }
-  
+
   /**
    * Update color inputs
    */
@@ -618,7 +633,7 @@ class LEDManagerUI {
     document.getElementById('color-g').value = color.g;
     document.getElementById('color-b').value = color.b;
   }
-  
+
   /**
    * Select a button in the grid
    */
@@ -627,18 +642,18 @@ class LEDManagerUI {
     document.querySelectorAll('.led-button-preview.selected').forEach(btn => {
       btn.classList.remove('selected');
     });
-    
+
     // Select new button
     const button = document.querySelector(`[data-button-id="${buttonId}"]`);
     if (button) {
       button.classList.add('selected');
       this.selectedButton = buttonId;
-      
+
       // Enable apply to selected button
       document.getElementById('apply-color-selected').disabled = false;
     }
   }
-  
+
   /**
    * Set brightness
    */
@@ -652,7 +667,7 @@ class LEDManagerUI {
       this.showError('Failed to set brightness');
     }
   }
-  
+
   /**
    * Set button color
    */
@@ -666,45 +681,45 @@ class LEDManagerUI {
       this.showError('Failed to set button color');
     }
   }
-  
+
   /**
    * Set all buttons to same color
    */
   async setAllButtons(color) {
     try {
       await window.electronAPI.invoke('set-led-all-buttons', color);
-      
+
       // Update all button previews
       document.querySelectorAll('.led-button-preview').forEach(button => {
-        this.updateButtonPreview(parseInt(button.dataset.buttonId), color);
+        this.updateButtonPreview(parseInt(button.dataset.buttonId, 10), color);
       });
-      
+
       this.showSuccess('All buttons updated');
     } catch (error) {
       console.error('Error setting all button colors:', error);
       this.showError('Failed to set button colors');
     }
   }
-  
+
   /**
    * Clear all LEDs
    */
   async clearAllLEDs() {
     try {
       await window.electronAPI.invoke('clear-all-leds');
-      
+
       // Update all button previews to black
       document.querySelectorAll('.led-button-preview').forEach(button => {
-        this.updateButtonPreview(parseInt(button.dataset.buttonId), { r: 0, g: 0, b: 0 });
+        this.updateButtonPreview(parseInt(button.dataset.buttonId, 10), { r: 0, g: 0, b: 0 });
       });
-      
+
       this.showSuccess('All LEDs cleared');
     } catch (error) {
       console.error('Error clearing LEDs:', error);
       this.showError('Failed to clear LEDs');
     }
   }
-  
+
   /**
    * Run test pattern
    */
@@ -717,22 +732,22 @@ class LEDManagerUI {
       this.showError('Failed to run test pattern');
     }
   }
-  
+
   /**
    * Start selected effect
    */
   async startSelectedEffect() {
     const effectSelect = document.getElementById('effect-select');
     const speedSlider = document.getElementById('effect-speed');
-    
+
     const effectName = effectSelect.value;
-    const speed = parseInt(speedSlider.value);
-    
+    const speed = parseInt(speedSlider.value, 10);
+
     if (!effectName) {
       this.showError('Please select an effect');
       return;
     }
-    
+
     try {
       await window.electronAPI.invoke('start-led-effect', effectName, speed);
       this.showSuccess(`Started ${effectName} effect`);
@@ -741,7 +756,7 @@ class LEDManagerUI {
       this.showError('Failed to start effect');
     }
   }
-  
+
   /**
    * Stop current effect
    */
@@ -755,29 +770,29 @@ class LEDManagerUI {
       this.showError('Failed to stop effect');
     }
   }
-  
+
   /**
    * Update current effect display
    */
   updateCurrentEffect(effect) {
     const effectName = document.getElementById('current-effect-name');
-    
+
     if (effect) {
       effectName.textContent = `${effect.name} (Speed: ${effect.speed})`;
     } else {
       effectName.textContent = 'None';
     }
   }
-  
+
   /**
    * Update button colors display
    */
   updateButtonColors(colors) {
     Object.entries(colors).forEach(([buttonId, color]) => {
-      this.updateButtonPreview(parseInt(buttonId), color);
+      this.updateButtonPreview(parseInt(buttonId, 10), color);
     });
   }
-  
+
   /**
    * Update individual button preview
    */
@@ -788,7 +803,7 @@ class LEDManagerUI {
       button.style.color = this.getContrastColor(color);
     }
   }
-  
+
   /**
    * Get contrasting color for text
    */
@@ -796,7 +811,7 @@ class LEDManagerUI {
     const brightness = (color.r * 299 + color.g * 587 + color.b * 114) / 1000;
     return brightness > 128 ? '#000000' : '#ffffff';
   }
-  
+
   /**
    * Copy selected color to clipboard
    */
@@ -805,16 +820,19 @@ class LEDManagerUI {
       hex: this.rgbToHex(this.selectedColor),
       rgb: this.selectedColor
     };
-    
-    navigator.clipboard.writeText(JSON.stringify(colorData)).then(() => {
-      this.showSuccess('Color copied to clipboard');
-      document.getElementById('paste-color').disabled = false;
-    }).catch(error => {
-      console.error('Error copying color:', error);
-      this.showError('Failed to copy color');
-    });
+
+    navigator.clipboard
+      .writeText(JSON.stringify(colorData))
+      .then(() => {
+        this.showSuccess('Color copied to clipboard');
+        document.getElementById('paste-color').disabled = false;
+      })
+      .catch(error => {
+        console.error('Error copying color:', error);
+        this.showError('Failed to copy color');
+      });
   }
-  
+
   /**
    * Paste color from clipboard
    */
@@ -822,7 +840,7 @@ class LEDManagerUI {
     try {
       const text = await navigator.clipboard.readText();
       const colorData = JSON.parse(text);
-      
+
       if (colorData.rgb) {
         this.selectedColor = colorData.rgb;
         this.updateColorInputs(this.selectedColor);
@@ -836,7 +854,7 @@ class LEDManagerUI {
       this.showError('Failed to paste color');
     }
   }
-  
+
   /**
    * Load profile list
    */
@@ -844,12 +862,12 @@ class LEDManagerUI {
     try {
       const profiles = await window.electronAPI.invoke('get-profiles');
       const select = document.getElementById('theme-profile');
-      
+
       // Clear existing options except first
       while (select.children.length > 1) {
         select.removeChild(select.lastChild);
       }
-      
+
       profiles.forEach(profile => {
         const option = document.createElement('option');
         option.value = profile.id;
@@ -860,44 +878,44 @@ class LEDManagerUI {
       console.error('Error loading profiles:', error);
     }
   }
-  
+
   /**
    * Save current theme
    */
   async saveCurrentTheme() {
     const profileSelect = document.getElementById('theme-profile');
     const profileId = profileSelect.value;
-    
+
     if (!profileId) {
       this.showError('Please select a profile');
       return;
     }
-    
+
     try {
       // Get current LED state
       const currentColors = {};
       document.querySelectorAll('.led-button-preview').forEach(button => {
-        const buttonId = parseInt(button.dataset.buttonId);
+        const buttonId = parseInt(button.dataset.buttonId, 10);
         const style = window.getComputedStyle(button);
         const bgColor = style.backgroundColor;
-        
+
         // Parse RGB color
         const matches = bgColor.match(/rgb\\((\\d+), (\\d+), (\\d+)\\)/);
         if (matches) {
           currentColors[buttonId] = {
-            r: parseInt(matches[1]),
-            g: parseInt(matches[2]),
-            b: parseInt(matches[3])
+            r: parseInt(matches[1], 10),
+            g: parseInt(matches[2], 10),
+            b: parseInt(matches[3], 10)
           };
         }
       });
-      
+
       const theme = {
         buttonColors: currentColors,
         brightness: this.currentBrightness,
         effect: this.getCurrentEffect()
       };
-      
+
       await window.electronAPI.invoke('save-led-theme', profileId, theme);
       this.showSuccess('Theme saved successfully');
     } catch (error) {
@@ -905,23 +923,23 @@ class LEDManagerUI {
       this.showError('Failed to save theme');
     }
   }
-  
+
   /**
    * Apply selected theme
    */
   async applySelectedTheme() {
     const profileSelect = document.getElementById('theme-profile');
     const profileId = profileSelect.value;
-    
+
     if (!profileId) {
       this.showError('Please select a profile');
       return;
     }
-    
+
     try {
       await window.electronAPI.invoke('apply-led-theme', profileId);
       this.showSuccess('Theme applied successfully');
-      
+
       // Refresh display
       await this.loadLEDStatus();
     } catch (error) {
@@ -929,23 +947,23 @@ class LEDManagerUI {
       this.showError('Failed to apply theme');
     }
   }
-  
+
   /**
    * Delete selected theme
    */
   async deleteSelectedTheme() {
     const profileSelect = document.getElementById('theme-profile');
     const profileId = profileSelect.value;
-    
+
     if (!profileId) {
       this.showError('Please select a profile');
       return;
     }
-    
+
     if (!confirm('Are you sure you want to delete this theme?')) {
       return;
     }
-    
+
     try {
       await window.electronAPI.invoke('delete-led-theme', profileId);
       this.showSuccess('Theme deleted successfully');
@@ -954,65 +972,67 @@ class LEDManagerUI {
       this.showError('Failed to delete theme');
     }
   }
-  
+
   /**
    * Get current effect
    */
   getCurrentEffect() {
     const effectName = document.getElementById('current-effect-name').textContent;
     if (effectName !== 'None') {
-      const speed = parseInt(document.getElementById('effect-speed').value);
+      const speed = parseInt(document.getElementById('effect-speed', 10).value);
       return { name: effectName.split(' ')[0], speed };
     }
     return null;
   }
-  
+
   /**
    * Utility functions
    */
   hexToRgb(hex) {
     const result = /^#?([a-f\\d]{2})([a-f\\d]{2})([a-f\\d]{2})$/i.exec(hex);
-    return result ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16)
-    } : null;
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+        }
+      : null;
   }
-  
+
   rgbToHex(color) {
     const r = Math.max(0, Math.min(255, color.r)).toString(16).padStart(2, '0');
     const g = Math.max(0, Math.min(255, color.g)).toString(16).padStart(2, '0');
     const b = Math.max(0, Math.min(255, color.b)).toString(16).padStart(2, '0');
-    
+
     return `#${r}${g}${b}`;
   }
-  
+
   /**
    * Show success message
    */
   showSuccess(message) {
     this.showMessage(message, 'success');
   }
-  
+
   /**
    * Show error message
    */
   showError(message) {
     this.showMessage(message, 'error');
   }
-  
+
   /**
    * Show message with type
    */
   showMessage(message, type = 'info') {
     const container = document.getElementById('led-messages');
-    
+
     const messageEl = document.createElement('div');
     messageEl.className = `message message-${type}`;
     messageEl.textContent = message;
-    
+
     container.appendChild(messageEl);
-    
+
     // Auto-remove after 3 seconds
     setTimeout(() => {
       if (messageEl.parentNode) {
@@ -1020,7 +1040,7 @@ class LEDManagerUI {
       }
     }, 3000);
   }
-  
+
   /**
    * Event emitter functionality
    */
@@ -1028,7 +1048,7 @@ class LEDManagerUI {
     // Could implement custom event system here
     console.log(`LED Manager Event: ${event}`, data);
   }
-  
+
   /**
    * Cleanup and destroy
    */
@@ -1037,11 +1057,11 @@ class LEDManagerUI {
       this.container.remove();
       this.container = null;
     }
-    
+
     this.selectedButton = null;
     this.currentTheme = null;
     this.isVisible = false;
-    
+
     console.log('LEDManagerUI destroyed');
   }
 }

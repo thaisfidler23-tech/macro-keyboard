@@ -1,6 +1,6 @@
 /**
  * Penetration Testing Framework for Macro Keyboard
- * 
+ *
  * Provides comprehensive security testing capabilities including:
  * - Automated vulnerability scanning
  * - Manual penetration testing tools
@@ -20,7 +20,7 @@ class PenetrationTestingFramework extends EventEmitter {
     this.logger = logger;
     this.securityManager = securityManager;
     this.serialManager = serialManager;
-    
+
     // Test configuration
     this.config = {
       scanTimeout: 30000,
@@ -35,12 +35,12 @@ class PenetrationTestingFramework extends EventEmitter {
     this.vulnerabilities = [];
     this.testSessions = new Map();
     this.exploits = new Map();
-    
+
     // Test categories from requirements
     this.vulnerabilityTypes = {
       injection: [
         'command_injection',
-        'code_injection', 
+        'code_injection',
         'path_traversal',
         'serial_protocol_injection'
       ],
@@ -56,12 +56,7 @@ class PenetrationTestingFramework extends EventEmitter {
         'replay_attacks',
         'protocol_vulnerabilities'
       ],
-      application: [
-        'buffer_overflow',
-        'memory_corruption',
-        'race_conditions',
-        'logic_flaws'
-      ]
+      application: ['buffer_overflow', 'memory_corruption', 'race_conditions', 'logic_flaws']
     };
 
     // CVSS severity levels
@@ -87,7 +82,7 @@ class PenetrationTestingFramework extends EventEmitter {
     // Initialize test databases
     this.loadVulnerabilityDatabase();
     this.loadExploitDatabase();
-    
+
     this.logger.info('Penetration Testing Framework initialized', {
       outputDir: this.config.outputDirectory,
       vulnerabilityCount: this.vulnerabilities.length,
@@ -109,7 +104,7 @@ class PenetrationTestingFramework extends EventEmitter {
         /\$\([^)]*\)/g,
         /<\s*\(/g
       ],
-      
+
       // Path traversal patterns
       pathTraversal: [
         /\.\.\/.*\/etc\/passwd/i,
@@ -117,7 +112,7 @@ class PenetrationTestingFramework extends EventEmitter {
         /\/proc\/self\/environ/i,
         /file:\/\/\/etc\//i
       ],
-      
+
       // SQL injection patterns
       sqlInjection: [
         /'\s*or\s*'1'\s*=\s*'1/i,
@@ -125,7 +120,7 @@ class PenetrationTestingFramework extends EventEmitter {
         /drop\s+table/i,
         /insert\s+into/i
       ],
-      
+
       // Serial protocol injection patterns
       serialInjection: [
         /BTN:\d+;\w+:/,
@@ -152,7 +147,7 @@ class PenetrationTestingFramework extends EventEmitter {
     this.exploits.set('path_traversal_config', {
       name: 'Configuration Path Traversal',
       severity: 'high',
-      category: 'injection', 
+      category: 'injection',
       payload: '../../../etc/passwd',
       description: 'Tests for path traversal in configuration file loading',
       impact: 'Access to sensitive system files'
@@ -199,35 +194,34 @@ class PenetrationTestingFramework extends EventEmitter {
 
     this.testSessions.set(sessionId, session);
     this.logger.info(`Starting penetration test session: ${sessionId}`);
-    
+
     try {
       // Phase 1: Reconnaissance and Information Gathering
       await this.performReconnaissance(session);
-      
-      // Phase 2: Automated Vulnerability Scanning  
+
+      // Phase 2: Automated Vulnerability Scanning
       await this.performAutomatedScanning(session);
-      
+
       // Phase 3: Manual Penetration Testing
       await this.performManualTesting(session);
-      
+
       // Phase 4: Exploit Development and Testing
       await this.performExploitTesting(session);
-      
+
       // Phase 5: Hardware Security Assessment
       await this.performHardwareAssessment(session);
-      
+
       // Generate final report
       session.results.report = await this.generateVulnerabilityReport(session);
       session.status = 'completed';
       session.endTime = new Date();
-      
+
       this.logger.info(`Penetration test completed: ${sessionId}`, {
         duration: session.endTime - session.startTime,
         vulnerabilityCount: session.results.vulnerabilities.length
       });
-      
+
       return session.results;
-      
     } catch (error) {
       session.status = 'failed';
       session.error = error.message;
@@ -241,7 +235,7 @@ class PenetrationTestingFramework extends EventEmitter {
    */
   async performReconnaissance(session) {
     this.logger.info('Phase 1: Reconnaissance and Information Gathering');
-    
+
     const recon = {
       system: {
         platform: process.platform,
@@ -263,7 +257,7 @@ class PenetrationTestingFramework extends EventEmitter {
         usbDevices: await this.identifyUSBDevices()
       }
     };
-    
+
     session.results.reconnaissance = recon;
     this.emit('phaseComplete', { phase: 'reconnaissance', session: session.id });
   }
@@ -273,7 +267,7 @@ class PenetrationTestingFramework extends EventEmitter {
    */
   async performAutomatedScanning(session) {
     this.logger.info('Phase 2: Automated Vulnerability Scanning');
-    
+
     // Scan different attack surfaces
     const scanResults = await Promise.allSettled([
       this.scanInputValidation(session),
@@ -282,7 +276,7 @@ class PenetrationTestingFramework extends EventEmitter {
       this.scanPluginSystem(session),
       this.scanDependencyVulnerabilities(session)
     ]);
-    
+
     scanResults.forEach((result, index) => {
       if (result.status === 'rejected') {
         this.logger.error(`Scan ${index} failed:`, result.reason);
@@ -290,7 +284,7 @@ class PenetrationTestingFramework extends EventEmitter {
         session.results.vulnerabilities.push(...result.value);
       }
     });
-    
+
     this.emit('phaseComplete', { phase: 'automated_scanning', session: session.id });
   }
 
@@ -299,13 +293,13 @@ class PenetrationTestingFramework extends EventEmitter {
    */
   async performManualTesting(session) {
     this.logger.info('Phase 3: Manual Penetration Testing');
-    
+
     // Manual testing procedures
     await this.testAuthenticationMechanisms(session);
     await this.testPrivilegeEscalation(session);
     await this.testSessionManagement(session);
     await this.testBusinessLogic(session);
-    
+
     this.emit('phaseComplete', { phase: 'manual_testing', session: session.id });
   }
 
@@ -314,7 +308,7 @@ class PenetrationTestingFramework extends EventEmitter {
    */
   async performExploitTesting(session) {
     this.logger.info('Phase 4: Exploit Development and Testing');
-    
+
     // Test each exploit in the database
     for (const [exploitId, exploit] of this.exploits) {
       try {
@@ -331,7 +325,7 @@ class PenetrationTestingFramework extends EventEmitter {
         this.logger.error(`Exploit test failed: ${exploitId}`, error);
       }
     }
-    
+
     this.emit('phaseComplete', { phase: 'exploit_testing', session: session.id });
   }
 
@@ -340,20 +334,20 @@ class PenetrationTestingFramework extends EventEmitter {
    */
   async performHardwareAssessment(session) {
     this.logger.info('Phase 5: Hardware Security Assessment');
-    
+
     const hardwareTests = await Promise.allSettled([
       this.testFirmwareSecurity(session),
       this.testSerialCommunicationSecurity(session),
       this.testHardwareTampering(session),
       this.testFirmwareUpdateSecurity(session)
     ]);
-    
+
     hardwareTests.forEach(result => {
       if (result.status === 'fulfilled' && result.value.vulnerabilities) {
         session.results.vulnerabilities.push(...result.value.vulnerabilities);
       }
     });
-    
+
     this.emit('phaseComplete', { phase: 'hardware_assessment', session: session.id });
   }
 
@@ -362,49 +356,56 @@ class PenetrationTestingFramework extends EventEmitter {
    */
   async scanInputValidation(session) {
     const vulnerabilities = [];
-    
+
     // Test malicious inputs against different interfaces
     const maliciousInputs = this.generateMaliciousInputs();
-    
+
     for (const input of maliciousInputs) {
       try {
         // Test through SecurityManager
-        const result = this.securityManager.validateAction({
-          type: 'command',
-          action: input.payload
-        }, 'penetration_test');
-        
+        const result = this.securityManager.validateAction(
+          {
+            type: 'command',
+            action: input.payload
+          },
+          'penetration_test'
+        );
+
         // If dangerous payload is accepted, it's a vulnerability
         if (result.success && input.shouldBeBlocked) {
-          vulnerabilities.push(this.createVulnerability({
-            id: `input_validation_${crypto.randomUUID()}`,
-            title: `Input Validation Bypass: ${input.type}`,
-            description: `Dangerous payload accepted: ${input.payload}`,
-            severity: this.calculateSeverity(input.risk),
-            category: 'injection',
-            cve: null,
-            impact: input.impact,
-            recommendation: 'Improve input validation patterns',
-            proofOfConcept: input.payload
-          }));
+          vulnerabilities.push(
+            this.createVulnerability({
+              id: `input_validation_${crypto.randomUUID()}`,
+              title: `Input Validation Bypass: ${input.type}`,
+              description: `Dangerous payload accepted: ${input.payload}`,
+              severity: this.calculateSeverity(input.risk),
+              category: 'injection',
+              cve: null,
+              impact: input.impact,
+              recommendation: 'Improve input validation patterns',
+              proofOfConcept: input.payload
+            })
+          );
         }
       } catch (error) {
         // Errors during validation might indicate issues
         if (error.message.includes('RangeError') || error.message.includes('TypeError')) {
-          vulnerabilities.push(this.createVulnerability({
-            id: `validation_error_${crypto.randomUUID()}`,
-            title: 'Input Validation Error',
-            description: `Input validation crashed: ${error.message}`,
-            severity: 'medium',
-            category: 'application',
-            impact: 'Application instability',
-            recommendation: 'Add proper error handling in validation',
-            proofOfConcept: input.payload
-          }));
+          vulnerabilities.push(
+            this.createVulnerability({
+              id: `validation_error_${crypto.randomUUID()}`,
+              title: 'Input Validation Error',
+              description: `Input validation crashed: ${error.message}`,
+              severity: 'medium',
+              category: 'application',
+              impact: 'Application instability',
+              recommendation: 'Add proper error handling in validation',
+              proofOfConcept: input.payload
+            })
+          );
         }
       }
     }
-    
+
     return vulnerabilities;
   }
 
@@ -413,41 +414,43 @@ class PenetrationTestingFramework extends EventEmitter {
    */
   async scanSerialProtocol(session) {
     const vulnerabilities = [];
-    
+
     // Generate malformed serial commands
     const malformedCommands = [
-      'BTN:' + 'A'.repeat(1000),
+      `BTN:${'A'.repeat(1000)}`,
       'ENC:999999999999999999999:CW',
-      'CONFIG:' + '\x00'.repeat(100),
-      'LED:' + '%s'.repeat(50),
+      `CONFIG:${'\x00'.repeat(100)}`,
+      `LED:${'%s'.repeat(50)}`,
       '\x00\x01\x02\x03\xFF\xFE\xFD',
-      'INVALID_COMMAND:' + crypto.randomBytes(500).toString('hex')
+      `INVALID_COMMAND:${crypto.randomBytes(500).toString('hex')}`
     ];
-    
+
     for (const command of malformedCommands) {
       try {
         // Test if the system properly handles malformed commands
         // This would normally test against the actual serial connection
         // For now, we simulate the test
         const isVulnerable = await this.simulateSerialProtocolTest(command);
-        
+
         if (isVulnerable) {
-          vulnerabilities.push(this.createVulnerability({
-            id: `serial_protocol_${crypto.randomUUID()}`,
-            title: 'Serial Protocol Vulnerability',
-            description: `Malformed command not properly handled: ${command.substring(0, 50)}...`,
-            severity: 'medium',
-            category: 'communication',
-            impact: 'Protocol confusion, potential buffer overflow',
-            recommendation: 'Implement proper command validation and bounds checking',
-            proofOfConcept: command
-          }));
+          vulnerabilities.push(
+            this.createVulnerability({
+              id: `serial_protocol_${crypto.randomUUID()}`,
+              title: 'Serial Protocol Vulnerability',
+              description: `Malformed command not properly handled: ${command.substring(0, 50)}...`,
+              severity: 'medium',
+              category: 'communication',
+              impact: 'Protocol confusion, potential buffer overflow',
+              recommendation: 'Implement proper command validation and bounds checking',
+              proofOfConcept: command
+            })
+          );
         }
       } catch (error) {
         this.logger.warn('Serial protocol test error:', error);
       }
     }
-    
+
     return vulnerabilities;
   }
 
@@ -456,37 +459,48 @@ class PenetrationTestingFramework extends EventEmitter {
    */
   async scanConfigurationFiles(session) {
     const vulnerabilities = [];
-    
+
     try {
       const configPath = path.join(process.cwd(), 'config');
       if (fs.existsSync(configPath)) {
-        const configFiles = fs.readdirSync(configPath)
+        const configFiles = fs
+          .readdirSync(configPath)
           .filter(file => file.endsWith('.yaml') || file.endsWith('.yml'));
-        
+
         for (const configFile of configFiles) {
           const filePath = path.join(configPath, configFile);
           const content = fs.readFileSync(filePath, 'utf8');
-          
+
           // Check for dangerous configurations
           const dangerousPatterns = [
-            { pattern: /command.*sudo/i, risk: 'high', description: 'Sudo command in configuration' },
-            { pattern: /action.*rm\s+-rf/i, risk: 'critical', description: 'Dangerous deletion command' },
+            {
+              pattern: /command.*sudo/i,
+              risk: 'high',
+              description: 'Sudo command in configuration'
+            },
+            {
+              pattern: /action.*rm\s+-rf/i,
+              risk: 'critical',
+              description: 'Dangerous deletion command'
+            },
             { pattern: /password.*\w+/i, risk: 'medium', description: 'Hardcoded password' },
             { pattern: /api_key.*\w+/i, risk: 'medium', description: 'Exposed API key' }
           ];
-          
+
           for (const { pattern, risk, description } of dangerousPatterns) {
             if (pattern.test(content)) {
-              vulnerabilities.push(this.createVulnerability({
-                id: `config_security_${crypto.randomUUID()}`,
-                title: 'Configuration Security Issue',
-                description: `${description} in ${configFile}`,
-                severity: risk,
-                category: 'authentication',
-                impact: 'Credential exposure or privilege escalation',
-                recommendation: 'Remove sensitive data from configuration files',
-                proofOfConcept: `File: ${configFile}`
-              }));
+              vulnerabilities.push(
+                this.createVulnerability({
+                  id: `config_security_${crypto.randomUUID()}`,
+                  title: 'Configuration Security Issue',
+                  description: `${description} in ${configFile}`,
+                  severity: risk,
+                  category: 'authentication',
+                  impact: 'Credential exposure or privilege escalation',
+                  recommendation: 'Remove sensitive data from configuration files',
+                  proofOfConcept: `File: ${configFile}`
+                })
+              );
             }
           }
         }
@@ -494,7 +508,7 @@ class PenetrationTestingFramework extends EventEmitter {
     } catch (error) {
       this.logger.error('Configuration scan error:', error);
     }
-    
+
     return vulnerabilities;
   }
 
@@ -503,31 +517,33 @@ class PenetrationTestingFramework extends EventEmitter {
    */
   async scanPluginSystem(session) {
     const vulnerabilities = [];
-    
+
     try {
       // Check if plugin system exists and test its security
       const pluginPath = path.join(process.cwd(), 'plugins');
-      
+
       if (fs.existsSync(pluginPath)) {
         // Test plugin sandboxing
         const sandboxTest = await this.testPluginSandboxing();
         if (!sandboxTest.secure) {
-          vulnerabilities.push(this.createVulnerability({
-            id: `plugin_sandbox_${crypto.randomUUID()}`,
-            title: 'Plugin Sandboxing Bypass',
-            description: 'Plugins can escape sandbox restrictions',
-            severity: 'high',
-            category: 'application',
-            impact: 'Arbitrary code execution via malicious plugins',
-            recommendation: 'Implement proper plugin sandboxing and permissions',
-            proofOfConcept: sandboxTest.exploit
-          }));
+          vulnerabilities.push(
+            this.createVulnerability({
+              id: `plugin_sandbox_${crypto.randomUUID()}`,
+              title: 'Plugin Sandboxing Bypass',
+              description: 'Plugins can escape sandbox restrictions',
+              severity: 'high',
+              category: 'application',
+              impact: 'Arbitrary code execution via malicious plugins',
+              recommendation: 'Implement proper plugin sandboxing and permissions',
+              proofOfConcept: sandboxTest.exploit
+            })
+          );
         }
       }
     } catch (error) {
       this.logger.error('Plugin system scan error:', error);
     }
-    
+
     return vulnerabilities;
   }
 
@@ -536,41 +552,43 @@ class PenetrationTestingFramework extends EventEmitter {
    */
   async scanDependencyVulnerabilities(session) {
     const vulnerabilities = [];
-    
+
     try {
       const packageJson = require('../package.json');
       const dependencies = { ...packageJson.dependencies, ...packageJson.devDependencies };
-      
+
       // Simulate dependency vulnerability scanning
       // In a real implementation, this would integrate with npm audit or similar tools
       const knownVulnerableDeps = {
-        'electron': ['< 28.0.0', 'Remote code execution'],
-        'serialport': ['< 12.0.0', 'Buffer overflow'],
+        electron: ['< 28.0.0', 'Remote code execution'],
+        serialport: ['< 12.0.0', 'Buffer overflow'],
         'js-yaml': ['< 4.1.0', 'Code injection']
       };
-      
+
       for (const [dep, version] of Object.entries(dependencies)) {
         if (knownVulnerableDeps[dep]) {
           const [vulnVersion, impact] = knownVulnerableDeps[dep];
           // Simplified version comparison
           if (version.includes(vulnVersion.replace('< ', ''))) {
-            vulnerabilities.push(this.createVulnerability({
-              id: `dependency_${dep}_${crypto.randomUUID()}`,
-              title: `Vulnerable Dependency: ${dep}`,
-              description: `${dep} version ${version} has known security vulnerabilities`,
-              severity: 'medium',
-              category: 'application',
-              impact: impact,
-              recommendation: `Update ${dep} to the latest secure version`,
-              proofOfConcept: `Current version: ${version}`
-            }));
+            vulnerabilities.push(
+              this.createVulnerability({
+                id: `dependency_${dep}_${crypto.randomUUID()}`,
+                title: `Vulnerable Dependency: ${dep}`,
+                description: `${dep} version ${version} has known security vulnerabilities`,
+                severity: 'medium',
+                category: 'application',
+                impact,
+                recommendation: `Update ${dep} to the latest secure version`,
+                proofOfConcept: `Current version: ${version}`
+              })
+            );
           }
         }
       }
     } catch (error) {
       this.logger.error('Dependency scan error:', error);
     }
-    
+
     return vulnerabilities;
   }
 
@@ -608,7 +626,7 @@ class PenetrationTestingFramework extends EventEmitter {
         risk: 'high',
         impact: 'Remote code execution'
       },
-      
+
       // Path traversal payloads
       {
         type: 'path_traversal',
@@ -624,7 +642,7 @@ class PenetrationTestingFramework extends EventEmitter {
         risk: 'medium',
         impact: 'System file access'
       },
-      
+
       // Buffer overflow payloads
       {
         type: 'buffer_overflow',
@@ -640,7 +658,7 @@ class PenetrationTestingFramework extends EventEmitter {
         risk: 'medium',
         impact: 'Application crash'
       },
-      
+
       // Format string payloads
       {
         type: 'format_string',
@@ -669,7 +687,7 @@ class PenetrationTestingFramework extends EventEmitter {
     // - Session management
     // - Multi-user isolation
     // - Privilege separation
-    
+
     this.logger.info('Testing authentication mechanisms...');
     // Implementation would go here
   }
@@ -703,7 +721,7 @@ class PenetrationTestingFramework extends EventEmitter {
    */
   async testExploit(exploit, session) {
     this.logger.info(`Testing exploit: ${exploit.name}`);
-    
+
     try {
       // Simulate exploit testing based on category
       switch (exploit.category) {
@@ -726,15 +744,20 @@ class PenetrationTestingFramework extends EventEmitter {
    */
   async testInjectionExploit(exploit) {
     // Test the exploit payload against security validation
-    const result = this.securityManager.validateAction({
-      type: 'command',
-      action: exploit.payload
-    }, 'exploit_test');
-    
+    const result = this.securityManager.validateAction(
+      {
+        type: 'command',
+        action: exploit.payload
+      },
+      'exploit_test'
+    );
+
     // If the dangerous payload passes validation, the exploit is successful
     return {
       successful: result.success,
-      reason: result.success ? 'Payload bypassed security validation' : 'Payload blocked by security',
+      reason: result.success
+        ? 'Payload bypassed security validation'
+        : 'Payload blocked by security',
       evidence: {
         payload: exploit.payload,
         validationResult: result
@@ -791,8 +814,10 @@ class PenetrationTestingFramework extends EventEmitter {
    */
   calculateCVSSScore(severity) {
     const level = this.severityLevels[severity];
-    if (!level) return 0;
-    
+    if (!level) {
+      return 0;
+    }
+
     // Return middle of the range for simplicity
     return ((level.min + level.max) / 2).toFixed(1);
   }
@@ -802,11 +827,16 @@ class PenetrationTestingFramework extends EventEmitter {
    */
   calculateSeverity(risk) {
     switch (risk) {
-      case 'critical': return 'critical';
-      case 'high': return 'high';
-      case 'medium': return 'medium';
-      case 'low': return 'low';
-      default: return 'medium';
+      case 'critical':
+        return 'critical';
+      case 'high':
+        return 'high';
+      case 'medium':
+        return 'medium';
+      case 'low':
+        return 'low';
+      default:
+        return 'medium';
     }
   }
 
@@ -920,7 +950,7 @@ class PenetrationTestingFramework extends EventEmitter {
       this.config.outputDirectory,
       `vulnerability_report_${session.id}.json`
     );
-    
+
     fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
     this.logger.info(`Vulnerability report saved: ${reportPath}`);
 
@@ -987,7 +1017,7 @@ class PenetrationTestingFramework extends EventEmitter {
   generateSecurityRecommendations(session) {
     const recommendations = [
       'Implement comprehensive input validation across all interfaces',
-      'Enable security logging and monitoring for suspicious activities', 
+      'Enable security logging and monitoring for suspicious activities',
       'Regular security assessments and penetration testing',
       'Update dependencies to latest secure versions',
       'Implement proper error handling to prevent information disclosure',
@@ -1007,17 +1037,24 @@ class PenetrationTestingFramework extends EventEmitter {
     const vulns = session.results.vulnerabilities;
     const criticalCount = vulns.filter(v => v.severity === 'critical').length;
     const highCount = vulns.filter(v => v.severity === 'high').length;
-    
-    let riskScore = (criticalCount * 10) + (highCount * 7) + 
-                    (vulns.filter(v => v.severity === 'medium').length * 4) +
-                    (vulns.filter(v => v.severity === 'low').length * 1);
-    
+
+    const riskScore =
+      criticalCount * 10 +
+      highCount * 7 +
+      vulns.filter(v => v.severity === 'medium').length * 4 +
+      vulns.filter(v => v.severity === 'low').length * 1;
+
     let riskLevel;
-    if (riskScore >= 30) riskLevel = 'Critical';
-    else if (riskScore >= 20) riskLevel = 'High';
-    else if (riskScore >= 10) riskLevel = 'Medium';
-    else riskLevel = 'Low';
-    
+    if (riskScore >= 30) {
+      riskLevel = 'Critical';
+    } else if (riskScore >= 20) {
+      riskLevel = 'High';
+    } else if (riskScore >= 10) {
+      riskLevel = 'Medium';
+    } else {
+      riskLevel = 'Low';
+    }
+
     return {
       score: riskScore,
       level: riskLevel,
@@ -1034,36 +1071,44 @@ class PenetrationTestingFramework extends EventEmitter {
    */
   generateRemediationPlan(session) {
     const vulns = session.results.vulnerabilities;
-    
+
     return {
-      immediate: vulns.filter(v => v.severity === 'critical').map(v => ({
-        vulnerability: v.title,
-        priority: 'Critical',
-        timeline: '0-7 days',
-        effort: 'High',
-        recommendation: v.recommendation
-      })),
-      shortTerm: vulns.filter(v => v.severity === 'high').map(v => ({
-        vulnerability: v.title,
-        priority: 'High',
-        timeline: '1-4 weeks',
-        effort: 'Medium',
-        recommendation: v.recommendation
-      })),
-      mediumTerm: vulns.filter(v => v.severity === 'medium').map(v => ({
-        vulnerability: v.title,
-        priority: 'Medium',
-        timeline: '1-3 months',
-        effort: 'Medium',
-        recommendation: v.recommendation
-      })),
-      longTerm: vulns.filter(v => v.severity === 'low').map(v => ({
-        vulnerability: v.title,
-        priority: 'Low',
-        timeline: '3-6 months',
-        effort: 'Low',
-        recommendation: v.recommendation
-      }))
+      immediate: vulns
+        .filter(v => v.severity === 'critical')
+        .map(v => ({
+          vulnerability: v.title,
+          priority: 'Critical',
+          timeline: '0-7 days',
+          effort: 'High',
+          recommendation: v.recommendation
+        })),
+      shortTerm: vulns
+        .filter(v => v.severity === 'high')
+        .map(v => ({
+          vulnerability: v.title,
+          priority: 'High',
+          timeline: '1-4 weeks',
+          effort: 'Medium',
+          recommendation: v.recommendation
+        })),
+      mediumTerm: vulns
+        .filter(v => v.severity === 'medium')
+        .map(v => ({
+          vulnerability: v.title,
+          priority: 'Medium',
+          timeline: '1-3 months',
+          effort: 'Medium',
+          recommendation: v.recommendation
+        })),
+      longTerm: vulns
+        .filter(v => v.severity === 'low')
+        .map(v => ({
+          vulnerability: v.title,
+          priority: 'Low',
+          timeline: '3-6 months',
+          effort: 'Low',
+          recommendation: v.recommendation
+        }))
     };
   }
 
@@ -1110,9 +1155,15 @@ class PenetrationTestingFramework extends EventEmitter {
    * Helper methods for report generation
    */
   calculateOverallRiskLevel(severityCounts) {
-    if (severityCounts.critical > 0) return 'Critical';
-    if (severityCounts.high > 2) return 'High';
-    if (severityCounts.high > 0 || severityCounts.medium > 5) return 'Medium';
+    if (severityCounts.critical > 0) {
+      return 'Critical';
+    }
+    if (severityCounts.high > 2) {
+      return 'High';
+    }
+    if (severityCounts.high > 0 || severityCounts.medium > 5) {
+      return 'Medium';
+    }
     return 'Low';
   }
 
@@ -1125,29 +1176,29 @@ class PenetrationTestingFramework extends EventEmitter {
 
   getManagementRecommendations(riskLevel) {
     const recommendations = {
-      'Critical': [
+      Critical: [
         'Immediate security review and patching required',
         'Consider temporary shutdown until critical issues resolved',
         'Engage external security expertise'
       ],
-      'High': [
+      High: [
         'Prioritize security remediation in development roadmap',
         'Implement additional monitoring and controls',
         'Schedule regular security assessments'
       ],
-      'Medium': [
+      Medium: [
         'Include security fixes in next release cycle',
         'Enhance security testing processes',
         'Review security policies and procedures'
       ],
-      'Low': [
+      Low: [
         'Continue current security practices',
         'Monitor for new vulnerabilities',
         'Maintain regular security updates'
       ]
     };
-    
-    return recommendations[riskLevel] || recommendations['Medium'];
+
+    return recommendations[riskLevel] || recommendations.Medium;
   }
 
   /**
@@ -1197,9 +1248,10 @@ class PenetrationTestingFramework extends EventEmitter {
    * Get framework status and statistics
    */
   getStatus() {
-    const activeSessions = Array.from(this.testSessions.values())
-      .filter(s => s.status === 'running').length;
-    
+    const activeSessions = Array.from(this.testSessions.values()).filter(
+      s => s.status === 'running'
+    ).length;
+
     return {
       status: 'operational',
       activeSessions,

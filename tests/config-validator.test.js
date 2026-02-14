@@ -1,69 +1,547 @@
+/**
+ * Comprehensive Config Validator Tests
+ * 
+ * Tests configuration validation, schema loading, migration, error reporting,
+ * and security validation for all configuration scenarios.
+ */
+
 const { ConfigValidator } = require('../src/ConfigValidator');
+const { TestDataFactory } = require('./test-data-factory');
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
 
+// Mock fs module
+jest.mock('fs');
+jest.mock('js-yaml');
+
 describe('ConfigValidator', () => {
   let validator;
   let mockLogger;
+  let mockFs;
+  let mockYaml;
 
   beforeEach(() => {
-    // Create mock logger
-    mockLogger = {
-      info: jest.fn(),
-      warn: jest.fn(),
-      error: jest.fn(),
-      debug: jest.fn()
+    mockLogger = TestDataFactory.logger().build();
+    
+    // Setup fs mocks
+    mockFs = fs;
+    mockFs.readFileSync = jest.fn();
+    mockFs.writeFileSync = jest.fn();
+    mockFs.existsSync = jest.fn();
+
+    // Setup yaml mock
+    mockYaml = yaml;
+    mockYaml.load = jest.fn();
+    mockYaml.dump = jest.fn();
+
+    // Mock schema file reading
+    const mockSchema = {
+      type: 'object',
+      properties: {
+        version: { type: 'string', pattern: '^\\d+\\.\\d+\\.\\d+$' },
+        device: {
+          type: 'object',
+          properties: {
+            serialPort: { type: ['string', 'null'] },
+            baudRate: { type: 'number', minimum: 9600, maximum: 115200 },
+            buttons: { type: 'number', minimum: 1, maximum: 32 },
+            encoders: { type: 'number', minimum: 0, maximum: 8 },
+            connectionTimeout: { type: 'number', minimum: 1000 }
+          },
+          required: ['buttons', 'encoders']
+        },
+        buttons: { type: 'object' },
+        encoders: { type: 'object' },
+        logging: {
+          type: 'object',
+          properties: {
+            level: { type: 'string', enum: ['error', 'warn', 'info', 'debug'] },
+            file: { type: 'string' }
+          }
+        }
+      },
+      required: ['version', 'device', 'buttons', 'encoders', 'logging']
     };
 
-    // Create validator instance
+    mockFs.readFileSync.mockReturnValue(JSON.stringify(mockSchema));
     validator = new ConfigValidator(mockLogger);
   });
 
-  describe('Schema Loading', () => {
-    test('loads schema successfully', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('Initialization', () => {
+    test('should initialize with schema loaded', () => {
+      expect(validator).toBeInstanceOf(ConfigValidator);
       expect(validator.schema).toBeDefined();
       expect(validator.validate).toBeDefined();
-      expect(validator.getCurrentVersion()).toBe('1.0.0');
+      expect(mockFs.readFileSync).toHaveBeenCalled();
     });
 
-    test('schema has required properties', () => {
-      const requiredProps = ['version', 'device', 'buttons', 'encoders', 'logging'];
-      requiredProps.forEach(prop => {
-        expect(validator.schema.properties[prop]).toBeDefined();
+    test('should initialize without logger', () => {
+      const validatorNoLogger = new ConfigValidator();
+      expect(validatorNoLogger).toBeInstanceOf(ConfigValidator);
+    });
+
+    test('should handle missing schema file gracefully', () => {
+      mockFs.readFileSync.mockImplementation(() => {
+        throw new Error('ENOENT: no such file');
       });
+
+      expect(() => new ConfigValidator(mockLogger)).not.toThrow();
+      expect(mockLogger.error).toHaveBeenCalled();
+    });
+
+    test('should handle invalid schema JSON', () => {
+      mockFs.readFileSync.mockReturnValue('invalid json{');
+
+      expect(() => new ConfigValidator(mockLogger)).not.toThrow();
+      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 
   describe('Configuration Validation', () => {
-    const validConfig = {
-      version: '1.0.0',
-      device: {
-        serialPort: null,
-        baudRate: 9600,
-        buttons: 8,
-        encoders: 2,
-        connectionTimeout: 5000
-      },
-      buttons: {
-        button1: {
-          description: 'Test Button',
-          type: 'keypress',
-          action: 'ctrl+c',
-          enabled: true
+    test('should validate valid configuration', () => {
+      const config = TestDataFactory.config()
+        .withVersion('1.0.0')
+        .withButtonCount(8)
+        .withEncoderCount(2)
+        .build();
+
+      const result = validator.validate(config);
+
+      expect(result.isValid).toBe(true);
+      expect(result.errors).toEqual([]);
+      expect(result.warnings).toEqual([]);
+    });
+
+    test('should reject configuration with invalid version format', () => {
+      const config = TestDataFactory.config()
+        .withVersion('invalid-version')
+        .build();
+
+      const result = validator.validate(config);
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.errors[0]).toContain('version');
+    });
+
+    test('should reject configuration with missing required fields', () => {
+      const config = {
+        version: '1.0.0'
+        // Missing device, buttons, encoders, logging
+      };
+
+      const result = validator.validate(config);
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.errors.some(error => error.includes('device'))).toBe(true);
+    });
+
+    test('should reject invalid button count', () => {
+      const config = TestDataFactory.config()
+        .withButtonCount(0) // Invalid: minimum is 1
+        .build();
+
+      const result = validator.validate(config);
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some(error => error.includes('buttons'))).toBe(true);
+    });
+
+    test('should reject invalid encoder count', () => {
+      const config = TestDataFactory.config()
+        .withEncoderCount(10) // Invalid: maximum is 8
+        .build();
+
+      const result = validator.validate(config);
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some(error => error.includes('encoders'))).toBe(true);
+    });
+
+    test('should reject invalid baud rate', () => {
+      const config = TestDataFactory.config()
+        .withBaudRate(1200) // Invalid: minimum is 9600
+        .build();
+
+      const result = validator.validate(config);
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some(error => error.includes('baudRate'))).toBe(true);
+    });
+
+    test('should reject invalid log level', () => {
+      const config = TestDataFactory.config()
+        .withLogLevel('invalid-level')
+        .build();
+
+      const result = validator.validate(config);
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some(error => error.includes('level'))).toBe(true);
+    });
+  });
+
+  describe('Button Configuration Validation', () => {
+    test('should validate button with keypress action', () => {
+      const config = TestDataFactory.config()
+        .withKeypressAction('button1', 'ctrl+c')
+        .build();
+
+      const result = validator.validate(config);
+
+      expect(result.isValid).toBe(true);
+    });
+
+    test('should validate button with command action', () => {
+      const config = TestDataFactory.config()
+        .withCommandAction('button1', 'echo', ['hello'])
+        .build();
+
+      const result = validator.validate(config);
+
+      expect(result.isValid).toBe(true);
+    });
+
+    test('should validate button with application action', () => {
+      const config = TestDataFactory.config()
+        .withApplicationAction('button1', 'notepad.exe')
+        .build();
+
+      const result = validator.validate(config);
+
+      expect(result.isValid).toBe(true);
+    });
+
+    test('should reject button with invalid action type', () => {
+      const config = TestDataFactory.config().build();
+      config.buttons.button1 = {
+        description: 'Test Button',
+        actions: [{
+          type: 'invalid-type',
+          keys: 'ctrl+c'
+        }]
+      };
+
+      const result = validator.validate(config);
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some(error => error.includes('action'))).toBe(true);
+    });
+
+    test('should reject button with missing action keys for keypress', () => {
+      const config = TestDataFactory.config().build();
+      config.buttons.button1 = {
+        description: 'Test Button',
+        actions: [{
+          type: 'keypress'
+          // Missing keys
+        }]
+      };
+
+      const result = validator.validate(config);
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some(error => error.includes('keys'))).toBe(true);
+    });
+  });
+
+  describe('Encoder Configuration Validation', () => {
+    test('should validate encoder configuration', () => {
+      const config = TestDataFactory.config()
+        .withEncoder('encoder1', {
+          clockwise: { actions: [{ type: 'keypress', keys: 'ctrl+plus' }] },
+          counterclockwise: { actions: [{ type: 'keypress', keys: 'ctrl+minus' }] }
+        })
+        .build();
+
+      const result = validator.validate(config);
+
+      expect(result.isValid).toBe(true);
+    });
+
+    test('should reject encoder with missing direction configurations', () => {
+      const config = TestDataFactory.config().build();
+      config.encoders.encoder1 = {
+        description: 'Test Encoder'
+        // Missing clockwise and counterclockwise
+      };
+
+      const result = validator.validate(config);
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some(error => error.includes('encoder'))).toBe(true);
+    });
+  });
+
+  describe('Configuration Migration', () => {
+    test('should migrate configuration from older version', () => {
+      const oldConfig = {
+        version: '0.9.0',
+        device: { serialPort: '/dev/ttyUSB0', baudRate: 9600 },
+        buttons: { button1: { description: 'Old Button' } }
+      };
+
+      const migrated = validator.migrateConfig(oldConfig);
+
+      expect(migrated.version).toBe('1.0.0');
+      expect(migrated.device.buttons).toBeDefined();
+      expect(migrated.device.encoders).toBeDefined();
+      expect(migrated.logging).toBeDefined();
+    });
+
+    test('should not migrate already current configuration', () => {
+      const currentConfig = TestDataFactory.config().build();
+      
+      const migrated = validator.migrateConfig(currentConfig);
+
+      expect(migrated).toEqual(currentConfig);
+    });
+
+    test('should handle migration errors gracefully', () => {
+      const malformedConfig = null;
+
+      const migrated = validator.migrateConfig(malformedConfig);
+
+      expect(migrated).toBeDefined();
+      expect(migrated.version).toBe('1.0.0');
+    });
+  });
+
+  describe('Configuration Loading and Saving', () => {
+    test('should load configuration from YAML file', () => {
+      const mockConfig = TestDataFactory.config().build();
+      mockFs.readFileSync.mockReturnValue('mock yaml content');
+      mockYaml.load.mockReturnValue(mockConfig);
+
+      const result = validator.loadConfig('/path/to/config.yaml');
+
+      expect(result.isValid).toBe(true);
+      expect(result.config).toEqual(mockConfig);
+      expect(mockFs.readFileSync).toHaveBeenCalledWith('/path/to/config.yaml', 'utf8');
+    });
+
+    test('should handle missing configuration file', () => {
+      mockFs.readFileSync.mockImplementation(() => {
+        throw new Error('ENOENT: no such file');
+      });
+
+      const result = validator.loadConfig('/nonexistent/config.yaml');
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+    });
+
+    test('should handle invalid YAML syntax', () => {
+      mockFs.readFileSync.mockReturnValue('invalid: yaml: content:');
+      mockYaml.load.mockImplementation(() => {
+        throw new Error('YAML parse error');
+      });
+
+      const result = validator.loadConfig('/path/to/config.yaml');
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some(error => error.includes('YAML'))).toBe(true);
+    });
+
+    test('should save valid configuration to file', () => {
+      const config = TestDataFactory.config().build();
+      mockYaml.dump.mockReturnValue('mock yaml output');
+
+      const result = validator.saveConfig(config, '/path/to/output.yaml');
+
+      expect(result.success).toBe(true);
+      expect(mockYaml.dump).toHaveBeenCalledWith(config, expect.any(Object));
+      expect(mockFs.writeFileSync).toHaveBeenCalledWith('/path/to/output.yaml', 'mock yaml output', 'utf8');
+    });
+
+    test('should refuse to save invalid configuration', () => {
+      const invalidConfig = { version: 'invalid' };
+
+      const result = validator.saveConfig(invalidConfig, '/path/to/output.yaml');
+
+      expect(result.success).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+      expect(mockFs.writeFileSync).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Security Validation', () => {
+    test('should validate safe command paths', () => {
+      const config = TestDataFactory.config()
+        .withCommandAction('button1', '/usr/bin/echo', ['hello'])
+        .build();
+
+      const result = validator.validateSecurity(config);
+
+      expect(result.isSecure).toBe(true);
+      expect(result.warnings).toEqual([]);
+    });
+
+    test('should warn about potentially dangerous commands', () => {
+      const config = TestDataFactory.config()
+        .withCommandAction('button1', 'rm', ['-rf', '/'])
+        .build();
+
+      const result = validator.validateSecurity(config);
+
+      expect(result.isSecure).toBe(false);
+      expect(result.warnings.some(warning => warning.includes('dangerous'))).toBe(true);
+    });
+
+    test('should validate command path restrictions', () => {
+      const config = TestDataFactory.config()
+        .withCommandAction('button1', '../../../etc/passwd')
+        .build();
+
+      const result = validator.validateSecurity(config);
+
+      expect(result.isSecure).toBe(false);
+      expect(result.warnings.some(warning => warning.includes('path'))).toBe(true);
+    });
+  });
+
+  describe('Error Reporting and Context', () => {
+    test('should provide detailed error context', () => {
+      const config = {
+        version: '1.0.0',
+        device: {
+          buttons: 'invalid-type' // Should be number
         }
-      },
-      encoders: {
-        encoder1: {
-          description: 'Volume Control',
-          typeCW: 'keypress',
-          actionCW: 'VolumeUp',
-          typeCCW: 'keypress',
-          actionCCW: 'VolumeDown',
-          enabled: true
+      };
+
+      const result = validator.validate(config);
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.errors[0]).toContain('device.buttons');
+    });
+
+    test('should provide suggestions for common errors', () => {
+      const config = {
+        version: '1.0.0',
+        device: {
+          buttons: 0 // Below minimum
         }
-      },
-      logging: {
+      };
+
+      const result = validator.validate(config);
+
+      expect(result.isValid).toBe(false);
+      expect(result.suggestions).toBeDefined();
+      expect(result.suggestions.length).toBeGreaterThan(0);
+    });
+
+    test('should track validation metrics', () => {
+      const config1 = TestDataFactory.config().build();
+      const config2 = { version: 'invalid' };
+
+      validator.validate(config1);
+      validator.validate(config2);
+
+      const metrics = validator.getValidationMetrics();
+
+      expect(metrics.totalValidations).toBe(2);
+      expect(metrics.successfulValidations).toBe(1);
+      expect(metrics.failedValidations).toBe(1);
+    });
+  });
+
+  describe('Configuration Defaults and Templates', () => {
+    test('should provide default configuration template', () => {
+      const defaultConfig = validator.getDefaultConfig();
+
+      expect(defaultConfig).toBeDefined();
+      expect(defaultConfig.version).toBe('1.0.0');
+      expect(defaultConfig.device).toBeDefined();
+      expect(defaultConfig.buttons).toBeDefined();
+      expect(defaultConfig.encoders).toBeDefined();
+    });
+
+    test('should merge user config with defaults', () => {
+      const userConfig = {
+        device: {
+          buttons: 16
+        }
+      };
+
+      const merged = validator.mergeWithDefaults(userConfig);
+
+      expect(merged.version).toBe('1.0.0');
+      expect(merged.device.buttons).toBe(16);
+      expect(merged.device.encoders).toBeDefined();
+      expect(merged.logging).toBeDefined();
+    });
+  });
+
+  describe('Real-time Validation and Monitoring', () => {
+    test('should validate configuration changes', (done) => {
+      const config = TestDataFactory.config().build();
+
+      validator.on('configurationChanged', (changeEvent) => {
+        expect(changeEvent.isValid).toBe(true);
+        expect(changeEvent.changes).toBeDefined();
+        done();
+      });
+
+      validator.validateChange(config, 'device.buttons', 16);
+    });
+
+    test('should emit warnings for risky changes', (done) => {
+      const config = TestDataFactory.config().build();
+
+      validator.on('validationWarning', (warning) => {
+        expect(warning.severity).toBe('HIGH');
+        expect(warning.message).toContain('dangerous');
+        done();
+      });
+
+      validator.validateChange(config, 'buttons.button1.actions[0].command', 'rm');
+    });
+  });
+
+  describe('Performance and Edge Cases', () => {
+    test('should handle large configurations efficiently', () => {
+      const largeConfig = TestDataFactory.config()
+        .withButtonCount(32)
+        .withEncoderCount(8)
+        .build();
+
+      // Add many button configurations
+      for (let i = 1; i <= 32; i++) {
+        largeConfig.buttons[`button${i}`] = {
+          description: `Button ${i}`,
+          actions: [{ type: 'keypress', keys: `ctrl+${i}` }]
+        };
+      }
+
+      const startTime = Date.now();
+      const result = validator.validate(largeConfig);
+      const endTime = Date.now();
+
+      expect(result.isValid).toBe(true);
+      expect(endTime - startTime).toBeLessThan(100); // Should validate quickly
+    });
+
+    test('should handle circular references gracefully', () => {
+      const config = TestDataFactory.config().build();
+      config.circular = config; // Create circular reference
+
+      expect(() => validator.validate(config)).not.toThrow();
+    });
+
+    test('should handle null and undefined values', () => {
+      expect(() => validator.validate(null)).not.toThrow();
+      expect(() => validator.validate(undefined)).not.toThrow();
+      expect(() => validator.validate({})).not.toThrow();
+    });
+  });
+});
         level: 'info',
         file: 'logs/test.log',
         maxSize: 5242880,

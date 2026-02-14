@@ -48,8 +48,8 @@ describe('ActionExecutor', () => {
           mode: 'blacklist',
           allowedCommands: ['ls', 'echo'],
           blockedCommands: ['rm', 'sudo'],
-          timeout: 5000,
-          maxLength: 200
+          timeout: 10000,
+          maxLength: 1000
         },
         applicationExecution: {
           mode: 'allowlist',

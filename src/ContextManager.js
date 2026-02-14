@@ -1,6 +1,6 @@
 /**
  * Context Manager - Monitors system state and manages context-aware profile switching
- * 
+ *
  * This module provides intelligent profile switching based on:
  * - Active application/window
  * - Time of day and schedules
@@ -17,14 +17,14 @@ const ContextRuleEngine = require('./context/ContextRuleEngine');
 class ContextManager extends EventEmitter {
   constructor(logger, config = {}) {
     super();
-    
+
     this.logger = logger || {
       info: () => {},
       warn: () => {},
       error: () => {},
       debug: () => {}
     };
-    
+
     // Configuration with defaults
     this.config = {
       monitoringInterval: config.monitoringInterval || 1000,
@@ -34,7 +34,7 @@ class ContextManager extends EventEmitter {
       maxHistorySize: config.maxHistorySize || 50,
       ...config
     };
-    
+
     // State tracking
     this.currentContext = {
       application: { name: 'Unknown', pid: null, platform: process.platform },
@@ -42,17 +42,17 @@ class ContextManager extends EventEmitter {
       systemState: { state: 'active', idleTime: 0, presentationMode: false },
       lastUpdate: new Date().toISOString()
     };
-    
+
     // Context rules storage
     this.contextRules = [];
     this.contextHistory = [];
-    
+
     // Monitoring state
     this.monitoring = false;
     this.monitoringTimer = null;
     this.lastApplicationCheck = null;
     this.lastContextChange = null;
-    
+
     // Statistics
     this.statistics = {
       contextChanges: 0,
@@ -64,7 +64,7 @@ class ContextManager extends EventEmitter {
       totalUpdateTime: 0,
       updateCount: 0
     };
-    
+
     this.logger.info('ContextManager initialized');
   }
 
@@ -116,10 +116,10 @@ class ContextManager extends EventEmitter {
    */
   async updateContext() {
     const startTime = Date.now();
-    
+
     try {
       const previousContext = { ...this.currentContext };
-      
+
       // Update application context
       const appInfo = await this.getCurrentApplication();
       if (appInfo.name !== this.currentContext.application.name) {
@@ -155,8 +155,8 @@ class ContextManager extends EventEmitter {
       const updateTime = Date.now() - startTime;
       this.statistics.totalUpdateTime += updateTime;
       this.statistics.updateCount++;
-      this.statistics.averageUpdateTime = this.statistics.totalUpdateTime / this.statistics.updateCount;
-
+      this.statistics.averageUpdateTime =
+        this.statistics.totalUpdateTime / this.statistics.updateCount;
     } catch (error) {
       this.logger.error('Error updating context:', error);
     }
@@ -166,9 +166,9 @@ class ContextManager extends EventEmitter {
    * Get current active application information
    */
   async getCurrentApplication() {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const commands = this.getPlatformCommands();
-      
+
       exec(commands.getActiveApplication, (error, stdout) => {
         if (error) {
           this.logger.error('Error getting active application:', error);
@@ -196,24 +196,24 @@ class ContextManager extends EventEmitter {
    * Get system state information
    */
   async getSystemState() {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const commands = this.getPlatformCommands();
-      
+
       // Check idle time
       exec(commands.getIdleTime, (error, stdout) => {
         let idleTime = 0;
         if (!error && stdout) {
-          idleTime = parseInt(stdout.trim()) || 0;
+          idleTime = parseInt(stdout.trim(), 10) || 0;
         }
 
         // Check presentation mode
         exec(commands.checkPresentationMode, (presError, presStdout) => {
           const presentationMode = !presError && presStdout && presStdout.trim().length > 0;
-          
+
           resolve({
             state: idleTime > this.config.idleThreshold ? 'idle' : 'active',
-            idleTime: idleTime,
-            presentationMode: presentationMode,
+            idleTime,
+            presentationMode,
             timestamp: new Date().toISOString()
           });
         });
@@ -228,27 +228,33 @@ class ContextManager extends EventEmitter {
     switch (process.platform) {
       case 'darwin': // macOS
         return {
-          getActiveApplication: `osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true'`,
-          getIdleTime: `ioreg -c IOHIDSystem | awk '/HIDIdleTime/ {print int($NF/1000000000); exit}'`,
-          checkPresentationMode: `ps aux | grep -i 'keynote\\|powerpoint\\|impress' | grep -v grep`
+          getActiveApplication:
+            'osascript -e \'tell application "System Events" to get name of first application process whose frontmost is true\'',
+          getIdleTime:
+            "ioreg -c IOHIDSystem | awk '/HIDIdleTime/ {print int($NF/1000000000); exit}'",
+          checkPresentationMode: "ps aux | grep -i 'keynote\\|powerpoint\\|impress' | grep -v grep"
         };
       case 'win32': // Windows
         return {
-          getActiveApplication: `powershell -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(''); (Get-Process | Where-Object {$_.MainWindowTitle -ne ''} | Sort-Object CPU -Descending | Select-Object -First 1).ProcessName"`,
-          getIdleTime: `powershell -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SystemInformation]::IdleTime.TotalMilliseconds"`,
-          checkPresentationMode: `tasklist | findstr /i "powerpnt.exe keynote.exe impress.exe"`
+          getActiveApplication:
+            "powershell -Command \"Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(''); (Get-Process | Where-Object {$_.MainWindowTitle -ne ''} | Sort-Object CPU -Descending | Select-Object -First 1).ProcessName\"",
+          getIdleTime:
+            'powershell -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SystemInformation]::IdleTime.TotalMilliseconds"',
+          checkPresentationMode: 'tasklist | findstr /i "powerpnt.exe keynote.exe impress.exe"'
         };
       case 'linux': // Linux
         return {
-          getActiveApplication: `xdotool getwindowfocus getwindowname 2>/dev/null || echo "Unknown"`,
-          getIdleTime: `xprintidle 2>/dev/null || echo "0"`,
-          checkPresentationMode: `ps aux | grep -i 'libreoffice\\|openoffice\\|presentation' | grep -v grep`
+          getActiveApplication:
+            'xdotool getwindowfocus getwindowname 2>/dev/null || echo "Unknown"',
+          getIdleTime: 'xprintidle 2>/dev/null || echo "0"',
+          checkPresentationMode:
+            "ps aux | grep -i 'libreoffice\\|openoffice\\|presentation' | grep -v grep"
         };
       default:
         return {
-          getActiveApplication: `echo "Unknown"`,
-          getIdleTime: `echo "0"`,
-          checkPresentationMode: `echo ""`
+          getActiveApplication: 'echo "Unknown"',
+          getIdleTime: 'echo "0"',
+          checkPresentationMode: 'echo ""'
         };
     }
   }
@@ -282,7 +288,7 @@ class ContextManager extends EventEmitter {
     try {
       // Implement hysteresis to prevent rapid switching
       const now = Date.now();
-      if (this.lastContextChange && (now - this.lastContextChange) < this.config.hysteresisTime) {
+      if (this.lastContextChange && now - this.lastContextChange < this.config.hysteresisTime) {
         return;
       }
 
@@ -303,10 +309,9 @@ class ContextManager extends EventEmitter {
 
       // Evaluate context and find matching rules
       const evaluation = await this.evaluateContext();
-      
+
       this.logger.debug('Context changed:', evaluation);
       this.emit('contextChanged', evaluation);
-
     } catch (error) {
       this.logger.error('Error handling context change:', error);
     }
@@ -435,10 +440,8 @@ class ContextManager extends EventEmitter {
     const matchingRules = [];
 
     // Evaluate application rules
-    const appRules = this.contextRules.filter(rule => 
-      rule.type === 'application' && rule.enabled
-    );
-    
+    const appRules = this.contextRules.filter(rule => rule.type === 'application' && rule.enabled);
+
     for (const rule of appRules) {
       if (this.evaluateApplicationRule(rule)) {
         matchingRules.push(rule);
@@ -450,10 +453,8 @@ class ContextManager extends EventEmitter {
     matchingRules.push(...timeRules);
 
     // Evaluate system rules
-    const systemRules = this.contextRules.filter(rule => 
-      rule.type === 'system' && rule.enabled
-    );
-    
+    const systemRules = this.contextRules.filter(rule => rule.type === 'system' && rule.enabled);
+
     for (const rule of systemRules) {
       if (this.evaluateSystemRule(rule)) {
         matchingRules.push(rule);
@@ -462,8 +463,8 @@ class ContextManager extends EventEmitter {
 
     // Sort by priority
     const priorityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
-    matchingRules.sort((a, b) => 
-      (priorityOrder[b.priority] || 2) - (priorityOrder[a.priority] || 2)
+    matchingRules.sort(
+      (a, b) => (priorityOrder[b.priority] || 2) - (priorityOrder[a.priority] || 2)
     );
 
     // Get recommended profile (highest priority rule)
@@ -482,16 +483,15 @@ class ContextManager extends EventEmitter {
    */
   evaluateApplicationRule(rule) {
     const currentApp = this.currentContext.application.name;
-    
+
     if (rule.applicationName) {
       if (rule.processPattern) {
         const regex = new RegExp(rule.processPattern, 'i');
         return regex.test(currentApp);
-      } else {
-        return currentApp.toLowerCase().includes(rule.applicationName.toLowerCase());
       }
+      return currentApp.toLowerCase().includes(rule.applicationName.toLowerCase());
     }
-    
+
     return false;
   }
 
@@ -507,10 +507,8 @@ class ContextManager extends EventEmitter {
     const currentDayName = dayNames[currentDay];
 
     const matchingRules = [];
-    
-    const timeRules = this.contextRules.filter(rule => 
-      rule.type === 'time' && rule.enabled
-    );
+
+    const timeRules = this.contextRules.filter(rule => rule.type === 'time' && rule.enabled);
 
     for (const rule of timeRules) {
       // Check if today is included in the rule's days
@@ -523,7 +521,7 @@ class ContextManager extends EventEmitter {
       // Parse start and end times
       const [startHour, startMinute] = rule.startTime.split(':').map(Number);
       const [endHour, endMinute] = rule.endTime.split(':').map(Number);
-      
+
       const currentTime = currentHour * 60 + currentMinute;
       const startTime = startHour * 60 + startMinute;
       const endTime = endHour * 60 + endMinute;
@@ -552,7 +550,7 @@ class ContextManager extends EventEmitter {
    */
   evaluateSystemRule(rule) {
     const currentSystemState = this.currentContext.systemState;
-    
+
     switch (rule.systemState) {
       case 'idle':
         return currentSystemState.state === 'idle';
@@ -608,7 +606,7 @@ class ContextManager extends EventEmitter {
       updateCount: 0,
       startTime: Date.now()
     };
-    
+
     this.emit('statisticsReset');
   }
 

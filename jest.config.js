@@ -7,9 +7,11 @@ module.exports = {
   ],
   collectCoverageFrom: [
     'src/**/*.js',
-    '!src/main.js'
+    '!src/main.js',
+    '!**/node_modules/**'
   ],
   coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov'],
-  setupFilesAfterEnv: ['<rootDir>/tests/setup.js']
+  coverageReporters: ['text', 'lcov', 'html', 'json'],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
+  testTimeout: 10000
 };

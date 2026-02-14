@@ -10,12 +10,12 @@ class SecurityManager {
   constructor(logger, config = {}) {
     this.logger = logger;
     this.updateConfiguration(config);
-    
+
     // System information for context-aware validation
     this.platform = process.platform;
     this.homeDir = os.homedir();
     this.systemPaths = this.getSystemPaths();
-    
+
     this.logger.info('SecurityManager initialized with security policies');
   }
 
@@ -104,13 +104,14 @@ class SecurityManager {
     }
 
     // Length validation
-    if (keystroke.length > this.config.keypress.maxSequenceLength * 10) { // Generous multiplier for key names
+    if (keystroke.length > this.config.keypress.maxSequenceLength * 10) {
+      // Generous multiplier for key names
       return this.createValidationResult(false, 'Keystroke sequence too long', keystroke);
     }
 
     // Sanitize and validate keystroke
     const sanitizedKeystroke = this.sanitizeKeystroke(keystroke);
-    
+
     if (!this.config.keypress.allowFunctionKeys && this.containsFunctionKeys(sanitizedKeystroke)) {
       return this.createValidationResult(false, 'Function keys are not allowed', keystroke);
     }
@@ -146,7 +147,7 @@ class SecurityManager {
 
     // Sanitize command
     const sanitizedCommand = this.sanitizeCommand(command);
-    
+
     // Mode-based validation
     const modeValidation = this.validateCommandByMode(sanitizedCommand, context);
     if (!modeValidation.success) {
@@ -188,7 +189,7 @@ class SecurityManager {
 
     // Check blocked applications
     if (this.config.application.blockedApplications.length > 0) {
-      const isBlocked = this.config.application.blockedApplications.some(blocked => 
+      const isBlocked = this.config.application.blockedApplications.some(blocked =>
         sanitizedApp.toLowerCase().includes(blocked.toLowerCase())
       );
       if (isBlocked) {
@@ -199,23 +200,35 @@ class SecurityManager {
 
     // Check allowed applications (if allowlist mode)
     if (this.config.application.allowedApplications.length > 0) {
-      const isAllowed = this.config.application.allowedApplications.some(allowed => 
-        sanitizedApp.toLowerCase().includes(allowed.toLowerCase()) || 
-        allowed.toLowerCase() === '*'
+      const isAllowed = this.config.application.allowedApplications.some(
+        allowed =>
+          sanitizedApp.toLowerCase().includes(allowed.toLowerCase()) ||
+          allowed.toLowerCase() === '*'
       );
       if (!isAllowed) {
         this.logSecurityEvent('application', 'not-allowed', context, sanitizedApp);
-        return this.createValidationResult(false, 'Application is not in allowed list', application);
+        return this.createValidationResult(
+          false,
+          'Application is not in allowed list',
+          application
+        );
       }
     }
 
     // Validate application path
     if (this.config.application.requireFullPath && !path.isAbsolute(sanitizedApp)) {
-      return this.createValidationResult(false, 'Application must be specified with full path', application);
+      return this.createValidationResult(
+        false,
+        'Application must be specified with full path',
+        application
+      );
     }
 
     // System applications check
-    if (!this.config.application.allowSystemApplications && this.isSystemApplication(sanitizedApp)) {
+    if (
+      !this.config.application.allowSystemApplications &&
+      this.isSystemApplication(sanitizedApp)
+    ) {
       return this.createValidationResult(false, 'System applications are not allowed', application);
     }
 
@@ -231,8 +244,8 @@ class SecurityManager {
   validateCommandLength(command) {
     if (command.length > this.config.commandExecution.maxLength) {
       return this.createValidationResult(
-        false, 
-        `Command too long: ${command.length}/${this.config.commandExecution.maxLength} characters`, 
+        false,
+        `Command too long: ${command.length}/${this.config.commandExecution.maxLength} characters`,
         command
       );
     }
@@ -257,13 +270,18 @@ class SecurityManager {
     if (mode === 'allowlist') {
       const allowed = this.config.commandExecution.allowedCommands;
       if (allowed.length === 0) {
-        return this.createValidationResult(false, 'No commands are allowed (empty allowlist)', command);
+        return this.createValidationResult(
+          false,
+          'No commands are allowed (empty allowlist)',
+          command
+        );
       }
 
-      const isAllowed = allowed.some(allowedCmd => 
-        commandBase === allowedCmd.toLowerCase() || 
-        command.toLowerCase().startsWith(allowedCmd.toLowerCase() + ' ') ||
-        allowedCmd === '*'
+      const isAllowed = allowed.some(
+        allowedCmd =>
+          commandBase === allowedCmd.toLowerCase() ||
+          command.toLowerCase().startsWith(`${allowedCmd.toLowerCase()} `) ||
+          allowedCmd === '*'
       );
 
       if (!isAllowed) {
@@ -272,9 +290,10 @@ class SecurityManager {
       }
     } else if (mode === 'blacklist') {
       const blocked = this.config.commandExecution.blockedCommands;
-      const isBlocked = blocked.some(blockedCmd => 
-        commandBase === blockedCmd.toLowerCase() || 
-        command.toLowerCase().includes(blockedCmd.toLowerCase())
+      const isBlocked = blocked.some(
+        blockedCmd =>
+          commandBase === blockedCmd.toLowerCase() ||
+          command.toLowerCase().includes(blockedCmd.toLowerCase())
       );
 
       if (isBlocked) {
@@ -299,7 +318,7 @@ class SecurityManager {
       { pattern: /;\s*rm/i, description: 'Chained deletion' },
       { pattern: /&&\s*rm/i, description: 'Conditional deletion' },
       { pattern: /mv\s+.*\/dev\/null/i, description: 'Move to null device' },
-      
+
       // System access
       { pattern: /sudo\s/i, description: 'Privilege escalation' },
       { pattern: /su\s/i, description: 'User switching' },
@@ -307,20 +326,20 @@ class SecurityManager {
       { pattern: /adduser|useradd/i, description: 'User creation' },
       { pattern: /chmod\s.*[4-7][0-7][0-7]/i, description: 'Dangerous permissions' },
       { pattern: /chown\s.*root/i, description: 'Root ownership change' },
-      
+
       // Network and downloads
       { pattern: /wget.*\|.*sh/i, description: 'Download and execute' },
       { pattern: /curl.*\|.*sh/i, description: 'Download and execute' },
       { pattern: /nc\s.*-l/i, description: 'Network listener' },
       { pattern: /netcat.*-l/i, description: 'Network listener' },
-      
+
       // Code execution
       { pattern: /\$\(.*\)/g, description: 'Command substitution' },
       { pattern: /`.*`/g, description: 'Backtick execution' },
       { pattern: /<\s*\(/g, description: 'Process substitution' },
       { pattern: /eval\s/i, description: 'Dynamic evaluation' },
       { pattern: /exec\s/i, description: 'Process execution' },
-      
+
       // System files
       { pattern: /\/etc\/passwd/i, description: 'Password file access' },
       { pattern: /\/etc\/shadow/i, description: 'Shadow file access' },
@@ -328,22 +347,22 @@ class SecurityManager {
       { pattern: /\/proc\//i, description: 'Process filesystem access' },
       { pattern: /\/sys\//i, description: 'System filesystem access' },
       { pattern: /\/dev\/(?!null|zero|random|urandom)/i, description: 'Device access' },
-      
+
       // Environment manipulation
       { pattern: /export\s.*PATH/i, description: 'PATH manipulation' },
       { pattern: /unset\s/i, description: 'Environment unset' },
-      
+
       // Redirection abuse
       { pattern: />\s*\/etc\//i, description: 'System directory write' },
       { pattern: />>\s*\/etc\//i, description: 'System directory append' },
-      { pattern: /<\s*\/dev\/tcp/i, description: 'Network redirection' },
+      { pattern: /<\s*\/dev\/tcp/i, description: 'Network redirection' }
     ];
 
     for (const { pattern, description } of dangerousPatterns) {
       if (pattern.test(command)) {
         return this.createValidationResult(
-          false, 
-          `Command contains dangerous pattern (${description}): ${pattern}`, 
+          false,
+          `Command contains dangerous pattern (${description}): ${pattern}`,
           command
         );
       }
@@ -361,17 +380,17 @@ class SecurityManager {
     // Environment variable access
     if (!this.config.commandExecution.allowEnvironmentAccess) {
       const envPatterns = [
-        /\$\w+/g,              // Environment variable references
-        /\$\{[^}]+\}/g,        // Complex environment variable references
-        /env\s/i,              // Env command
-        /printenv/i,           // Print environment
+        /\$\w+/g, // Environment variable references
+        /\$\{[^}]+\}/g, // Complex environment variable references
+        /env\s/i, // Env command
+        /printenv/i // Print environment
       ];
 
       for (const pattern of envPatterns) {
         if (pattern.test(command)) {
           return this.createValidationResult(
-            false, 
-            'Environment variable access not allowed', 
+            false,
+            'Environment variable access not allowed',
             command
           );
         }
@@ -383,8 +402,8 @@ class SecurityManager {
       for (const systemPath of this.systemPaths) {
         if (command.toLowerCase().includes(systemPath.toLowerCase())) {
           return this.createValidationResult(
-            false, 
-            `System path access not allowed: ${systemPath}`, 
+            false,
+            `System path access not allowed: ${systemPath}`,
             command
           );
         }
@@ -394,17 +413,21 @@ class SecurityManager {
     // Network access validation
     if (!this.config.commandExecution.allowNetworkAccess) {
       const networkPatterns = [
-        /wget\s/i, /curl\s/i, /nc\s/i, /netcat\s/i, /telnet\s/i, 
-        /ssh\s/i, /scp\s/i, /rsync\s/i, /ftp\s/i, /sftp\s/i
+        /wget\s/i,
+        /curl\s/i,
+        /nc\s/i,
+        /netcat\s/i,
+        /telnet\s/i,
+        /ssh\s/i,
+        /scp\s/i,
+        /rsync\s/i,
+        /ftp\s/i,
+        /sftp\s/i
       ];
 
       for (const pattern of networkPatterns) {
         if (pattern.test(command)) {
-          return this.createValidationResult(
-            false, 
-            'Network access not allowed', 
-            command
-          );
+          return this.createValidationResult(false, 'Network access not allowed', command);
         }
       }
     }
@@ -422,8 +445,8 @@ class SecurityManager {
     return command
       .trim()
       .replace(/[\x00-\x1f\x7f-\x9f]/g, '') // Remove control characters
-      .replace(/[^\x20-\x7e\s]/g, '')       // Remove non-printable characters
-      .replace(/\s+/g, ' ')                 // Normalize whitespace
+      .replace(/[^\x20-\x7e\s]/g, '') // Remove non-printable characters
+      .replace(/\s+/g, ' ') // Normalize whitespace
       .substring(0, this.config.commandExecution.maxLength); // Enforce length limit
   }
 
@@ -436,7 +459,7 @@ class SecurityManager {
     return keystroke
       .trim()
       .replace(/[^\w+\-\s]/g, '') // Allow only alphanumeric, +, -, and spaces
-      .replace(/\s+/g, ' ')       // Normalize whitespace
+      .replace(/\s+/g, ' ') // Normalize whitespace
       .toLowerCase();
   }
 
@@ -449,9 +472,9 @@ class SecurityManager {
     return application
       .trim()
       .replace(/[^\w\-\/\.\s\\:]/g, '') // Allow path characters
-      .replace(/\s+/g, ' ')             // Normalize whitespace
-      .replace(/\.{2,}/g, '.')          // Prevent path traversal
-      .substring(0, 500);               // Reasonable length limit
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .replace(/\.{2,}/g, '.') // Prevent path traversal
+      .substring(0, 500); // Reasonable length limit
   }
 
   /**
@@ -482,9 +505,18 @@ class SecurityManager {
    */
   isSystemApplication(application) {
     const systemApps = [
-      'regedit', 'msconfig', 'services.msc', 'gpedit.msc',
-      'system preferences', 'activity monitor', 'terminal', 'cmd',
-      'powershell', 'bash', 'zsh', 'sh'
+      'regedit',
+      'msconfig',
+      'services.msc',
+      'gpedit.msc',
+      'system preferences',
+      'activity monitor',
+      'terminal',
+      'cmd',
+      'powershell',
+      'bash',
+      'zsh',
+      'sh'
     ];
     const lowerApp = application.toLowerCase();
     return systemApps.some(app => lowerApp.includes(app));
@@ -496,7 +528,7 @@ class SecurityManager {
    */
   getSystemPaths() {
     const common = ['/etc', '/usr/bin', '/usr/sbin', '/bin', '/sbin'];
-    
+
     switch (this.platform) {
       case 'win32':
         return ['C:\\Windows', 'C:\\Program Files', 'C:\\Program Files (x86)', ...common];
@@ -523,7 +555,7 @@ class SecurityManager {
     };
 
     if (!success && this.config.logging.logBlockedActions) {
-      this.logger.warn(`Security validation failed: ${message}`, { 
+      this.logger.warn(`Security validation failed: ${message}`, {
         action: sanitizedAction,
         timestamp: result.timestamp
       });
@@ -540,7 +572,9 @@ class SecurityManager {
    * @param {any} action - Action details
    */
   logSecurityEvent(actionType, eventType, context, action) {
-    if (!this.config.logging.logSecurityEvents) return;
+    if (!this.config.logging.logSecurityEvents) {
+      return;
+    }
 
     const logData = {
       actionType,
@@ -571,7 +605,7 @@ class SecurityManager {
         blockedCommandsCount: this.config.commandExecution.blockedCommands.length,
         maxCommandLength: this.config.commandExecution.maxLength,
         networkAccessAllowed: this.config.commandExecution.allowNetworkAccess,
-        systemPathsAllowed: this.config.commandExecution.allowSystemPaths,
+        systemPathsAllowed: this.config.commandExecution.allowSystemPaths
       },
       platform: this.platform,
       systemPathsCount: this.systemPaths.length,
@@ -585,26 +619,48 @@ class SecurityManager {
    */
   calculateSecurityLevel() {
     let score = 0;
-    
+
     // Command execution restrictions
-    if (!this.config.commandExecution.enabled) score += 3;
-    else if (this.config.commandExecution.mode === 'disabled') score += 3;
-    else if (this.config.commandExecution.mode === 'allowlist') score += 2;
-    else score += 1; // blacklist mode
-    
+    if (!this.config.commandExecution.enabled) {
+      score += 3;
+    } else if (this.config.commandExecution.mode === 'disabled') {
+      score += 3;
+    } else if (this.config.commandExecution.mode === 'allowlist') {
+      score += 2;
+    } else {
+      score += 1;
+    } // blacklist mode
+
     // Additional restrictions
-    if (!this.config.commandExecution.allowNetworkAccess) score += 1;
-    if (!this.config.commandExecution.allowSystemPaths) score += 1;
-    if (!this.config.commandExecution.allowEnvironmentAccess) score += 1;
-    if (this.config.commandExecution.maxLength <= 200) score += 1;
-    
+    if (!this.config.commandExecution.allowNetworkAccess) {
+      score += 1;
+    }
+    if (!this.config.commandExecution.allowSystemPaths) {
+      score += 1;
+    }
+    if (!this.config.commandExecution.allowEnvironmentAccess) {
+      score += 1;
+    }
+    if (this.config.commandExecution.maxLength <= 200) {
+      score += 1;
+    }
+
     // Application restrictions
-    if (!this.config.application.enabled) score += 1;
-    else if (this.config.application.allowedApplications.length > 0) score += 1;
-    
-    if (score >= 8) return 'maximum';
-    if (score >= 6) return 'high';
-    if (score >= 4) return 'medium';
+    if (!this.config.application.enabled) {
+      score += 1;
+    } else if (this.config.application.allowedApplications.length > 0) {
+      score += 1;
+    }
+
+    if (score >= 8) {
+      return 'maximum';
+    }
+    if (score >= 6) {
+      return 'high';
+    }
+    if (score >= 4) {
+      return 'medium';
+    }
     return 'low';
   }
 
@@ -645,7 +701,7 @@ class SecurityManager {
 
       // Apply configuration
       this.updateConfiguration(newConfig);
-      
+
       this.logger.info('Security policy updated successfully', {
         newLevel: this.calculateSecurityLevel(),
         timestamp: new Date().toISOString()
@@ -672,29 +728,40 @@ class SecurityManager {
    */
   validateSecurityConfiguration(config) {
     const errors = [];
-    
+
     // Validate command execution configuration
     if (config.commandExecution) {
-      if (config.commandExecution.mode && 
-          !['allowlist', 'blacklist', 'disabled'].includes(config.commandExecution.mode)) {
+      if (
+        config.commandExecution.mode &&
+        !['allowlist', 'blacklist', 'disabled'].includes(config.commandExecution.mode)
+      ) {
         errors.push('Invalid command execution mode');
       }
-      
-      if (config.commandExecution.maxLength && 
-          (typeof config.commandExecution.maxLength !== 'number' || config.commandExecution.maxLength < 1)) {
+
+      if (
+        config.commandExecution.maxLength &&
+        (typeof config.commandExecution.maxLength !== 'number' ||
+          config.commandExecution.maxLength < 1)
+      ) {
         errors.push('Invalid max command length');
       }
-      
-      if (config.commandExecution.timeout && 
-          (typeof config.commandExecution.timeout !== 'number' || config.commandExecution.timeout < 1000)) {
+
+      if (
+        config.commandExecution.timeout &&
+        (typeof config.commandExecution.timeout !== 'number' ||
+          config.commandExecution.timeout < 1000)
+      ) {
         errors.push('Invalid command timeout (minimum 1000ms)');
       }
     }
 
     // Validate keypress configuration
     if (config.keypress) {
-      if (config.keypress.maxSequenceLength && 
-          (typeof config.keypress.maxSequenceLength !== 'number' || config.keypress.maxSequenceLength < 1)) {
+      if (
+        config.keypress.maxSequenceLength &&
+        (typeof config.keypress.maxSequenceLength !== 'number' ||
+          config.keypress.maxSequenceLength < 1)
+      ) {
         errors.push('Invalid keypress sequence length');
       }
     }
@@ -723,7 +790,7 @@ class SecurityManager {
         details: { component: 'commandExecution', action: 'update_mode' }
       },
       {
-        id: '2', 
+        id: '2',
         timestamp: new Date(Date.now() - 60000).toISOString(),
         type: 'action_blocked',
         severity: 'warning',
@@ -734,15 +801,15 @@ class SecurityManager {
 
     // Apply filters
     let filteredEvents = events;
-    
+
     if (options.type) {
       filteredEvents = filteredEvents.filter(event => event.type === options.type);
     }
-    
+
     if (options.severity) {
       filteredEvents = filteredEvents.filter(event => event.severity === options.severity);
     }
-    
+
     if (options.limit) {
       filteredEvents = filteredEvents.slice(0, options.limit);
     }
@@ -830,7 +897,7 @@ class SecurityManager {
     ];
 
     const actionsToTest = testActions.length > 0 ? testActions : defaultTestActions;
-    
+
     return actionsToTest.map(action => {
       const result = this.validateAction(action, 'policy_test');
       return {

@@ -24,7 +24,11 @@ class MacOSSigner {
     };
 
     this.supportedFormats = ['.app', '.pkg', '.dmg', '.dylib', '.framework'];
-    this.supportedCertificateTypes = ['Developer ID Application', 'Developer ID Installer', 'Mac App Store'];
+    this.supportedCertificateTypes = [
+      'Developer ID Application',
+      'Developer ID Installer',
+      'Mac App Store'
+    ];
     this.supportedAlgorithms = ['SHA256'];
 
     this.logger.info('MacOSSigner initialized for macOS code signing');
@@ -37,7 +41,7 @@ class MacOSSigner {
     try {
       const fileExtension = path.extname(filePath).toLowerCase();
       const fileName = path.basename(filePath);
-      
+
       this.logger.info(`Signing macOS file: ${filePath}`);
 
       // Choose signing method based on file type
@@ -53,13 +57,16 @@ class MacOSSigner {
       }
 
       // Perform notarization if enabled and required
-      if (this.config.enableNotarization && this.shouldNotarize(fileExtension) && options.notarize !== false) {
+      if (
+        this.config.enableNotarization &&
+        this.shouldNotarize(fileExtension) &&
+        options.notarize !== false
+      ) {
         await this.notarize(signedPath, options.notarizationCredentials || {});
       }
 
       this.logger.info(`Successfully signed: ${signedPath}`);
       return signedPath;
-      
     } catch (error) {
       this.logger.error(`macOS signing failed for ${filePath}:`, error);
       throw error;
@@ -72,21 +79,28 @@ class MacOSSigner {
   async signApplication(appPath, certificate, options) {
     // Create a copy for signing to avoid modifying original
     const signedPath = `${appPath}.signed`;
-    
+
     try {
       // Copy application bundle
       await this.executeCommand(['cp', '-R', appPath, signedPath]);
-      
+
       // Build codesign command
-      const command = await this.buildCodesignCommand(signedPath, certificate, options, 'application');
-      
+      const command = await this.buildCodesignCommand(
+        signedPath,
+        certificate,
+        options,
+        'application'
+      );
+
       this.logger.debug('macOS app signing command:', command.join(' '));
 
       // Execute signing
       const result = await this.executeCommand(command);
-      
+
       if (result.exitCode !== 0) {
-        throw new Error(`Application signing failed (exit code ${result.exitCode}): ${result.stderr}`);
+        throw new Error(
+          `Application signing failed (exit code ${result.exitCode}): ${result.stderr}`
+        );
       }
 
       return signedPath;
@@ -105,14 +119,12 @@ class MacOSSigner {
    * Sign macOS installer package
    */
   async signPackage(pkgPath, certificate, options) {
-    const signedPath = path.join(path.dirname(pkgPath), `${path.basename(pkgPath, '.pkg')}.signed.pkg`);
-    
-    const command = [
-      'productsign',
-      '--sign', certificate.identity,
-      pkgPath,
-      signedPath
-    ];
+    const signedPath = path.join(
+      path.dirname(pkgPath),
+      `${path.basename(pkgPath, '.pkg')}.signed.pkg`
+    );
+
+    const command = ['productsign', '--sign', certificate.identity, pkgPath, signedPath];
 
     // Add timestamp if requested
     if (options.timestamp) {
@@ -120,7 +132,7 @@ class MacOSSigner {
     }
 
     const result = await this.executeCommand(command);
-    
+
     if (result.exitCode !== 0) {
       throw new Error(`Package signing failed (exit code ${result.exitCode}): ${result.stderr}`);
     }
@@ -133,9 +145,9 @@ class MacOSSigner {
    */
   async signDiskImage(dmgPath, certificate, options) {
     const command = await this.buildCodesignCommand(dmgPath, certificate, options, 'dmg');
-    
+
     const result = await this.executeCommand(command);
-    
+
     if (result.exitCode !== 0) {
       throw new Error(`DMG signing failed (exit code ${result.exitCode}): ${result.stderr}`);
     }
@@ -148,9 +160,9 @@ class MacOSSigner {
    */
   async signGeneric(filePath, certificate, options) {
     const command = await this.buildCodesignCommand(filePath, certificate, options, 'generic');
-    
+
     const result = await this.executeCommand(command);
-    
+
     if (result.exitCode !== 0) {
       throw new Error(`Generic signing failed (exit code ${result.exitCode}): ${result.stderr}`);
     }
@@ -211,7 +223,8 @@ class MacOSSigner {
       const spctlCommand = [
         this.config.spctlPath,
         '--assess',
-        '--type', this.getAssessmentType(filePath),
+        '--type',
+        this.getAssessmentType(filePath),
         '--verbose',
         filePath
       ];
@@ -249,7 +262,6 @@ class MacOSSigner {
       }
 
       return verificationResult;
-      
     } catch (error) {
       this.logger.error(`macOS signature verification failed for ${filePath}:`, error);
       return {
@@ -265,12 +277,7 @@ class MacOSSigner {
    */
   async getSignatureDetails(filePath) {
     try {
-      const command = [
-        this.config.codesignPath,
-        '--display',
-        '--verbose=2',
-        filePath
-      ];
+      const command = [this.config.codesignPath, '--display', '--verbose=2', filePath];
 
       const result = await this.executeCommand(command);
       return this.parseSignatureDetails(result.stderr); // codesign outputs to stderr
@@ -285,7 +292,7 @@ class MacOSSigner {
    */
   parseSignatureDetails(output) {
     const details = {};
-    
+
     // Extract identifier
     const identifierMatch = output.match(/Identifier=(.+)/);
     if (identifierMatch) {
@@ -331,11 +338,16 @@ class MacOSSigner {
 
       // Submit for notarization
       const submitCommand = [
-        this.config.xcrunPath, 'notarytool',
-        'submit', filePath,
-        '--apple-id', credentials.appleId,
-        '--password', credentials.appPassword,
-        '--team-id', credentials.teamId,
+        this.config.xcrunPath,
+        'notarytool',
+        'submit',
+        filePath,
+        '--apple-id',
+        credentials.appleId,
+        '--password',
+        credentials.appPassword,
+        '--team-id',
+        credentials.teamId,
         '--wait'
       ];
 
@@ -354,7 +366,6 @@ class MacOSSigner {
 
       this.logger.info(`Successfully notarized: ${filePath}`);
       return true;
-
     } catch (error) {
       this.logger.error(`Notarization failed for ${filePath}:`, error);
       throw error;
@@ -365,9 +376,7 @@ class MacOSSigner {
    * Staple notarization ticket to application
    */
   async stapleNotarization(filePath) {
-    const command = [
-      this.config.xcrunPath, 'stapler', 'staple', filePath
-    ];
+    const command = [this.config.xcrunPath, 'stapler', 'staple', filePath];
 
     const result = await this.executeCommand(command);
 
@@ -447,15 +456,15 @@ class MacOSSigner {
       let stdout = '';
       let stderr = '';
 
-      process.stdout.on('data', (data) => {
+      process.stdout.on('data', data => {
         stdout += data.toString();
       });
 
-      process.stderr.on('data', (data) => {
+      process.stderr.on('data', data => {
         stderr += data.toString();
       });
 
-      process.on('close', (exitCode) => {
+      process.on('close', exitCode => {
         resolve({
           exitCode,
           stdout,
@@ -463,15 +472,18 @@ class MacOSSigner {
         });
       });
 
-      process.on('error', (error) => {
+      process.on('error', error => {
         reject(error);
       });
 
       // Set timeout (default 5 minutes, override with options)
-      const timeout = setTimeout(() => {
-        process.kill();
-        reject(new Error(`Command timed out: ${command.join(' ')}`));
-      }, options.timeout || 5 * 60 * 1000);
+      const timeout = setTimeout(
+        () => {
+          process.kill();
+          reject(new Error(`Command timed out: ${command.join(' ')}`));
+        },
+        options.timeout || 5 * 60 * 1000
+      );
 
       process.on('close', () => {
         clearTimeout(timeout);
@@ -486,7 +498,7 @@ class MacOSSigner {
     try {
       // Test codesign availability
       const codesignResult = await this.executeCommand([this.config.codesignPath, '--version']);
-      
+
       // Test spctl availability
       const spctlResult = await this.executeCommand([this.config.spctlPath, '--status']);
 

@@ -1,6 +1,6 @@
 /**
  * Import/Export Dialog Component
- * 
+ *
  * Provides comprehensive UI for importing and exporting macro sequences
  * Supports multiple formats, bulk operations, and metadata editing
  */
@@ -11,16 +11,28 @@ class ImportExportDialog {
     this.currentMode = null; // 'import' or 'export'
     this.selectedSequences = new Set();
     this.importResults = [];
-    
+
     this.supportedFormats = [
-      { value: 'mkb', label: 'Macro Keyboard Format (.mkb)', description: 'Enhanced YAML with metadata' },
-      { value: 'json', label: 'JSON Format (.json)', description: 'Standard JavaScript Object Notation' },
-      { value: 'yaml', label: 'YAML Format (.yaml)', description: 'Human-readable data serialization' }
+      {
+        value: 'mkb',
+        label: 'Macro Keyboard Format (.mkb)',
+        description: 'Enhanced YAML with metadata'
+      },
+      {
+        value: 'json',
+        label: 'JSON Format (.json)',
+        description: 'Standard JavaScript Object Notation'
+      },
+      {
+        value: 'yaml',
+        label: 'YAML Format (.yaml)',
+        description: 'Human-readable data serialization'
+      }
     ];
-    
+
     this.initializeDialog();
   }
-  
+
   /**
    * Initialize the import/export dialog
    */
@@ -29,11 +41,11 @@ class ImportExportDialog {
     this.dialog.className = 'import-export-dialog-overlay';
     this.dialog.style.display = 'none';
     this.dialog.innerHTML = this.getDialogTemplate();
-    
+
     document.body.appendChild(this.dialog);
     this.setupEventListeners();
   }
-  
+
   /**
    * Get the HTML template for the dialog
    */
@@ -44,19 +56,19 @@ class ImportExportDialog {
           <h2 class="dialog-title">Import/Export Sequences</h2>
           <button class="dialog-close-btn" title="Close">×</button>
         </div>
-        
+
         <div class="dialog-content">
           <!-- Tab Navigation -->
           <div class="tab-navigation">
             <button class="tab-btn active" data-tab="export">Export Sequences</button>
             <button class="tab-btn" data-tab="import">Import Sequences</button>
           </div>
-          
+
           <!-- Export Tab -->
           <div class="tab-content" data-tab="export">
             <div class="export-section">
               <h3>Export Options</h3>
-              
+
               <div class="export-mode">
                 <label>
                   <input type="radio" name="export-mode" value="selected" checked>
@@ -71,7 +83,7 @@ class ImportExportDialog {
                   Export Current Profile
                 </label>
               </div>
-              
+
               <div class="sequence-selection">
                 <h4>Select Sequences to Export</h4>
                 <div class="sequence-list-container">
@@ -89,11 +101,13 @@ class ImportExportDialog {
                   </div>
                 </div>
               </div>
-              
+
               <div class="format-selection">
                 <h4>Export Format</h4>
                 <div class="format-options">
-                  ${this.supportedFormats.map(format => `
+                  ${this.supportedFormats
+                    .map(
+                      format => `
                     <label class="format-option">
                       <input type="radio" name="export-format" value="${format.value}" ${format.value === 'mkb' ? 'checked' : ''}>
                       <div class="format-info">
@@ -101,10 +115,12 @@ class ImportExportDialog {
                         <span class="format-description">${format.description}</span>
                       </div>
                     </label>
-                  `).join('')}
+                  `
+                    )
+                    .join('')}
                 </div>
               </div>
-              
+
               <div class="export-options">
                 <h4>Export Options</h4>
                 <label>
@@ -120,7 +136,7 @@ class ImportExportDialog {
                   Compress Output (ZIP)
                 </label>
               </div>
-              
+
               <div class="metadata-editor" style="display: none;">
                 <h4>Package Metadata</h4>
                 <div class="metadata-fields">
@@ -142,19 +158,19 @@ class ImportExportDialog {
                   </div>
                 </div>
               </div>
-              
+
               <div class="export-actions">
                 <button class="export-btn">Export Sequences</button>
                 <button class="preview-export-btn">Preview Export</button>
               </div>
             </div>
           </div>
-          
+
           <!-- Import Tab -->
           <div class="tab-content" data-tab="import" style="display: none;">
             <div class="import-section">
               <h3>Import Sequences</h3>
-              
+
               <!-- Drag and Drop Area -->
               <div class="drag-drop-area">
                 <div class="drag-drop-content">
@@ -164,10 +180,10 @@ class ImportExportDialog {
                   <button class="browse-files-btn">Browse Files</button>
                 </div>
               </div>
-              
+
               <!-- File Browser Input (Hidden) -->
               <input type="file" class="file-input" multiple accept=".mkb,.json,.yaml,.yml" style="display: none;">
-              
+
               <!-- Import Options -->
               <div class="import-options">
                 <h4>Import Options</h4>
@@ -184,7 +200,7 @@ class ImportExportDialog {
                   Validate Sequences Before Import
                 </label>
               </div>
-              
+
               <!-- Import Preview -->
               <div class="import-preview" style="display: none;">
                 <h4>Import Preview</h4>
@@ -192,7 +208,7 @@ class ImportExportDialog {
                   <!-- Preview items will be populated here -->
                 </div>
               </div>
-              
+
               <!-- Conflict Resolution -->
               <div class="conflict-resolution" style="display: none;">
                 <h4>Conflict Resolution</h4>
@@ -206,14 +222,14 @@ class ImportExportDialog {
                   <button class="resolve-all-rename-btn">Rename All</button>
                 </div>
               </div>
-              
+
               <div class="import-actions">
                 <button class="import-btn" disabled>Import Sequences</button>
                 <button class="clear-import-btn">Clear Selection</button>
               </div>
             </div>
           </div>
-          
+
           <!-- Progress Section -->
           <div class="progress-section" style="display: none;">
             <h4>Processing...</h4>
@@ -225,7 +241,7 @@ class ImportExportDialog {
               <!-- Details will be populated here -->
             </div>
           </div>
-          
+
           <!-- Results Section -->
           <div class="results-section" style="display: none;">
             <h4>Results</h4>
@@ -241,14 +257,14 @@ class ImportExportDialog {
             </div>
           </div>
         </div>
-        
+
         <div class="dialog-footer">
           <button class="dialog-cancel-btn">Cancel</button>
         </div>
       </div>
     `;
   }
-  
+
   /**
    * Set up event listeners for the dialog
    */
@@ -257,117 +273,117 @@ class ImportExportDialog {
     this.dialog.querySelector('.dialog-close-btn').addEventListener('click', () => {
       this.hide();
     });
-    
+
     this.dialog.querySelector('.dialog-cancel-btn').addEventListener('click', () => {
       this.hide();
     });
-    
+
     // Tab navigation
     this.dialog.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', e => {
         this.switchTab(e.target.dataset.tab);
       });
     });
-    
+
     // Export mode selection
     this.dialog.querySelectorAll('input[name="export-mode"]').forEach(radio => {
-      radio.addEventListener('change', (e) => {
+      radio.addEventListener('change', e => {
         this.handleExportModeChange(e.target.value);
       });
     });
-    
+
     // Select all checkbox
-    this.dialog.querySelector('.select-all-checkbox').addEventListener('change', (e) => {
+    this.dialog.querySelector('.select-all-checkbox').addEventListener('change', e => {
       this.handleSelectAll(e.target.checked);
     });
-    
+
     // Export format selection
     this.dialog.querySelectorAll('input[name="export-format"]').forEach(radio => {
       radio.addEventListener('change', () => {
         this.updateFormatInfo();
       });
     });
-    
+
     // Export options
-    this.dialog.querySelector('.create-package-checkbox').addEventListener('change', (e) => {
+    this.dialog.querySelector('.create-package-checkbox').addEventListener('change', e => {
       this.toggleMetadataEditor(e.target.checked);
     });
-    
+
     // Export actions
     this.dialog.querySelector('.export-btn').addEventListener('click', () => {
       this.startExport();
     });
-    
+
     this.dialog.querySelector('.preview-export-btn').addEventListener('click', () => {
       this.previewExport();
     });
-    
+
     // Import drag and drop
     const dropArea = this.dialog.querySelector('.drag-drop-area');
-    
-    dropArea.addEventListener('dragover', (e) => {
+
+    dropArea.addEventListener('dragover', e => {
       e.preventDefault();
       dropArea.classList.add('drag-over');
     });
-    
+
     dropArea.addEventListener('dragleave', () => {
       dropArea.classList.remove('drag-over');
     });
-    
-    dropArea.addEventListener('drop', (e) => {
+
+    dropArea.addEventListener('drop', e => {
       e.preventDefault();
       dropArea.classList.remove('drag-over');
       this.handleFileDrop(e.dataTransfer.files);
     });
-    
+
     // Browse files
     this.dialog.querySelector('.browse-files-btn').addEventListener('click', () => {
       this.dialog.querySelector('.file-input').click();
     });
-    
-    this.dialog.querySelector('.file-input').addEventListener('change', (e) => {
+
+    this.dialog.querySelector('.file-input').addEventListener('change', e => {
       this.handleFileSelection(e.target.files);
     });
-    
+
     // Import actions
     this.dialog.querySelector('.import-btn').addEventListener('click', () => {
       this.startImport();
     });
-    
+
     this.dialog.querySelector('.clear-import-btn').addEventListener('click', () => {
       this.clearImportSelection();
     });
-    
+
     // Conflict resolution
     this.dialog.querySelector('.resolve-all-skip-btn').addEventListener('click', () => {
       this.resolveAllConflicts('skip');
     });
-    
+
     this.dialog.querySelector('.resolve-all-replace-btn').addEventListener('click', () => {
       this.resolveAllConflicts('replace');
     });
-    
+
     this.dialog.querySelector('.resolve-all-rename-btn').addEventListener('click', () => {
       this.resolveAllConflicts('rename');
     });
-    
+
     // Results actions
     this.dialog.querySelector('.close-results-btn').addEventListener('click', () => {
       this.hide();
     });
-    
+
     this.dialog.querySelector('.export-log-btn').addEventListener('click', () => {
       this.exportLog();
     });
-    
+
     // Click outside to close
-    this.dialog.addEventListener('click', (e) => {
+    this.dialog.addEventListener('click', e => {
       if (e.target === this.dialog) {
         this.hide();
       }
     });
   }
-  
+
   /**
    * Show the dialog in export mode
    */
@@ -377,7 +393,7 @@ class ImportExportDialog {
     this.switchTab('export');
     this.show();
   }
-  
+
   /**
    * Show the dialog in import mode
    */
@@ -387,7 +403,7 @@ class ImportExportDialog {
     this.clearImportSelection();
     this.show();
   }
-  
+
   /**
    * Show the dialog
    */
@@ -396,7 +412,7 @@ class ImportExportDialog {
     this.isVisible = true;
     document.body.style.overflow = 'hidden';
   }
-  
+
   /**
    * Hide the dialog
    */
@@ -406,7 +422,7 @@ class ImportExportDialog {
     document.body.style.overflow = '';
     this.resetDialog();
   }
-  
+
   /**
    * Switch between tabs
    */
@@ -415,40 +431,40 @@ class ImportExportDialog {
     this.dialog.querySelectorAll('.tab-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.tab === tabName);
     });
-    
+
     // Update tab content
     this.dialog.querySelectorAll('.tab-content').forEach(content => {
       content.style.display = content.dataset.tab === tabName ? 'block' : 'none';
     });
-    
+
     this.currentMode = tabName;
   }
-  
+
   /**
    * Populate the sequence list for export
    */
   populateSequenceList(sequences) {
     const listBody = this.dialog.querySelector('.sequence-list-body');
     listBody.innerHTML = '';
-    
+
     this.selectedSequences.clear();
-    
+
     Object.entries(sequences).forEach(([name, sequence]) => {
       const row = this.createSequenceRow(name, sequence);
       listBody.appendChild(row);
     });
   }
-  
+
   /**
    * Create a sequence row for selection
    */
   createSequenceRow(name, sequence) {
     const row = document.createElement('div');
     row.className = 'sequence-row';
-    
+
     const actionCount = sequence.sequence ? sequence.sequence.length : 0;
     const duration = this.formatDuration(sequence.metadata?.duration || 0);
-    
+
     row.innerHTML = `
       <label class="sequence-checkbox">
         <input type="checkbox" value="${name}">
@@ -458,15 +474,15 @@ class ImportExportDialog {
       <span class="sequence-actions">${actionCount}</span>
       <span class="sequence-duration">${duration}</span>
     `;
-    
+
     const checkbox = row.querySelector('input[type="checkbox"]');
     checkbox.addEventListener('change', () => {
       this.handleSequenceSelection(name, checkbox.checked);
     });
-    
+
     return row;
   }
-  
+
   /**
    * Handle sequence selection change
    */
@@ -476,23 +492,23 @@ class ImportExportDialog {
     } else {
       this.selectedSequences.delete(name);
     }
-    
+
     this.updateExportButton();
     this.updateSelectAllState();
   }
-  
+
   /**
    * Handle select all checkbox
    */
   handleSelectAll(selectAll) {
     const checkboxes = this.dialog.querySelectorAll('.sequence-row input[type="checkbox"]');
-    
+
     checkboxes.forEach(checkbox => {
       checkbox.checked = selectAll;
       this.handleSequenceSelection(checkbox.value, selectAll);
     });
   }
-  
+
   /**
    * Update select all checkbox state
    */
@@ -500,7 +516,7 @@ class ImportExportDialog {
     const checkboxes = this.dialog.querySelectorAll('.sequence-row input[type="checkbox"]');
     const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
     const selectAllCheckbox = this.dialog.querySelector('.select-all-checkbox');
-    
+
     if (checkedCount === 0) {
       selectAllCheckbox.indeterminate = false;
       selectAllCheckbox.checked = false;
@@ -511,13 +527,13 @@ class ImportExportDialog {
       selectAllCheckbox.indeterminate = true;
     }
   }
-  
+
   /**
    * Handle export mode change
    */
   handleExportModeChange(mode) {
     const sequenceSelection = this.dialog.querySelector('.sequence-selection');
-    
+
     if (mode === 'selected') {
       sequenceSelection.style.display = 'block';
     } else {
@@ -528,7 +544,7 @@ class ImportExportDialog {
       }
     }
   }
-  
+
   /**
    * Toggle metadata editor visibility
    */
@@ -536,31 +552,31 @@ class ImportExportDialog {
     const metadataEditor = this.dialog.querySelector('.metadata-editor');
     metadataEditor.style.display = show ? 'block' : 'none';
   }
-  
+
   /**
    * Update export button state
    */
   updateExportButton() {
     const exportBtn = this.dialog.querySelector('.export-btn');
     const exportMode = this.dialog.querySelector('input[name="export-mode"]:checked').value;
-    
+
     if (exportMode === 'selected') {
       exportBtn.disabled = this.selectedSequences.size === 0;
     } else {
       exportBtn.disabled = false;
     }
   }
-  
+
   /**
    * Start the export process
    */
   async startExport() {
     try {
       this.showProgress('Preparing export...');
-      
+
       const exportOptions = this.collectExportOptions();
       const result = await window.electronAPI.exportSequences(exportOptions);
-      
+
       if (result.success) {
         this.showResults('export', result);
       } else {
@@ -570,7 +586,7 @@ class ImportExportDialog {
       this.showError(`Export failed: ${error.message}`);
     }
   }
-  
+
   /**
    * Preview export without actually exporting
    */
@@ -578,13 +594,13 @@ class ImportExportDialog {
     try {
       const exportOptions = this.collectExportOptions();
       const preview = await window.electronAPI.previewExport(exportOptions);
-      
+
       this.showExportPreview(preview);
     } catch (error) {
       this.showError(`Preview failed: ${error.message}`);
     }
   }
-  
+
   /**
    * Collect export options from UI
    */
@@ -594,7 +610,7 @@ class ImportExportDialog {
     const includeMetadata = this.dialog.querySelector('.include-metadata-checkbox').checked;
     const createPackage = this.dialog.querySelector('.create-package-checkbox').checked;
     const compressOutput = this.dialog.querySelector('.compress-output-checkbox').checked;
-    
+
     const options = {
       mode: exportMode,
       format,
@@ -602,23 +618,27 @@ class ImportExportDialog {
       createPackage,
       compressOutput
     };
-    
+
     if (exportMode === 'selected') {
       options.sequences = Array.from(this.selectedSequences);
     }
-    
+
     if (createPackage) {
       options.packageMetadata = {
         name: this.dialog.querySelector('.package-name-input').value || 'Macro Package',
         description: this.dialog.querySelector('.package-description-input').value || '',
         author: this.dialog.querySelector('.package-author-input').value || 'Unknown',
-        tags: this.dialog.querySelector('.package-tags-input').value.split(',').map(tag => tag.trim()).filter(tag => tag)
+        tags: this.dialog
+          .querySelector('.package-tags-input')
+          .value.split(',')
+          .map(tag => tag.trim())
+          .filter(tag => tag)
       };
     }
-    
+
     return options;
   }
-  
+
   /**
    * Handle file drop for import
    */
@@ -626,7 +646,7 @@ class ImportExportDialog {
     const fileArray = Array.from(files);
     await this.processImportFiles(fileArray);
   }
-  
+
   /**
    * Handle file selection from browser
    */
@@ -634,70 +654,69 @@ class ImportExportDialog {
     const fileArray = Array.from(files);
     await this.processImportFiles(fileArray);
   }
-  
+
   /**
    * Process files for import
    */
   async processImportFiles(files) {
     try {
       this.showProgress('Processing files...');
-      
+
       const validFiles = files.filter(file => {
         const ext = file.name.split('.').pop().toLowerCase();
         return ['mkb', 'json', 'yaml', 'yml'].includes(ext);
       });
-      
+
       if (validFiles.length === 0) {
         throw new Error('No valid sequence files found');
       }
-      
+
       // Read and validate files
       const fileData = [];
       for (const file of validFiles) {
         const content = await this.readFileContent(file);
         fileData.push({ file, content });
       }
-      
+
       // Parse and validate sequences
       const parseResults = await window.electronAPI.parseImportFiles(fileData);
-      
+
       this.importResults = parseResults.results;
       this.hideProgress();
-      
+
       if (parseResults.conflicts.length > 0) {
         this.showConflictResolution(parseResults.conflicts);
       } else {
         this.showImportPreview(parseResults.results);
       }
-      
+
       this.updateImportButton();
-      
     } catch (error) {
       this.showError(`File processing failed: ${error.message}`);
     }
   }
-  
+
   /**
    * Read file content as text
    */
   readFileContent(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result);
+      reader.onload = e => resolve(e.target.result);
       reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`));
       reader.readAsText(file);
     });
   }
-  
+
   /**
    * Show import preview
    */
   showImportPreview(results) {
     const previewSection = this.dialog.querySelector('.import-preview');
     const previewList = previewSection.querySelector('.preview-list');
-    
+
     previewList.innerHTML = '';
-    
+
     results.forEach(result => {
       const item = document.createElement('div');
       item.className = `preview-item ${result.valid ? 'valid' : 'invalid'}`;
@@ -716,19 +735,19 @@ class ImportExportDialog {
       `;
       previewList.appendChild(item);
     });
-    
+
     previewSection.style.display = 'block';
   }
-  
+
   /**
    * Show conflict resolution interface
    */
   showConflictResolution(conflicts) {
     const conflictSection = this.dialog.querySelector('.conflict-resolution');
     const conflictList = conflictSection.querySelector('.conflict-list');
-    
+
     conflictList.innerHTML = '';
-    
+
     conflicts.forEach(conflict => {
       const item = document.createElement('div');
       item.className = 'conflict-item';
@@ -750,22 +769,25 @@ class ImportExportDialog {
           </div>
         </div>
       `;
-      
+
       // Add event listeners for conflict resolution buttons
       item.querySelectorAll('.conflict-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const action = e.target.classList.contains('skip-btn') ? 'skip' :
-                        e.target.classList.contains('replace-btn') ? 'replace' : 'rename';
+        btn.addEventListener('click', e => {
+          const action = e.target.classList.contains('skip-btn')
+            ? 'skip'
+            : e.target.classList.contains('replace-btn')
+              ? 'replace'
+              : 'rename';
           this.resolveConflict(conflict.name, action);
         });
       });
-      
+
       conflictList.appendChild(item);
     });
-    
+
     conflictSection.style.display = 'block';
   }
-  
+
   /**
    * Resolve individual conflict
    */
@@ -774,7 +796,7 @@ class ImportExportDialog {
     const resultIndex = this.importResults.findIndex(r => r.name === name);
     if (resultIndex !== -1) {
       this.importResults[resultIndex].conflictResolution = action;
-      
+
       if (action === 'rename') {
         const newName = prompt(`Enter new name for "${name}":`, `${name}_imported`);
         if (newName && newName.trim()) {
@@ -782,14 +804,14 @@ class ImportExportDialog {
         }
       }
     }
-    
+
     // Update UI to show resolution
     const conflictItem = document.querySelector(`[data-name="${name}"]`).closest('.conflict-item');
     conflictItem.classList.add('resolved');
-    
+
     this.checkConflictResolution();
   }
-  
+
   /**
    * Resolve all conflicts with same action
    */
@@ -802,21 +824,21 @@ class ImportExportDialog {
         }
       }
     });
-    
+
     // Update UI
     this.dialog.querySelectorAll('.conflict-item').forEach(item => {
       item.classList.add('resolved');
     });
-    
+
     this.checkConflictResolution();
   }
-  
+
   /**
    * Check if all conflicts are resolved
    */
   checkConflictResolution() {
     const unresolvedConflicts = this.importResults.filter(r => r.conflict && !r.conflictResolution);
-    
+
     if (unresolvedConflicts.length === 0) {
       // Hide conflict resolution, show preview
       this.dialog.querySelector('.conflict-resolution').style.display = 'none';
@@ -824,17 +846,17 @@ class ImportExportDialog {
       this.updateImportButton();
     }
   }
-  
+
   /**
    * Start the import process
    */
   async startImport() {
     try {
       this.showProgress('Importing sequences...');
-      
+
       const importOptions = this.collectImportOptions();
       const result = await window.electronAPI.importSequences(this.importResults, importOptions);
-      
+
       if (result.success) {
         this.showResults('import', result);
       } else {
@@ -844,7 +866,7 @@ class ImportExportDialog {
       this.showError(`Import failed: ${error.message}`);
     }
   }
-  
+
   /**
    * Collect import options from UI
    */
@@ -855,7 +877,7 @@ class ImportExportDialog {
       validateSequences: this.dialog.querySelector('.validate-sequences-checkbox').checked
     };
   }
-  
+
   /**
    * Clear import selection
    */
@@ -866,40 +888,43 @@ class ImportExportDialog {
     this.dialog.querySelector('.conflict-resolution').style.display = 'none';
     this.updateImportButton();
   }
-  
+
   /**
    * Update import button state
    */
   updateImportButton() {
     const importBtn = this.dialog.querySelector('.import-btn');
-    const validResults = this.importResults.filter(r => r.valid && (!r.conflict || r.conflictResolution));
+    const validResults = this.importResults.filter(
+      r => r.valid && (!r.conflict || r.conflictResolution)
+    );
     importBtn.disabled = validResults.length === 0;
   }
-  
+
   /**
    * Show progress indicator
    */
   showProgress(message) {
     const progressSection = this.dialog.querySelector('.progress-section');
     const progressText = progressSection.querySelector('.progress-text');
-    
+
     progressText.textContent = message;
     progressSection.style.display = 'block';
-    
+
     // Hide other sections
     this.dialog.querySelectorAll('.tab-content').forEach(content => {
       content.style.display = 'none';
     });
   }
-  
+
   /**
    * Hide progress indicator
    */
   hideProgress() {
     this.dialog.querySelector('.progress-section').style.display = 'none';
-    this.dialog.querySelector(`.tab-content[data-tab="${this.currentMode}"]`).style.display = 'block';
+    this.dialog.querySelector(`.tab-content[data-tab="${this.currentMode}"]`).style.display =
+      'block';
   }
-  
+
   /**
    * Show results section
    */
@@ -907,13 +932,13 @@ class ImportExportDialog {
     const resultsSection = this.dialog.querySelector('.results-section');
     const summaryDiv = resultsSection.querySelector('.results-summary');
     const detailsDiv = resultsSection.querySelector('.results-details');
-    
+
     // Create summary
     summaryDiv.innerHTML = this.createResultsSummary(operation, results);
-    
+
     // Create details
     detailsDiv.innerHTML = this.createResultsDetails(operation, results);
-    
+
     // Hide progress, show results
     this.hideProgress();
     this.dialog.querySelectorAll('.tab-content').forEach(content => {
@@ -921,14 +946,14 @@ class ImportExportDialog {
     });
     resultsSection.style.display = 'block';
   }
-  
+
   /**
    * Create results summary HTML
    */
   createResultsSummary(operation, results) {
     const { success, count, errors } = results;
     const operationText = operation === 'export' ? 'exported' : 'imported';
-    
+
     return `
       <div class="summary-card ${success ? 'success' : 'error'}">
         <h4>${success ? 'Success' : 'Partial Success'}</h4>
@@ -937,13 +962,13 @@ class ImportExportDialog {
       </div>
     `;
   }
-  
+
   /**
    * Create results details HTML
    */
   createResultsDetails(operation, results) {
     let html = '<div class="details-list">';
-    
+
     if (results.results) {
       results.results.forEach(result => {
         html += `
@@ -955,18 +980,18 @@ class ImportExportDialog {
         `;
       });
     }
-    
+
     if (results.errors && results.errors.length > 0) {
       html += '<h5>Errors:</h5>';
       results.errors.forEach(error => {
         html += `<div class="error-item">${error.file}: ${error.error}</div>`;
       });
     }
-    
+
     html += '</div>';
     return html;
   }
-  
+
   /**
    * Show error message
    */
@@ -974,7 +999,7 @@ class ImportExportDialog {
     this.hideProgress();
     alert(message); // Simple error display - could be enhanced with better UI
   }
-  
+
   /**
    * Export operation log
    */
@@ -982,29 +1007,34 @@ class ImportExportDialog {
     // Implementation would save the operation log to file
     console.log('Export log functionality - to be implemented');
   }
-  
+
   /**
    * Reset dialog to initial state
    */
   resetDialog() {
     this.selectedSequences.clear();
     this.importResults = [];
-    
+
     // Reset form fields
     this.dialog.querySelectorAll('input[type="checkbox"]').forEach(input => {
-      input.checked = input.classList.contains('default-checked') || 
-                     ['include-metadata-checkbox', 'create-package-checkbox', 
-                      'backup-before-import-checkbox', 'validate-sequences-checkbox'].includes(input.className);
+      input.checked =
+        input.classList.contains('default-checked') ||
+        [
+          'include-metadata-checkbox',
+          'create-package-checkbox',
+          'backup-before-import-checkbox',
+          'validate-sequences-checkbox'
+        ].includes(input.className);
     });
-    
+
     this.dialog.querySelectorAll('input[type="radio"][value="mkb"]').forEach(input => {
       input.checked = true;
     });
-    
+
     this.dialog.querySelectorAll('input[type="text"], textarea').forEach(input => {
       input.value = '';
     });
-    
+
     // Hide all sections
     this.dialog.querySelector('.progress-section').style.display = 'none';
     this.dialog.querySelector('.results-section').style.display = 'none';
@@ -1012,16 +1042,20 @@ class ImportExportDialog {
     this.dialog.querySelector('.conflict-resolution').style.display = 'none';
     this.dialog.querySelector('.metadata-editor').style.display = 'none';
   }
-  
+
   /**
    * Format duration in milliseconds
    */
   formatDuration(ms) {
-    if (ms < 1000) return `${ms}ms`;
-    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+    if (ms < 1000) {
+      return `${ms}ms`;
+    }
+    if (ms < 60000) {
+      return `${(ms / 1000).toFixed(1)}s`;
+    }
     return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`;
   }
-  
+
   /**
    * Cleanup resources
    */

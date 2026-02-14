@@ -11,7 +11,7 @@ class LogViewer {
     this.autoRefresh = true;
     this.refreshInterval = null;
     this.isVisible = false;
-    
+
     this.setupEventListeners();
     this.startAutoRefresh();
   }
@@ -33,12 +33,12 @@ class LogViewer {
    */
   addLogEntry(logData) {
     this.logs.unshift(logData);
-    
+
     // Keep only recent logs to prevent memory issues
     if (this.logs.length > 1000) {
       this.logs = this.logs.slice(0, 1000);
     }
-    
+
     this.applyFilters();
     this.updateDisplay();
   }
@@ -48,7 +48,9 @@ class LogViewer {
    */
   async renderLogViewer() {
     const settingsContent = document.getElementById('settings-content');
-    if (!settingsContent) return;
+    if (!settingsContent) {
+      return;
+    }
 
     const logSection = this.createElement('div', ['log-viewer-section']);
     logSection.innerHTML = `
@@ -65,12 +67,12 @@ class LogViewer {
               <option value="error">Error</option>
             </select>
           </div>
-          
+
           <div class="log-search-group">
             <label for="log-search">Search logs:</label>
             <input type="text" id="log-search" placeholder="Search messages...">
           </div>
-          
+
           <div class="log-action-group">
             <button id="log-refresh" class="btn btn-secondary">
               <span class="icon">🔄</span> Refresh
@@ -83,7 +85,7 @@ class LogViewer {
             </button>
           </div>
         </div>
-        
+
         <div class="log-controls-row">
           <div class="log-auto-refresh">
             <label>
@@ -91,18 +93,18 @@ class LogViewer {
               Auto-refresh every 5 seconds
             </label>
           </div>
-          
+
           <div class="log-stats">
             <span id="log-count">0 entries</span>
             <span id="log-stats-detail"></span>
           </div>
         </div>
       </div>
-      
+
       <div class="log-viewer-container">
         <div id="log-entries" class="log-entries"></div>
       </div>
-      
+
       <div class="log-pagination">
         <button id="log-prev" class="btn btn-secondary" disabled>Previous</button>
         <span id="log-page-info">Page 1</span>
@@ -126,7 +128,7 @@ class LogViewer {
   setupLogViewerEventHandlers() {
     // Filter by level
     const levelFilter = document.getElementById('log-level-filter');
-    levelFilter?.addEventListener('change', (e) => {
+    levelFilter?.addEventListener('change', e => {
       this.currentFilter = e.target.value;
       this.applyFilters();
       this.updateDisplay();
@@ -134,7 +136,7 @@ class LogViewer {
 
     // Search functionality
     const searchInput = document.getElementById('log-search');
-    searchInput?.addEventListener('input', (e) => {
+    searchInput?.addEventListener('input', e => {
       this.searchTerm = e.target.value.toLowerCase();
       this.applyFilters();
       this.updateDisplay();
@@ -142,7 +144,7 @@ class LogViewer {
 
     // Auto-refresh toggle
     const autoRefreshCheckbox = document.getElementById('log-auto-refresh');
-    autoRefreshCheckbox?.addEventListener('change', (e) => {
+    autoRefreshCheckbox?.addEventListener('change', e => {
       this.autoRefresh = e.target.checked;
       if (this.autoRefresh) {
         this.startAutoRefresh();
@@ -202,12 +204,12 @@ class LogViewer {
       if (this.currentFilter !== 'all' && log.level !== this.currentFilter) {
         return false;
       }
-      
+
       // Search filter
       if (this.searchTerm && !log.message.toLowerCase().includes(this.searchTerm)) {
         return false;
       }
-      
+
       return true;
     });
   }
@@ -217,9 +219,11 @@ class LogViewer {
    */
   updateDisplay() {
     const logEntries = document.getElementById('log-entries');
-    const pageSize = parseInt(document.getElementById('log-page-size')?.value || 100);
-    
-    if (!logEntries) return;
+    const pageSize = parseInt(document.getElementById('log-page-size', 10)?.value || 100);
+
+    if (!logEntries) {
+      return;
+    }
 
     const startIndex = 0; // For now, show latest entries
     const endIndex = Math.min(startIndex + pageSize, this.filteredLogs.length);
@@ -252,10 +256,10 @@ class LogViewer {
    */
   createLogEntryElement(log) {
     const logEntry = this.createElement('div', ['log-entry', `log-${log.level}`]);
-    
+
     const timestamp = new Date(log.timestamp).toLocaleString();
     const component = log.component ? ` [${log.component}]` : '';
-    
+
     logEntry.innerHTML = `
       <div class="log-header">
         <span class="log-timestamp">${timestamp}</span>
@@ -263,11 +267,13 @@ class LogViewer {
         ${component ? `<span class="log-component">${component}</span>` : ''}
       </div>
       <div class="log-message">${this.escapeHtml(log.message)}</div>
-      ${log.data && Object.keys(log.data).length > 0 ? 
-        `<div class="log-data">
+      ${
+        log.data && Object.keys(log.data).length > 0
+          ? `<div class="log-data">
           <button class="log-data-toggle">Show Data</button>
           <pre class="log-data-content" style="display: none;">${JSON.stringify(log.data, null, 2)}</pre>
-        </div>` : ''
+        </div>`
+          : ''
       }
     `;
 
@@ -293,14 +299,14 @@ class LogViewer {
       if (window.electronAPI) {
         const stats = await window.electronAPI.invoke('get-log-statistics');
         const statsDetail = document.getElementById('log-stats-detail');
-        
+
         if (stats && statsDetail) {
           const totalSize = this.formatBytes(stats.totalSize);
           const levelCounts = Object.entries(stats.logCounts)
             .filter(([, count]) => count > 0)
             .map(([level, count]) => `${level}: ${count}`)
             .join(', ');
-          
+
           statsDetail.textContent = `${totalSize} total | ${levelCounts}`;
         }
       }
@@ -327,12 +333,14 @@ class LogViewer {
     try {
       if (window.electronAPI) {
         const format = prompt('Export format (json or csv):', 'json');
-        if (!format || !['json', 'csv'].includes(format)) return;
-        
+        if (!format || !['json', 'csv'].includes(format)) {
+          return;
+        }
+
         const exported = await window.electronAPI.invoke('export-logs', null, null, format);
         if (exported) {
-          const blob = new Blob([exported], { 
-            type: format === 'csv' ? 'text/csv' : 'application/json' 
+          const blob = new Blob([exported], {
+            type: format === 'csv' ? 'text/csv' : 'application/json'
           });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
@@ -355,7 +363,7 @@ class LogViewer {
    */
   startAutoRefresh() {
     this.stopAutoRefresh(); // Clear existing timer
-    
+
     if (this.autoRefresh) {
       this.refreshInterval = setInterval(() => {
         if (this.isVisible) {
@@ -389,11 +397,13 @@ class LogViewer {
    * Format bytes for display
    */
   formatBytes(bytes) {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) {
+      return '0 Bytes';
+    }
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
   }
 
   /**
@@ -401,11 +411,11 @@ class LogViewer {
    */
   escapeHtml(unsafe) {
     return unsafe
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 
   /**
@@ -429,7 +439,7 @@ class LogViewer {
     this.stopAutoRefresh();
     this.logs = [];
     this.filteredLogs = [];
-    
+
     // Remove event listeners if needed
     if (window.electronAPI && window.electronAPI.removeListener) {
       window.electronAPI.removeListener('log-entry');

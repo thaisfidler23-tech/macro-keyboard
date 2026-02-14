@@ -1,6 +1,6 @@
 /**
  * Action Step Editor Component for Macro Sequence Editing
- * 
+ *
  * Provides modal/panel interface for editing individual macro steps
  * with parameter editing, validation, and preview functionality
  */
@@ -10,7 +10,7 @@ class ActionStepEditor {
     this.currentStep = null;
     this.currentIndex = -1;
     this.isNew = false;
-    
+
     // Configuration
     this.options = {
       showPreview: true,
@@ -18,21 +18,21 @@ class ActionStepEditor {
       allowCustomActions: true,
       ...options
     };
-    
+
     // Event callbacks
     this.onSave = options.onSave || (() => {});
     this.onCancel = options.onCancel || (() => {});
     this.onPreview = options.onPreview || (() => {});
     this.onValidate = options.onValidate || (() => {});
-    
+
     // Validation state
     this.validationErrors = [];
     this.validationWarnings = [];
-    
+
     this.createModal();
     this.setupEventListeners();
   }
-  
+
   /**
    * Create the modal dialog structure
    */
@@ -40,7 +40,7 @@ class ActionStepEditor {
     this.modal = document.createElement('div');
     this.modal.className = 'action-step-editor-modal';
     this.modal.style.display = 'none';
-    
+
     this.modal.innerHTML = `
       <div class="modal-backdrop"></div>
       <div class="modal-dialog">
@@ -48,13 +48,13 @@ class ActionStepEditor {
           <h3 class="modal-title">Edit Action Step</h3>
           <button class="modal-close-btn" title="Close">&times;</button>
         </div>
-        
+
         <div class="modal-body">
           <form class="step-editor-form">
             <!-- Basic Properties -->
             <div class="form-section">
               <h4>Basic Properties</h4>
-              
+
               <div class="form-group">
                 <label for="step-type">Action Type:</label>
                 <select id="step-type" name="type" required>
@@ -65,7 +65,7 @@ class ActionStepEditor {
                   <option value="macro_sequence">Macro Sequence</option>
                 </select>
               </div>
-              
+
               <div class="form-group">
                 <label for="step-action">Action:</label>
                 <div class="action-input-container">
@@ -74,17 +74,17 @@ class ActionStepEditor {
                 </div>
                 <small class="form-help">Examples: Ctrl+C, notepad.exe, /Applications/Calculator.app</small>
               </div>
-              
+
               <div class="form-group">
                 <label for="step-description">Description:</label>
                 <input type="text" id="step-description" name="description" placeholder="Optional description">
               </div>
             </div>
-            
+
             <!-- Timing Configuration -->
             <div class="form-section">
               <h4>Timing</h4>
-              
+
               <div class="form-group">
                 <label for="step-delay">Delay After (ms):</label>
                 <div class="delay-input-group">
@@ -99,11 +99,11 @@ class ActionStepEditor {
                 <input type="range" class="delay-slider" min="0" max="5000" value="100">
               </div>
             </div>
-            
+
             <!-- Advanced Options -->
             <div class="form-section advanced-options" style="display: none;">
               <h4>Advanced Options</h4>
-              
+
               <div class="form-group">
                 <label>
                   <input type="checkbox" name="conditional" value="1">
@@ -118,7 +118,7 @@ class ActionStepEditor {
                   <input type="text" name="conditionValue" placeholder="Condition value">
                 </div>
               </div>
-              
+
               <div class="form-group">
                 <label>
                   <input type="checkbox" name="retry" value="1">
@@ -129,7 +129,7 @@ class ActionStepEditor {
                   <label>Retry Delay: <input type="number" name="retryDelay" min="100" max="5000" value="1000"> ms</label>
                 </div>
               </div>
-              
+
               <div class="form-group">
                 <label for="step-priority">Priority:</label>
                 <select id="step-priority" name="priority">
@@ -139,18 +139,18 @@ class ActionStepEditor {
                 </select>
               </div>
             </div>
-            
+
             <div class="form-actions">
               <button type="button" class="toggle-advanced-btn">Advanced Options</button>
             </div>
           </form>
-          
+
           <!-- Validation Messages -->
           <div class="validation-messages">
             <div class="validation-errors"></div>
             <div class="validation-warnings"></div>
           </div>
-          
+
           <!-- Preview Section -->
           <div class="preview-section" style="display: none;">
             <h4>Preview</h4>
@@ -160,7 +160,7 @@ class ActionStepEditor {
             </div>
           </div>
         </div>
-        
+
         <div class="modal-footer">
           <div class="footer-left">
             <button type="button" class="preview-btn">Preview</button>
@@ -173,9 +173,9 @@ class ActionStepEditor {
         </div>
       </div>
     `;
-    
+
     document.body.appendChild(this.modal);
-    
+
     // Cache commonly used elements
     this.form = this.modal.querySelector('.step-editor-form');
     this.typeSelect = this.modal.querySelector('#step-type');
@@ -189,7 +189,7 @@ class ActionStepEditor {
     this.previewSection = this.modal.querySelector('.preview-section');
     this.previewSummary = this.modal.querySelector('.preview-summary');
   }
-  
+
   /**
    * Set up event listeners
    */
@@ -198,7 +198,7 @@ class ActionStepEditor {
     this.modal.querySelector('.modal-close-btn').addEventListener('click', () => this.close());
     this.modal.querySelector('.cancel-btn').addEventListener('click', () => this.close());
     this.modal.querySelector('.save-btn').addEventListener('click', () => this.save());
-    
+
     // Form controls
     this.typeSelect.addEventListener('change', () => this.handleTypeChange());
     this.actionInput.addEventListener('input', () => this.handleInputChange());
@@ -206,39 +206,45 @@ class ActionStepEditor {
     this.descriptionInput.addEventListener('input', () => this.handleInputChange());
     this.delayInput.addEventListener('input', () => this.handleDelayChange());
     this.delaySlider.addEventListener('input', () => this.handleSliderChange());
-    
+
     // Action picker
-    this.modal.querySelector('.action-picker-btn').addEventListener('click', () => this.showActionPicker());
-    
+    this.modal
+      .querySelector('.action-picker-btn')
+      .addEventListener('click', () => this.showActionPicker());
+
     // Delay presets
     this.modal.querySelectorAll('.delay-presets button').forEach(btn => {
       btn.addEventListener('click', () => {
-        const delay = parseInt(btn.dataset.delay);
+        const delay = parseInt(btn.dataset.delay, 10);
         this.setDelay(delay);
       });
     });
-    
+
     // Advanced options
-    this.modal.querySelector('.toggle-advanced-btn').addEventListener('click', () => this.toggleAdvancedOptions());
-    
+    this.modal
+      .querySelector('.toggle-advanced-btn')
+      .addEventListener('click', () => this.toggleAdvancedOptions());
+
     // Conditional and retry toggles
-    this.modal.querySelector('input[name="conditional"]').addEventListener('change', (e) => {
-      this.modal.querySelector('.conditional-config').style.display = e.target.checked ? 'block' : 'none';
+    this.modal.querySelector('input[name="conditional"]').addEventListener('change', e => {
+      this.modal.querySelector('.conditional-config').style.display = e.target.checked
+        ? 'block'
+        : 'none';
     });
-    
-    this.modal.querySelector('input[name="retry"]').addEventListener('change', (e) => {
+
+    this.modal.querySelector('input[name="retry"]').addEventListener('change', e => {
       this.modal.querySelector('.retry-config').style.display = e.target.checked ? 'block' : 'none';
     });
-    
+
     // Preview and validation
     this.modal.querySelector('.preview-btn').addEventListener('click', () => this.preview());
     this.modal.querySelector('.validate-btn').addEventListener('click', () => this.validateStep());
-    
+
     // Close on backdrop click
     this.modal.querySelector('.modal-backdrop').addEventListener('click', () => this.close());
-    
+
     // Keyboard shortcuts
-    document.addEventListener('keydown', (event) => {
+    document.addEventListener('keydown', event => {
       if (this.isOpen) {
         switch (event.key) {
           case 'Escape':
@@ -254,7 +260,7 @@ class ActionStepEditor {
       }
     });
   }
-  
+
   /**
    * Open editor for new step
    */
@@ -268,11 +274,11 @@ class ActionStepEditor {
       delay: 100,
       priority: 'normal'
     };
-    
+
     this.populateForm();
     this.open();
   }
-  
+
   /**
    * Open editor for existing step
    */
@@ -280,44 +286,49 @@ class ActionStepEditor {
     this.isNew = false;
     this.currentIndex = index;
     this.currentStep = { ...step };
-    
+
     this.populateForm();
     this.open();
   }
-  
+
   /**
    * Open the modal
    */
   open() {
     this.isOpen = true;
     this.modal.style.display = 'flex';
-    this.modal.querySelector('.modal-title').textContent = this.isNew ? 'Create Action Step' : 'Edit Action Step';
-    
+    this.modal.querySelector('.modal-title').textContent = this.isNew
+      ? 'Create Action Step'
+      : 'Edit Action Step';
+
     // Focus first input
     this.actionInput.focus();
-    
+
     // Validate on open
     setTimeout(() => this.validateStep(), 100);
   }
-  
+
   /**
    * Close the modal
    */
   close() {
-    if (this.hasUnsavedChanges() && !confirm('You have unsaved changes. Are you sure you want to close?')) {
+    if (
+      this.hasUnsavedChanges() &&
+      !confirm('You have unsaved changes. Are you sure you want to close?')
+    ) {
       return;
     }
-    
+
     this.isOpen = false;
     this.modal.style.display = 'none';
     this.currentStep = null;
     this.currentIndex = -1;
     this.validationErrors = [];
     this.validationWarnings = [];
-    
+
     this.onCancel();
   }
-  
+
   /**
    * Save the current step
    */
@@ -325,16 +336,16 @@ class ActionStepEditor {
     if (!this.validateStep()) {
       return;
     }
-    
+
     const formData = new FormData(this.form);
     const stepData = {
       type: formData.get('type'),
       action: formData.get('action'),
       description: formData.get('description') || '',
-      delay: parseInt(formData.get('delay')) || 0,
+      delay: parseInt(formData.get('delay', 10)) || 0,
       priority: formData.get('priority') || 'normal'
     };
-    
+
     // Advanced options
     if (formData.get('conditional')) {
       stepData.conditional = {
@@ -342,52 +353,57 @@ class ActionStepEditor {
         value: formData.get('conditionValue')
       };
     }
-    
+
     if (formData.get('retry')) {
       stepData.retry = {
-        maxAttempts: parseInt(formData.get('maxAttempts')) || 3,
-        delay: parseInt(formData.get('retryDelay')) || 1000
+        maxAttempts: parseInt(formData.get('maxAttempts', 10)) || 3,
+        delay: parseInt(formData.get('retryDelay', 10)) || 1000
       };
     }
-    
+
     this.onSave(stepData, this.currentIndex, this.isNew);
     this.close();
   }
-  
+
   /**
    * Populate form with current step data
    */
   populateForm() {
-    if (!this.currentStep) return;
-    
+    if (!this.currentStep) {
+      return;
+    }
+
     this.typeSelect.value = this.currentStep.type || 'keypress';
     this.actionInput.value = this.currentStep.action || '';
     this.descriptionInput.value = this.currentStep.description || '';
     this.delayInput.value = this.currentStep.delay || 100;
     this.delaySlider.value = this.currentStep.delay || 100;
-    
+
     // Priority
     const prioritySelect = this.modal.querySelector('#step-priority');
     prioritySelect.value = this.currentStep.priority || 'normal';
-    
+
     // Advanced options
     if (this.currentStep.conditional) {
       this.modal.querySelector('input[name="conditional"]').checked = true;
       this.modal.querySelector('.conditional-config').style.display = 'block';
-      this.modal.querySelector('select[name="conditionType"]').value = this.currentStep.conditional.type;
-      this.modal.querySelector('input[name="conditionValue"]').value = this.currentStep.conditional.value;
+      this.modal.querySelector('select[name="conditionType"]').value =
+        this.currentStep.conditional.type;
+      this.modal.querySelector('input[name="conditionValue"]').value =
+        this.currentStep.conditional.value;
     }
-    
+
     if (this.currentStep.retry) {
       this.modal.querySelector('input[name="retry"]').checked = true;
       this.modal.querySelector('.retry-config').style.display = 'block';
-      this.modal.querySelector('input[name="maxAttempts"]').value = this.currentStep.retry.maxAttempts;
+      this.modal.querySelector('input[name="maxAttempts"]').value =
+        this.currentStep.retry.maxAttempts;
       this.modal.querySelector('input[name="retryDelay"]').value = this.currentStep.retry.delay;
     }
-    
+
     this.updateActionHelp();
   }
-  
+
   /**
    * Handle type change
    */
@@ -396,7 +412,7 @@ class ActionStepEditor {
     this.updateActionPlaceholder();
     this.handleInputChange();
   }
-  
+
   /**
    * Handle input change
    */
@@ -404,25 +420,25 @@ class ActionStepEditor {
     this.updateSaveButton();
     this.clearValidation();
   }
-  
+
   /**
    * Handle delay input change
    */
   handleDelayChange() {
-    const delay = parseInt(this.delayInput.value) || 0;
+    const delay = parseInt(this.delayInput.value, 10) || 0;
     this.delaySlider.value = delay;
     this.handleInputChange();
   }
-  
+
   /**
    * Handle delay slider change
    */
   handleSliderChange() {
-    const delay = parseInt(this.delaySlider.value) || 0;
+    const delay = parseInt(this.delaySlider.value, 10) || 0;
     this.delayInput.value = delay;
     this.handleInputChange();
   }
-  
+
   /**
    * Set delay value
    */
@@ -431,14 +447,14 @@ class ActionStepEditor {
     this.delaySlider.value = delay;
     this.handleInputChange();
   }
-  
+
   /**
    * Update action help text based on type
    */
   updateActionHelp() {
     const type = this.typeSelect.value;
     const helpElement = this.modal.querySelector('.form-help');
-    
+
     const helpTexts = {
       keypress: 'Examples: Ctrl+C, Alt+Tab, Cmd+Space, F1, Enter',
       command: 'Examples: echo "Hello", ls -la, npm install',
@@ -446,10 +462,10 @@ class ActionStepEditor {
       delay: 'Examples: 1000 (for 1 second delay)',
       macro_sequence: 'Examples: my_sequence_name, login_workflow'
     };
-    
+
     helpElement.textContent = helpTexts[type] || 'Enter the action to perform';
   }
-  
+
   /**
    * Update action input placeholder
    */
@@ -462,16 +478,16 @@ class ActionStepEditor {
       delay: '1000',
       macro_sequence: 'sequence_name'
     };
-    
+
     this.actionInput.placeholder = placeholders[type] || 'Enter action...';
   }
-  
+
   /**
    * Show action picker dialog
    */
   showActionPicker() {
     const type = this.typeSelect.value;
-    
+
     switch (type) {
       case 'keypress':
         this.showKeypressPicker();
@@ -486,7 +502,7 @@ class ActionStepEditor {
         break;
     }
   }
-  
+
   /**
    * Show keypress picker
    */
@@ -508,7 +524,7 @@ class ActionStepEditor {
         <div class="main-keys">
           <div class="key-group">
             <h5>Function Keys</h5>
-            ${Array.from({length: 12}, (_, i) => `<button class="key-btn" data-key="F${i+1}">F${i+1}</button>`).join('')}
+            ${Array.from({ length: 12 }, (_, i) => `<button class="key-btn" data-key="F${i + 1}">F${i + 1}</button>`).join('')}
           </div>
           <div class="key-group">
             <h5>Special Keys</h5>
@@ -529,47 +545,48 @@ class ActionStepEditor {
         </div>
       </div>
     `;
-    
+
     document.body.appendChild(picker);
-    
+
     // Handle key selection
-    picker.addEventListener('click', (event) => {
+    picker.addEventListener('click', event => {
       if (event.target.classList.contains('key-btn')) {
-        const modifiers = Array.from(picker.querySelectorAll('input[type="checkbox"]:checked'))
-          .map(cb => cb.value);
+        const modifiers = Array.from(picker.querySelectorAll('input[type="checkbox"]:checked')).map(
+          cb => cb.value
+        );
         const key = event.target.dataset.key;
-        
+
         const combination = [...modifiers, key].join('+');
         this.actionInput.value = combination;
         this.handleInputChange();
-        
+
         document.body.removeChild(picker);
       } else if (event.target.classList.contains('picker-close')) {
         document.body.removeChild(picker);
       }
     });
   }
-  
+
   /**
    * Show application picker
    */
   showApplicationPicker() {
     // This would open a file dialog to select an application
     // For now, show common applications
-    const commonApps = process.platform === 'darwin' ? [
-      '/Applications/Calculator.app',
-      '/Applications/TextEdit.app',
-      '/Applications/Safari.app',
-      '/Applications/Terminal.app'
-    ] : [
-      'notepad.exe',
-      'calc.exe',
-      'cmd.exe',
-      'explorer.exe'
-    ];
-    
-    const list = commonApps.map(app => `<div class="app-item" data-app="${app}">${app}</div>`).join('');
-    
+    const commonApps =
+      process.platform === 'darwin'
+        ? [
+            '/Applications/Calculator.app',
+            '/Applications/TextEdit.app',
+            '/Applications/Safari.app',
+            '/Applications/Terminal.app'
+          ]
+        : ['notepad.exe', 'calc.exe', 'cmd.exe', 'explorer.exe'];
+
+    const list = commonApps
+      .map(app => `<div class="app-item" data-app="${app}">${app}</div>`)
+      .join('');
+
     const picker = document.createElement('div');
     picker.className = 'application-picker';
     picker.innerHTML = `
@@ -589,10 +606,10 @@ class ActionStepEditor {
         </div>
       </div>
     `;
-    
+
     document.body.appendChild(picker);
-    
-    picker.addEventListener('click', (event) => {
+
+    picker.addEventListener('click', event => {
       if (event.target.classList.contains('app-item')) {
         this.actionInput.value = event.target.dataset.app;
         this.handleInputChange();
@@ -605,29 +622,20 @@ class ActionStepEditor {
       }
     });
   }
-  
+
   /**
    * Show command picker
    */
   showCommandPicker() {
-    const commonCommands = process.platform === 'darwin' ? [
-      'open .',
-      'ls -la',
-      'pwd',
-      'whoami',
-      'date',
-      'echo "Hello World"'
-    ] : [
-      'dir',
-      'cd ..',
-      'echo "Hello World"',
-      'ipconfig',
-      'tasklist',
-      'start .'
-    ];
-    
-    const list = commonCommands.map(cmd => `<div class="command-item" data-command="${cmd}">${cmd}</div>`).join('');
-    
+    const commonCommands =
+      process.platform === 'darwin'
+        ? ['open .', 'ls -la', 'pwd', 'whoami', 'date', 'echo "Hello World"']
+        : ['dir', 'cd ..', 'echo "Hello World"', 'ipconfig', 'tasklist', 'start .'];
+
+    const list = commonCommands
+      .map(cmd => `<div class="command-item" data-command="${cmd}">${cmd}</div>`)
+      .join('');
+
     const picker = document.createElement('div');
     picker.className = 'command-picker';
     picker.innerHTML = `
@@ -642,10 +650,10 @@ class ActionStepEditor {
         </div>
       </div>
     `;
-    
+
     document.body.appendChild(picker);
-    
-    picker.addEventListener('click', (event) => {
+
+    picker.addEventListener('click', event => {
       if (event.target.classList.contains('command-item')) {
         this.actionInput.value = event.target.dataset.command;
         this.handleInputChange();
@@ -655,14 +663,14 @@ class ActionStepEditor {
       }
     });
   }
-  
+
   /**
    * Toggle advanced options
    */
   toggleAdvancedOptions() {
     const advancedSection = this.modal.querySelector('.advanced-options');
     const toggleBtn = this.modal.querySelector('.toggle-advanced-btn');
-    
+
     if (advancedSection.style.display === 'none') {
       advancedSection.style.display = 'block';
       toggleBtn.textContent = 'Hide Advanced Options';
@@ -671,7 +679,7 @@ class ActionStepEditor {
       toggleBtn.textContent = 'Advanced Options';
     }
   }
-  
+
   /**
    * Preview the step
    */
@@ -681,9 +689,9 @@ class ActionStepEditor {
       type: formData.get('type'),
       action: formData.get('action'),
       description: formData.get('description') || '',
-      delay: parseInt(formData.get('delay')) || 0
+      delay: parseInt(formData.get('delay', 10)) || 0
     };
-    
+
     this.previewSection.style.display = 'block';
     this.previewSummary.innerHTML = `
       <div><strong>Type:</strong> ${stepData.type}</div>
@@ -691,31 +699,31 @@ class ActionStepEditor {
       <div><strong>Description:</strong> ${stepData.description || 'None'}</div>
       <div><strong>Delay:</strong> ${stepData.delay}ms</div>
     `;
-    
+
     this.onPreview(stepData);
   }
-  
+
   /**
    * Validate the current step
    */
   validateStep() {
     this.validationErrors = [];
     this.validationWarnings = [];
-    
+
     const formData = new FormData(this.form);
     const type = formData.get('type');
     const action = formData.get('action');
-    const delay = parseInt(formData.get('delay')) || 0;
-    
+    const delay = parseInt(formData.get('delay', 10)) || 0;
+
     // Basic validation
     if (!action || action.trim() === '') {
       this.validationErrors.push('Action is required');
     }
-    
+
     if (delay < 0 || delay > 60000) {
       this.validationErrors.push('Delay must be between 0 and 60000 ms');
     }
-    
+
     // Type-specific validation
     switch (type) {
       case 'keypress':
@@ -728,76 +736,88 @@ class ActionStepEditor {
         this.validateApplication(action);
         break;
     }
-    
+
     // Call external validation
-    this.onValidate({
-      type,
-      action,
-      delay
-    }, this.validationErrors, this.validationWarnings);
-    
+    this.onValidate(
+      {
+        type,
+        action,
+        delay
+      },
+      this.validationErrors,
+      this.validationWarnings
+    );
+
     this.displayValidation();
     this.updateSaveButton();
-    
+
     return this.validationErrors.length === 0;
   }
-  
+
   /**
    * Validate keypress action
    */
   validateKeypress(action) {
-    if (!action) return;
-    
+    if (!action) {
+      return;
+    }
+
     const validModifiers = ['Ctrl', 'Alt', 'Shift', 'Cmd', 'Meta', 'Win'];
     const parts = action.split('+');
-    
+
     if (parts.length > 4) {
       this.validationWarnings.push('Too many modifier keys - this may not work as expected');
     }
-    
+
     // Check for invalid combinations
     if (parts.includes('Ctrl') && parts.includes('Cmd')) {
       this.validationWarnings.push('Using both Ctrl and Cmd - consider platform-specific actions');
     }
   }
-  
+
   /**
    * Validate command action
    */
   validateCommand(action) {
-    if (!action) return;
-    
+    if (!action) {
+      return;
+    }
+
     // Check for potentially dangerous commands
     const dangerousCommands = ['rm -rf', 'del /f', 'format', 'shutdown', 'reboot'];
     if (dangerousCommands.some(cmd => action.toLowerCase().includes(cmd))) {
       this.validationWarnings.push('This command could be potentially dangerous');
     }
-    
+
     // Check for command existence (basic)
     const command = action.split(' ')[0];
     if (command.length < 2) {
       this.validationErrors.push('Command appears to be invalid');
     }
   }
-  
+
   /**
    * Validate application action
    */
   validateApplication(action) {
-    if (!action) return;
-    
+    if (!action) {
+      return;
+    }
+
     const isWindows = process.platform === 'win32';
     const isMac = process.platform === 'darwin';
-    
+
     if (isWindows && !action.endsWith('.exe') && !action.includes('\\')) {
       this.validationWarnings.push('Windows applications typically end with .exe');
     }
-    
+
     if (isMac && !action.startsWith('/Applications/') && !action.includes('.app')) {
-      this.validationWarnings.push('Mac applications are typically in /Applications/ or end with .app');
+      this.validationWarnings.push(
+        'Mac applications are typically in /Applications/ or end with .app'
+      );
     }
   }
-  
+
   /**
    * Display validation messages
    */
@@ -805,7 +825,7 @@ class ActionStepEditor {
     // Clear previous messages
     this.validationErrorsEl.innerHTML = '';
     this.validationWarningsEl.innerHTML = '';
-    
+
     // Show errors
     if (this.validationErrors.length > 0) {
       this.validationErrorsEl.innerHTML = `
@@ -813,7 +833,7 @@ class ActionStepEditor {
         ${this.validationErrors.map(error => `<div class="validation-error">${error}</div>`).join('')}
       `;
     }
-    
+
     // Show warnings
     if (this.validationWarnings.length > 0) {
       this.validationWarningsEl.innerHTML = `
@@ -822,7 +842,7 @@ class ActionStepEditor {
       `;
     }
   }
-  
+
   /**
    * Clear validation messages
    */
@@ -832,33 +852,35 @@ class ActionStepEditor {
     this.validationErrorsEl.innerHTML = '';
     this.validationWarningsEl.innerHTML = '';
   }
-  
+
   /**
    * Update save button state
    */
   updateSaveButton() {
     const hasRequiredFields = this.actionInput.value.trim() !== '';
     const hasNoErrors = this.validationErrors.length === 0;
-    
+
     this.saveBtn.disabled = !hasRequiredFields || !hasNoErrors;
   }
-  
+
   /**
    * Check for unsaved changes
    */
   hasUnsavedChanges() {
-    if (!this.currentStep) return false;
-    
+    if (!this.currentStep) {
+      return false;
+    }
+
     const formData = new FormData(this.form);
-    
+
     return (
       formData.get('type') !== this.currentStep.type ||
       formData.get('action') !== this.currentStep.action ||
       formData.get('description') !== (this.currentStep.description || '') ||
-      parseInt(formData.get('delay')) !== (this.currentStep.delay || 100)
+      parseInt(formData.get('delay', 10)) !== (this.currentStep.delay || 100)
     );
   }
-  
+
   /**
    * Cleanup resources
    */

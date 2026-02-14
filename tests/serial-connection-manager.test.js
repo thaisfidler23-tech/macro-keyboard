@@ -1,52 +1,632 @@
 /**
- * Serial Connection Manager Tests
+ * Comprehensive Serial Connection Manager Tests
  * 
- * Tests for automatic reconnection, device detection, offline mode,
- * and error handling in serial communication.
+ * Tests automatic reconnection, device detection, offline mode, error handling,
+ * communication protocols, and hardware simulation for serial communication.
  */
 
-const { SerialConnectionManager, ConnectionState } = require('../src/SerialConnectionManager');
+const { SerialConnectionManager } = require('../src/SerialConnectionManager');
 const { ErrorHandler, ErrorTypes } = require('../src/ErrorHandler');
+const { TestDataFactory } = require('./test-data-factory');
 
-// Mock serialport
-const mockSerialPort = {
-  list: jest.fn(),
-  SerialPort: jest.fn()
-};
+// Mock serialport with comprehensive functionality
+const mockSerialPortList = jest.fn();
+const mockSerialPortConstructor = jest.fn();
+const mockParserConstructor = jest.fn();
 
-const mockParser = {
-  pipe: jest.fn().mockReturnThis(),
-  on: jest.fn(),
-  once: jest.fn(),
-  removeListener: jest.fn()
-};
-
-const mockPort = {
-  open: jest.fn(),
-  close: jest.fn(),
-  write: jest.fn(),
-  isOpen: false,
-  on: jest.fn(),
-  pipe: jest.fn(() => mockParser)
-};
-
-// Set up mocks before requiring the module
-jest.mock('serialport', () => ({
-  SerialPort: mockSerialPort.SerialPort,
-}));
-
-// Mock the dynamic require in detectDevices
 jest.mock('serialport', () => {
-  const actualSerialPort = {
-    list: mockSerialPort.list,
-    SerialPort: mockSerialPort.SerialPort
+  return {
+    SerialPort: mockSerialPortConstructor
   };
-  return actualSerialPort;
 });
 
 jest.mock('@serialport/parser-readline', () => ({
-  ReadlineParser: jest.fn(() => mockParser)
+  ReadlineParser: mockParserConstructor
 }));
+
+describe('SerialConnectionManager', () => {
+  let serialManager;
+  let mockConfig;
+  let mockLogger;
+  let mockErrorHandler;
+  let mockPort;
+  let mockParser;
+
+  beforeEach(() => {
+    // Create test data
+    mockConfig = TestDataFactory.config()
+      .withSerialPort('/dev/tty.usbmodem1234')
+      .withBaudRate(9600)
+      .build();
+    
+    mockLogger = TestDataFactory.logger().build();
+    mockErrorHandler = new ErrorHandler(mockLogger);
+
+    // Setup serial port mocks
+    mockPort = TestDataFactory.serialPort()
+      .withPath('/dev/tty.usbmodem1234')
+      .withBaudRate(9600)
+      .asOpen()
+      .build();
+
+    mockParser = {
+      on: jest.fn(),
+      once: jest.fn(),
+      removeListener: jest.fn(),
+      pipe: jest.fn().mockReturnThis()
+    };
+
+    mockSerialPortConstructor.mockImplementation(() => mockPort);
+    mockParserConstructor.mockImplementation(() => mockParser);
+
+    // Mock SerialPort.list
+    Object.defineProperty(mockSerialPortConstructor, 'list', {
+      value: mockSerialPortList,
+      writable: true
+    });
+
+    mockSerialPortList.mockResolvedValue([
+      { path: '/dev/tty.usbmodem1234', manufacturer: 'Arduino LLC' },
+      { path: '/dev/tty.Bluetooth-Incoming-Port' }
+    ]);
+
+    serialManager = new SerialConnectionManager(mockConfig, mockLogger, mockErrorHandler);
+  });
+
+  afterEach(() => {
+    if (serialManager) {
+      serialManager.disconnect();
+      serialManager.removeAllListeners();
+    }
+    jest.clearAllMocks();
+  });
+
+  describe('Initialization', () => {
+    test('should initialize with correct configuration', () => {
+      expect(serialManager).toBeInstanceOf(SerialConnectionManager);
+      expect(serialManager.config).toBe(mockConfig);
+      expect(serialManager.logger).toBe(mockLogger);
+      expect(serialManager.errorHandler).toBe(mockErrorHandler);
+    });
+
+    test('should initialize without error handler', () => {
+      const manager = new SerialConnectionManager(mockConfig, mockLogger);
+      expect(manager.errorHandler).toBeInstanceOf(ErrorHandler);
+    });
+
+    test('should start in DISCONNECTED state', () => {
+      expect(serialManager.getState()).toBe('DISCONNECTED');
+    });
+
+    test('should have default reconnection parameters', () => {
+      expect(serialManager.maxReconnectAttempts).toBe(10);
+      expect(serialManager.baseReconnectDelay).toBe(1000);
+      expect(serialManager.maxReconnectDelay).toBe(30000);
+    });
+  });
+
+  describe('Device Detection', () => {
+    test('should detect available devices', async () => {
+      const devices = await serialManager.detectDevices();
+
+      expect(devices).toHaveLength(2);
+      expect(devices[0].path).toBe('/dev/tty.usbmodem1234');
+      expect(devices[0].manufacturer).toBe('Arduino LLC');
+      expect(mockSerialPortList).toHaveBeenCalled();
+    });
+
+    test('should handle device detection errors', async () => {
+      mockSerialPortList.mockRejectedValue(new Error('Detection failed'));
+
+      const devices = await serialManager.detectDevices();
+
+      expect(devices).toEqual([]);
+      expect(mockLogger.error).toHaveBeenCalled();
+    });
+
+    test('should filter Arduino-compatible devices', async () => {
+      mockSerialPortList.mockResolvedValue([
+        { path: '/dev/tty.usbmodem1234', manufacturer: 'Arduino LLC' },
+        { path: '/dev/tty.Bluetooth-Incoming-Port', manufacturer: 'Apple Inc.' },
+        { path: '/dev/tty.usbserial-A1B2C3', manufacturer: 'FTDI' }
+      ]);
+
+      const compatibleDevices = await serialManager.detectCompatibleDevices();
+
+      expect(compatibleDevices).toHaveLength(2); // Arduino and FTDI
+      expect(compatibleDevices.some(d => d.manufacturer === 'Arduino LLC')).toBe(true);
+      expect(compatibleDevices.some(d => d.manufacturer === 'FTDI')).toBe(true);
+      expect(compatibleDevices.some(d => d.manufacturer === 'Apple Inc.')).toBe(false);
+    });
+  });
+
+  describe('Connection Management', () => {
+    test('should connect successfully to specified port', (done) => {
+      mockPort.open = jest.fn((callback) => {
+        mockPort.isOpen = true;
+        callback && callback();
+      });
+
+      serialManager.on('connected', () => {
+        expect(serialManager.getState()).toBe('CONNECTED');
+        expect(mockPort.open).toHaveBeenCalled();
+        done();
+      });
+
+      serialManager.connect();
+    });
+
+    test('should handle connection failure', (done) => {
+      const connectionError = TestDataFactory.error()
+        .asSerialError()
+        .withMessage('Connection failed')
+        .build();
+
+      mockPort.open = jest.fn((callback) => {
+        callback && callback(connectionError);
+      });
+
+      serialManager.on('connectionFailed', (error) => {
+        expect(serialManager.getState()).toBe('FAILED');
+        expect(error).toBe(connectionError);
+        done();
+      });
+
+      serialManager.connect();
+    });
+
+    test('should disconnect gracefully', (done) => {
+      mockPort.isOpen = true;
+      mockPort.close = jest.fn((callback) => {
+        mockPort.isOpen = false;
+        callback && callback();
+      });
+
+      serialManager.on('disconnected', () => {
+        expect(serialManager.getState()).toBe('DISCONNECTED');
+        expect(mockPort.close).toHaveBeenCalled();
+        done();
+      });
+
+      serialManager.disconnect();
+    });
+
+    test('should handle auto-connection when port not specified', async () => {
+      const autoConfig = TestDataFactory.config()
+        .withSerialPort(null) // Auto-detect
+        .build();
+
+      const autoManager = new SerialConnectionManager(autoConfig, mockLogger, mockErrorHandler);
+      
+      // Mock successful auto-detection
+      mockSerialPortList.mockResolvedValue([
+        { path: '/dev/tty.usbmodem1234', manufacturer: 'Arduino LLC' }
+      ]);
+
+      await autoManager.connect();
+
+      expect(mockSerialPortConstructor).toHaveBeenCalledWith({
+        path: '/dev/tty.usbmodem1234',
+        baudRate: 9600,
+        autoOpen: false
+      });
+    });
+  });
+
+  describe('Automatic Reconnection', () => {
+    test('should attempt reconnection after disconnection', (done) => {
+      mockPort.isOpen = true;
+      let reconnectAttempted = false;
+
+      serialManager.on('reconnecting', () => {
+        reconnectAttempted = true;
+      });
+
+      serialManager.on('connected', () => {
+        if (reconnectAttempted) {
+          expect(serialManager.reconnectAttempts).toBeGreaterThan(0);
+          done();
+        } else {
+          // Simulate disconnection
+          mockPort.isOpen = false;
+          serialManager.emit('disconnected');
+        }
+      });
+
+      // Setup successful reconnection
+      mockPort.open = jest.fn((callback) => {
+        mockPort.isOpen = true;
+        callback && callback();
+      });
+
+      serialManager.connect();
+    });
+
+    test('should use exponential backoff for reconnection delays', () => {
+      const delays = [];
+      
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        const delay = serialManager.calculateReconnectDelay(attempt);
+        delays.push(delay);
+      }
+
+      // Each delay should be larger than the previous (exponential backoff)
+      for (let i = 1; i < delays.length; i++) {
+        expect(delays[i]).toBeGreaterThan(delays[i - 1]);
+      }
+
+      // Should not exceed maximum delay
+      expect(Math.max(...delays)).toBeLessThanOrEqual(serialManager.maxReconnectDelay);
+    });
+
+    test('should stop reconnection after maximum attempts', (done) => {
+      serialManager.maxReconnectAttempts = 2;
+
+      mockPort.open = jest.fn((callback) => {
+        callback && callback(new Error('Connection failed'));
+      });
+
+      serialManager.on('reconnectionFailed', () => {
+        expect(serialManager.reconnectAttempts).toBe(2);
+        expect(serialManager.getState()).toBe('FAILED');
+        done();
+      });
+
+      serialManager.connect();
+    });
+
+    test('should reset reconnect attempts on successful connection', (done) => {
+      serialManager.reconnectAttempts = 3;
+
+      mockPort.open = jest.fn((callback) => {
+        mockPort.isOpen = true;
+        callback && callback();
+      });
+
+      serialManager.on('connected', () => {
+        expect(serialManager.reconnectAttempts).toBe(0);
+        done();
+      });
+
+      serialManager.connect();
+    });
+  });
+
+  describe('Data Communication', () => {
+    beforeEach(() => {
+      mockPort.isOpen = true;
+      serialManager.serialPort = mockPort;
+      serialManager.parser = mockParser;
+    });
+
+    test('should send data when connected', () => {
+      const testData = 'BTN:1';
+      
+      const result = serialManager.sendData(testData);
+
+      expect(result).toBe(true);
+      expect(mockPort.write).toHaveBeenCalledWith(testData + '\n', expect.any(Function));
+    });
+
+    test('should queue data when disconnected', () => {
+      mockPort.isOpen = false;
+      serialManager.state = 'DISCONNECTED';
+      
+      const testData = 'BTN:1';
+      const result = serialManager.sendData(testData);
+
+      expect(result).toBe(false);
+      expect(serialManager.dataQueue).toContain(testData);
+    });
+
+    test('should handle data reception', (done) => {
+      const testData = 'ENC:1:CW';
+
+      serialManager.on('dataReceived', (data) => {
+        expect(data).toBe(testData);
+        done();
+      });
+
+      // Simulate data reception
+      const dataCallback = mockParser.on.mock.calls.find(call => call[0] === 'data')[1];
+      dataCallback(testData);
+    });
+
+    test('should parse button press messages', () => {
+      const buttonMessage = 'BTN:3';
+      
+      const parsed = serialManager.parseMessage(buttonMessage);
+
+      expect(parsed.type).toBe('BUTTON_PRESS');
+      expect(parsed.buttonId).toBe(3);
+      expect(parsed.valid).toBe(true);
+    });
+
+    test('should parse encoder rotation messages', () => {
+      const encoderMessage = 'ENC:2:CCW';
+      
+      const parsed = serialManager.parseMessage(encoderMessage);
+
+      expect(parsed.type).toBe('ENCODER_ROTATION');
+      expect(parsed.encoderId).toBe(2);
+      expect(parsed.direction).toBe('CCW');
+      expect(parsed.valid).toBe(true);
+    });
+
+    test('should handle malformed messages', () => {
+      const malformedMessage = 'INVALID:MESSAGE:FORMAT';
+      
+      const parsed = serialManager.parseMessage(malformedMessage);
+
+      expect(parsed.valid).toBe(false);
+      expect(parsed.error).toBeDefined();
+    });
+
+    test('should send queued data after reconnection', (done) => {
+      // Queue some data while disconnected
+      mockPort.isOpen = false;
+      serialManager.sendData('BTN:1');
+      serialManager.sendData('BTN:2');
+
+      expect(serialManager.dataQueue).toHaveLength(2);
+
+      // Reconnect
+      mockPort.isOpen = true;
+      mockPort.write = jest.fn((data, callback) => {
+        callback && callback();
+      });
+
+      serialManager.on('queueProcessed', () => {
+        expect(mockPort.write).toHaveBeenCalledTimes(2);
+        expect(serialManager.dataQueue).toHaveLength(0);
+        done();
+      });
+
+      serialManager.processDataQueue();
+    });
+  });
+
+  describe('Health Monitoring', () => {
+    test('should monitor connection health', (done) => {
+      serialManager.healthCheckInterval = 100; // Fast for testing
+
+      serialManager.on('healthCheck', (status) => {
+        expect(status.connected).toBeDefined();
+        expect(status.lastCommunication).toBeDefined();
+        expect(status.dataQueueSize).toBeDefined();
+        done();
+      });
+
+      serialManager.startHealthMonitoring();
+    });
+
+    test('should detect communication timeouts', (done) => {
+      serialManager.communicationTimeout = 100; // Fast timeout for testing
+      
+      serialManager.on('communicationTimeout', () => {
+        expect(serialManager.lastCommunication).toBeDefined();
+        done();
+      });
+
+      serialManager.startHealthMonitoring();
+      
+      // Don't simulate any communication to trigger timeout
+    });
+
+    test('should stop health monitoring on disconnect', () => {
+      serialManager.startHealthMonitoring();
+      expect(serialManager.healthCheckTimer).toBeDefined();
+
+      serialManager.stopHealthMonitoring();
+      expect(serialManager.healthCheckTimer).toBeNull();
+    });
+  });
+
+  describe('Error Handling', () => {
+    test('should handle serial port errors', (done) => {
+      const serialError = TestDataFactory.error()
+        .asSerialError()
+        .withCode('EACCES')
+        .build();
+
+      serialManager.on('error', (error) => {
+        expect(error).toBe(serialError);
+        expect(mockErrorHandler.handleError).toHaveBeenCalledWith(
+          serialError,
+          'HARDWARE',
+          expect.any(String)
+        );
+        done();
+      });
+
+      // Simulate port error
+      mockPort.emit('error', serialError);
+    });
+
+    test('should handle write errors', (done) => {
+      const writeError = TestDataFactory.error()
+        .withMessage('Write failed')
+        .build();
+
+      mockPort.write = jest.fn((data, callback) => {
+        callback && callback(writeError);
+      });
+
+      serialManager.on('writeError', (error) => {
+        expect(error).toBe(writeError);
+        done();
+      });
+
+      serialManager.sendData('TEST');
+    });
+
+    test('should handle parser errors', (done) => {
+      const parseError = new Error('Parser error');
+
+      serialManager.on('parseError', (error) => {
+        expect(error).toBe(parseError);
+        done();
+      });
+
+      // Simulate parser error
+      mockParser.emit('error', parseError);
+    });
+  });
+
+  describe('Configuration Updates', () => {
+    test('should update configuration dynamically', () => {
+      const newConfig = TestDataFactory.config()
+        .withBaudRate(115200)
+        .withSerialPort('/dev/tty.usbmodem5678')
+        .build();
+
+      serialManager.updateConfig(newConfig);
+
+      expect(serialManager.config).toBe(newConfig);
+    });
+
+    test('should reconnect with new configuration', (done) => {
+      const newConfig = TestDataFactory.config()
+        .withSerialPort('/dev/tty.usbmodem5678')
+        .build();
+
+      mockPort.isOpen = true;
+
+      serialManager.on('configurationUpdated', () => {
+        expect(serialManager.config.device.serialPort).toBe('/dev/tty.usbmodem5678');
+        done();
+      });
+
+      serialManager.updateConfig(newConfig, true); // reconnect = true
+    });
+  });
+
+  describe('Offline Mode and Graceful Degradation', () => {
+    test('should enable offline mode when no hardware available', async () => {
+      mockSerialPortList.mockResolvedValue([]);
+
+      await serialManager.enableOfflineMode();
+
+      expect(serialManager.isOfflineMode).toBe(true);
+      expect(serialManager.getState()).toBe('OFFLINE');
+    });
+
+    test('should simulate hardware responses in offline mode', () => {
+      serialManager.enableOfflineMode();
+
+      const result = serialManager.sendData('BTN:1');
+
+      expect(result).toBe(true); // Should succeed in offline mode
+      
+      // Should simulate response
+      setTimeout(() => {
+        expect(serialManager.lastSimulatedResponse).toBeDefined();
+      }, 10);
+    });
+
+    test('should transition from offline to online mode', (done) => {
+      serialManager.enableOfflineMode();
+      expect(serialManager.isOfflineMode).toBe(true);
+
+      mockSerialPortList.mockResolvedValue([
+        { path: '/dev/tty.usbmodem1234', manufacturer: 'Arduino LLC' }
+      ]);
+
+      serialManager.on('transitionToOnline', () => {
+        expect(serialManager.isOfflineMode).toBe(false);
+        done();
+      });
+
+      serialManager.checkForHardware();
+    });
+  });
+
+  describe('Performance and Resource Management', () => {
+    test('should limit data queue size', () => {
+      serialManager.maxQueueSize = 10;
+      mockPort.isOpen = false;
+
+      // Fill queue beyond limit
+      for (let i = 0; i < 15; i++) {
+        serialManager.sendData(`MSG:${i}`);
+      }
+
+      expect(serialManager.dataQueue.length).toBeLessThanOrEqual(10);
+    });
+
+    test('should cleanup resources on disconnect', () => {
+      serialManager.serialPort = mockPort;
+      serialManager.parser = mockParser;
+      serialManager.reconnectTimer = setTimeout(() => {}, 1000);
+
+      serialManager.cleanup();
+
+      expect(mockPort.removeAllListeners).toHaveBeenCalled();
+      expect(mockParser.removeAllListeners).toHaveBeenCalled();
+      expect(serialManager.reconnectTimer).toBeNull();
+    });
+
+    test('should handle high-frequency data transmission', () => {
+      mockPort.isOpen = true;
+      const startTime = Date.now();
+
+      // Send 100 messages rapidly
+      for (let i = 0; i < 100; i++) {
+        serialManager.sendData(`MSG:${i}`);
+      }
+
+      const endTime = Date.now();
+      expect(endTime - startTime).toBeLessThan(100); // Should be fast
+      expect(mockPort.write).toHaveBeenCalledTimes(100);
+    });
+  });
+
+  describe('Integration and Hardware Protocols', () => {
+    test('should validate Arduino protocol compliance', () => {
+      const validMessages = [
+        'BTN:1',
+        'ENC:2:CW',
+        'ENC:3:CCW',
+        'STATUS:OK',
+        'ERROR:INVALID_COMMAND'
+      ];
+
+      validMessages.forEach(message => {
+        const isValid = serialManager.validateProtocol(message);
+        expect(isValid).toBe(true);
+      });
+    });
+
+    test('should reject invalid protocol messages', () => {
+      const invalidMessages = [
+        'INVALID',
+        'BTN:',
+        'ENC:1',
+        'BTN:999', // Invalid button ID
+        'ENC:999:CW' // Invalid encoder ID
+      ];
+
+      invalidMessages.forEach(message => {
+        const isValid = serialManager.validateProtocol(message);
+        expect(isValid).toBe(false);
+      });
+    });
+
+    test('should handle Arduino firmware handshake', (done) => {
+      serialManager.on('handshakeComplete', (info) => {
+        expect(info.firmware).toBeDefined();
+        expect(info.buttons).toBeDefined();
+        expect(info.encoders).toBeDefined();
+        done();
+      });
+
+      // Simulate handshake response
+      const handshakeResponse = 'HANDSHAKE:MACRO_KEYBOARD:1.0:8:2';
+      const dataCallback = mockParser.on.mock.calls.find(call => call[0] === 'data')[1];
+      dataCallback(handshakeResponse);
+    });
+  });
+});
 
 describe('SerialConnectionManager', () => {
   let manager;

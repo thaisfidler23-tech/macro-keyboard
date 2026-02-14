@@ -1,9 +1,9 @@
 /**
  * Voice Recognition UI
- * 
+ *
  * Frontend interface for voice recognition management, providing microphone control,
  * voice command configuration, training interface, and real-time feedback.
- * 
+ *
  * Features:
  * - Microphone management with real-time audio level display
  * - Voice command configuration and testing
@@ -43,7 +43,9 @@ class VoiceRecognitionUI {
    * Show the voice recognition interface
    */
   show() {
-    if (this.isVisible) return;
+    if (this.isVisible) {
+      return;
+    }
 
     this.createUI();
     this.setupEventHandlers();
@@ -58,7 +60,9 @@ class VoiceRecognitionUI {
    * Hide the voice recognition interface
    */
   hide() {
-    if (!this.isVisible) return;
+    if (!this.isVisible) {
+      return;
+    }
 
     this.cleanup();
     const modal = document.getElementById('voice-recognition-modal');
@@ -554,7 +558,7 @@ class VoiceRecognitionUI {
 
     // Tab switching
     document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', e => {
         const tabId = e.target.closest('.tab-btn').dataset.tab;
         this.switchTab(tabId);
       });
@@ -562,16 +566,16 @@ class VoiceRecognitionUI {
 
     // Voice control buttons
     this.setupVoiceControlHandlers();
-    
+
     // Command management handlers
     this.setupCommandHandlers();
-    
+
     // Training handlers
     this.setupTrainingHandlers();
-    
+
     // Profile handlers
     this.setupProfileHandlers();
-    
+
     // Statistics handlers
     this.setupStatisticsHandlers();
 
@@ -624,7 +628,7 @@ class VoiceRecognitionUI {
     // Audio settings sliders
     const gainSlider = document.getElementById('microphone-gain');
     if (gainSlider) {
-      gainSlider.addEventListener('input', (e) => {
+      gainSlider.addEventListener('input', e => {
         const value = parseFloat(e.target.value);
         document.getElementById('gain-value').textContent = value.toFixed(1);
         window.electronAPI.setVoiceGain(value);
@@ -765,7 +769,7 @@ class VoiceRecognitionUI {
     // Settings sliders and controls
     const thresholdSlider = document.getElementById('noise-threshold');
     if (thresholdSlider) {
-      thresholdSlider.addEventListener('input', (e) => {
+      thresholdSlider.addEventListener('input', e => {
         const value = parseFloat(e.target.value);
         document.getElementById('threshold-value').textContent = value.toFixed(2);
         window.electronAPI.setVoiceNoiseThreshold(value);
@@ -774,7 +778,7 @@ class VoiceRecognitionUI {
 
     const confidenceSlider = document.getElementById('confidence-threshold');
     if (confidenceSlider) {
-      confidenceSlider.addEventListener('input', (e) => {
+      confidenceSlider.addEventListener('input', e => {
         const value = parseFloat(e.target.value);
         document.getElementById('confidence-value').textContent = value.toFixed(2);
         window.electronAPI.setVoiceConfidenceThreshold(value);
@@ -787,9 +791,11 @@ class VoiceRecognitionUI {
    */
   setupKeyboardShortcuts() {
     const modal = document.getElementById('voice-recognition-modal');
-    if (!modal) return;
+    if (!modal) {
+      return;
+    }
 
-    modal.addEventListener('keydown', (e) => {
+    modal.addEventListener('keydown', e => {
       if (e.ctrlKey || e.metaKey) {
         switch (e.key) {
           case '1':
@@ -798,7 +804,7 @@ class VoiceRecognitionUI {
           case '4':
           case '5':
             e.preventDefault();
-            const tabIndex = parseInt(e.key) - 1;
+            const tabIndex = parseInt(e.key, 10) - 1;
             const tabs = ['control', 'commands', 'training', 'profiles', 'statistics'];
             if (tabs[tabIndex]) {
               this.switchTab(tabs[tabIndex]);
@@ -827,11 +833,13 @@ class VoiceRecognitionUI {
    */
   initializeAudioVisualization() {
     const canvas = document.getElementById('audio-visualization');
-    if (!canvas) return;
+    if (!canvas) {
+      return;
+    }
 
     this.audioCanvas = canvas;
     this.audioCtx = canvas.getContext('2d');
-    
+
     // Start visualization loop
     this.startAudioVisualization();
   }
@@ -841,7 +849,9 @@ class VoiceRecognitionUI {
    */
   startAudioVisualization() {
     const draw = () => {
-      if (!this.audioCanvas || !this.audioCtx) return;
+      if (!this.audioCanvas || !this.audioCtx) {
+        return;
+      }
 
       const width = this.audioCanvas.width;
       const height = this.audioCanvas.height;
@@ -857,17 +867,17 @@ class VoiceRecognitionUI {
       if (this.isListening) {
         const barCount = 20;
         const barWidth = width / barCount;
-        
+
         for (let i = 0; i < barCount; i++) {
           const barHeight = Math.random() * height * 0.8;
           const x = i * barWidth;
           const y = height - barHeight;
-          
+
           // Color gradient based on height
           const intensity = barHeight / height;
           const hue = intensity * 120; // Green to red
           this.audioCtx.fillStyle = `hsl(${hue}, 70%, 50%)`;
-          
+
           this.audioCtx.fillRect(x, y, barWidth - 2, barHeight);
         }
       } else {
@@ -972,7 +982,7 @@ class VoiceRecognitionUI {
       } else if (!this.voiceStatus.initialized) {
         status = 'Not Initialized';
       }
-      
+
       statusText.textContent = status;
     }
   }
@@ -984,7 +994,7 @@ class VoiceRecognitionUI {
     try {
       const result = await window.electronAPI.testVoiceCommand(phrase);
       const resultsDiv = document.getElementById('test-results');
-      
+
       if (result.matched) {
         resultsDiv.innerHTML = `
           <div class="test-success">
@@ -1067,7 +1077,6 @@ class VoiceRecognitionUI {
       this.hideCommandForm();
       this.loadCommands();
       this.showNotification('Voice command added successfully', 'success');
-
     } catch (error) {
       this.logger.error('Failed to save voice command', error);
       this.showNotification('Failed to save voice command', 'error');
@@ -1091,7 +1100,9 @@ class VoiceRecognitionUI {
    */
   displayCommands(commands) {
     const container = document.getElementById('commands-container');
-    if (!container) return;
+    if (!container) {
+      return;
+    }
 
     container.innerHTML = '';
 
@@ -1121,14 +1132,14 @@ class VoiceRecognitionUI {
 
     // Add event listeners for command actions
     container.querySelectorAll('.test-command').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', e => {
         const phrase = e.target.dataset.phrase;
         this.testVoiceCommand(phrase);
       });
     });
 
     container.querySelectorAll('.delete-command').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
+      btn.addEventListener('click', async e => {
         const phrase = e.target.dataset.phrase;
         if (confirm(`Delete command "${phrase}"?`)) {
           try {
@@ -1154,11 +1165,11 @@ class VoiceRecognitionUI {
     commandItems.forEach(item => {
       const phrase = item.querySelector('.command-phrase').textContent.toLowerCase();
       const action = item.querySelector('.command-action').textContent.toLowerCase();
-      
+
       const matchesSearch = phrase.includes(searchTerm) || action.includes(searchTerm);
       const matchesCategory = !categoryFilter || action.includes(categoryFilter);
 
-      item.style.display = (matchesSearch && matchesCategory) ? 'block' : 'none';
+      item.style.display = matchesSearch && matchesCategory ? 'block' : 'none';
     });
   }
 
@@ -1175,15 +1186,18 @@ class VoiceRecognitionUI {
     switch (mode) {
       case 'command':
         titleElement.textContent = 'Command Training';
-        instructionsElement.textContent = 'Repeat each command phrase multiple times to improve recognition accuracy.';
+        instructionsElement.textContent =
+          'Repeat each command phrase multiple times to improve recognition accuracy.';
         break;
       case 'vocabulary':
         titleElement.textContent = 'Vocabulary Training';
-        instructionsElement.textContent = 'Add custom words and phrases to expand the recognition vocabulary.';
+        instructionsElement.textContent =
+          'Add custom words and phrases to expand the recognition vocabulary.';
         break;
       case 'accent':
         titleElement.textContent = 'Accent Training';
-        instructionsElement.textContent = 'Read the displayed phrases to train the system for your accent.';
+        instructionsElement.textContent =
+          'Read the displayed phrases to train the system for your accent.';
         break;
     }
 
@@ -1271,7 +1285,6 @@ class VoiceRecognitionUI {
       document.getElementById('profile-editor').style.display = 'none';
       this.loadProfiles();
       this.showNotification('Voice profile created successfully', 'success');
-
     } catch (error) {
       this.logger.error('Failed to save voice profile', error);
       this.showNotification('Failed to save voice profile', 'error');
@@ -1295,7 +1308,9 @@ class VoiceRecognitionUI {
    */
   displayProfiles(profiles) {
     const container = document.getElementById('profiles-container');
-    if (!container) return;
+    if (!container) {
+      return;
+    }
 
     container.innerHTML = '';
 
@@ -1322,7 +1337,7 @@ class VoiceRecognitionUI {
 
     // Add event listeners
     container.querySelectorAll('.activate-profile').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
+      btn.addEventListener('click', async e => {
         const profileName = e.target.dataset.name;
         try {
           await window.electronAPI.switchVoiceProfile(profileName);
@@ -1352,10 +1367,13 @@ class VoiceRecognitionUI {
    */
   displayStatistics() {
     // Update stat cards
-    document.getElementById('total-commands-stat').textContent = this.recognitionStats.totalCommands || 0;
-    document.getElementById('success-rate-stat').textContent = `${this.recognitionStats.successRate || 0}%`;
-    document.getElementById('avg-confidence-stat').textContent = `${this.recognitionStats.averageConfidence || 0}%`;
-    
+    document.getElementById('total-commands-stat').textContent =
+      this.recognitionStats.totalCommands || 0;
+    document.getElementById('success-rate-stat').textContent =
+      `${this.recognitionStats.successRate || 0}%`;
+    document.getElementById('avg-confidence-stat').textContent =
+      `${this.recognitionStats.averageConfidence || 0}%`;
+
     const listeningMinutes = Math.round((this.recognitionStats.totalListeningTime || 0) / 60000);
     document.getElementById('listening-time-stat').textContent = `${listeningMinutes}m`;
   }

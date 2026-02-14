@@ -1,6 +1,6 @@
 /**
  * Linux Speech Recognition Integration
- * 
+ *
  * Provides Linux-specific speech recognition using PocketSphinx or Vosk
  * engines for offline speech recognition capability.
  */
@@ -13,7 +13,7 @@ const fs = require('fs').promises;
 class LinuxSpeechEngine extends EventEmitter {
   constructor(config = {}) {
     super();
-    
+
     this.config = {
       language: 'en-US',
       confidenceThreshold: 0.6,
@@ -60,10 +60,9 @@ class LinuxSpeechEngine extends EventEmitter {
 
       this.isInitialized = true;
       this.emit('initialized');
-      
+
       this.logger.info(`Linux Speech Recognition initialized with ${this.config.engine}`);
       return true;
-
     } catch (error) {
       this.logger.error('Failed to initialize Linux Speech Recognition:', error);
       throw error;
@@ -107,9 +106,11 @@ class LinuxSpeechEngine extends EventEmitter {
     }
 
     this.availableEngines = engines;
-    
+
     if (engines.length === 0) {
-      throw new Error('No speech recognition engines available. Please install Vosk, PocketSphinx, or DeepSpeech.');
+      throw new Error(
+        'No speech recognition engines available. Please install Vosk, PocketSphinx, or DeepSpeech.'
+      );
     }
 
     this.logger.info(`Available engines: ${engines.map(e => e.name).join(', ')}`);
@@ -119,10 +120,10 @@ class LinuxSpeechEngine extends EventEmitter {
    * Check if a command is available
    */
   async checkCommand(command, args = []) {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const process = spawn(command, args, { stdio: 'ignore' });
-      
-      process.on('close', (code) => {
+
+      process.on('close', code => {
         resolve(code === 0);
       });
 
@@ -220,7 +221,7 @@ class LinuxSpeechEngine extends EventEmitter {
       await fs.mkdir(modelDir, { recursive: true });
 
       const downloadUrl = `https://alphacephei.com/vosk/models/${modelName}.zip`;
-      
+
       // Download and extract model (simplified version - in production, use proper HTTP client)
       const downloadProcess = spawn('wget', [
         downloadUrl,
@@ -229,9 +230,12 @@ class LinuxSpeechEngine extends EventEmitter {
       ]);
 
       await new Promise((resolve, reject) => {
-        downloadProcess.on('close', (code) => {
-          if (code === 0) resolve();
-          else reject(new Error(`Download failed with code ${code}`));
+        downloadProcess.on('close', code => {
+          if (code === 0) {
+            resolve();
+          } else {
+            reject(new Error(`Download failed with code ${code}`));
+          }
         });
       });
 
@@ -243,15 +247,17 @@ class LinuxSpeechEngine extends EventEmitter {
       ]);
 
       await new Promise((resolve, reject) => {
-        extractProcess.on('close', (code) => {
-          if (code === 0) resolve();
-          else reject(new Error(`Extract failed with code ${code}`));
+        extractProcess.on('close', code => {
+          if (code === 0) {
+            resolve();
+          } else {
+            reject(new Error(`Extract failed with code ${code}`));
+          }
         });
       });
 
       this.config.modelPath = modelPath;
       this.logger.info('Vosk model downloaded successfully');
-
     } catch (error) {
       this.logger.warn('Failed to download Vosk model:', error);
       throw new Error('No Vosk model available and download failed');
@@ -304,7 +310,9 @@ class LinuxSpeechEngine extends EventEmitter {
       }
     }
 
-    throw new Error('No DeepSpeech models found. Please download models from https://github.com/mozilla/DeepSpeech/releases');
+    throw new Error(
+      'No DeepSpeech models found. Please download models from https://github.com/mozilla/DeepSpeech/releases'
+    );
   }
 
   /**
@@ -336,7 +344,6 @@ class LinuxSpeechEngine extends EventEmitter {
       this.isRecognizing = true;
       this.emit('started');
       this.logger.info(`${this.config.engine} speech recognition started`);
-
     } catch (error) {
       this.logger.error('Failed to start speech recognition:', error);
       throw error;
@@ -349,7 +356,7 @@ class LinuxSpeechEngine extends EventEmitter {
   async startVoskRecognition() {
     const pythonScript = this.generateVoskScript();
     const scriptPath = path.join(__dirname, 'vosk-recognition.py');
-    
+
     await fs.writeFile(scriptPath, pythonScript, 'utf8');
 
     this.speechProcess = spawn('python3', [scriptPath, this.config.modelPath], {
@@ -374,14 +381,14 @@ import vosk
 
 def main():
     model_path = sys.argv[1] if len(sys.argv) > 1 else "model"
-    
+
     if not os.path.exists(model_path):
         print(json.dumps({"type": "error", "message": f"Model not found: {model_path}"}))
         sys.exit(1)
-    
+
     model = vosk.Model(model_path)
     rec = vosk.KaldiRecognizer(model, 16000)
-    
+
     # Audio setup
     p = pyaudio.PyAudio()
     stream = p.open(format=pyaudio.paInt16,
@@ -389,16 +396,16 @@ def main():
                    rate=16000,
                    input=True,
                    frames_per_buffer=8192)
-    
+
     audio_queue = queue.Queue()
-    
+
     def audio_thread():
         while True:
             data = stream.read(4096)
             if len(data) == 0:
                 break
             audio_queue.put(data)
-    
+
     def command_thread():
         while True:
             try:
@@ -410,23 +417,23 @@ def main():
                     continue
             except EOFError:
                 break
-    
+
     # Start threads
     audio_t = threading.Thread(target=audio_thread, daemon=True)
     command_t = threading.Thread(target=command_thread, daemon=True)
-    
+
     audio_t.start()
     command_t.start()
-    
+
     print(json.dumps({"type": "started"}))
     print("---EVENT---")
     sys.stdout.flush()
-    
+
     try:
         while True:
             try:
                 data = audio_queue.get(timeout=1.0)
-                
+
                 if rec.AcceptWaveform(data):
                     result = json.loads(rec.Result())
                     if result.get('text'):
@@ -451,17 +458,17 @@ def main():
                         print(json.dumps(output))
                         print("---EVENT---")
                         sys.stdout.flush()
-                        
+
             except queue.Empty:
                 continue
             except KeyboardInterrupt:
                 break
-                
+
     finally:
         stream.stop_stream()
         stream.close()
         p.terminate()
-        
+
         print(json.dumps({"type": "stopped"}))
         print("---EVENT---")
         sys.stdout.flush()
@@ -476,12 +483,18 @@ if __name__ == "__main__":
    */
   async startPocketSphinxRecognition() {
     const args = [
-      '-hmm', path.join(this.config.modelPath, 'hmm'),
-      '-lm', path.join(this.config.modelPath, 'lm'),
-      '-dict', path.join(this.config.modelPath, 'dict'),
-      '-samprate', this.config.sampleRate.toString(),
-      '-inmic', 'yes',
-      '-logfn', '/dev/null'
+      '-hmm',
+      path.join(this.config.modelPath, 'hmm'),
+      '-lm',
+      path.join(this.config.modelPath, 'lm'),
+      '-dict',
+      path.join(this.config.modelPath, 'dict'),
+      '-samprate',
+      this.config.sampleRate.toString(),
+      '-inmic',
+      'yes',
+      '-logfn',
+      '/dev/null'
     ];
 
     this.speechProcess = spawn('pocketsphinx_continuous', args, {
@@ -497,12 +510,12 @@ if __name__ == "__main__":
   setupPocketSphinxEventHandlers() {
     let buffer = '';
 
-    this.speechProcess.stdout.on('data', (data) => {
+    this.speechProcess.stdout.on('data', data => {
       buffer += data.toString();
-      
+
       const lines = buffer.split('\n');
       buffer = lines.pop() || ''; // Keep incomplete line in buffer
-      
+
       for (const line of lines) {
         const trimmedLine = line.trim();
         if (trimmedLine && !trimmedLine.startsWith('INFO:')) {
@@ -514,23 +527,23 @@ if __name__ == "__main__":
             isFinal: true,
             timestamp: new Date()
           };
-          
+
           this.emit('speechRecognized', result);
         }
       }
     });
 
-    this.speechProcess.stderr.on('data', (data) => {
+    this.speechProcess.stderr.on('data', data => {
       const error = data.toString();
       if (!error.includes('INFO:') && !error.includes('WARNING:')) {
         this.logger.error('PocketSphinx error:', error);
       }
     });
 
-    this.speechProcess.on('close', (code) => {
+    this.speechProcess.on('close', code => {
       this.isRecognizing = false;
       this.speechProcess = null;
-      
+
       if (code !== 0) {
         this.logger.error(`PocketSphinx process exited with code ${code}`);
         this.emit('error', new Error(`Speech process exited with code ${code}`));
@@ -562,11 +575,10 @@ if __name__ == "__main__":
       } else {
         this.speechProcess.kill('SIGTERM');
       }
-      
+
       this.isRecognizing = false;
       this.emit('stopped');
       this.logger.info('Linux speech recognition stopped');
-
     } catch (error) {
       this.logger.error('Failed to stop speech recognition:', error);
       throw error;
@@ -579,13 +591,13 @@ if __name__ == "__main__":
   setupProcessEventHandlers() {
     let buffer = '';
 
-    this.speechProcess.stdout.on('data', (data) => {
+    this.speechProcess.stdout.on('data', data => {
       buffer += data.toString();
-      
+
       // Process complete events (delimited by ---EVENT---)
       const events = buffer.split('---EVENT---');
       buffer = events.pop() || ''; // Keep incomplete event in buffer
-      
+
       for (const eventData of events) {
         if (eventData.trim()) {
           try {
@@ -598,14 +610,14 @@ if __name__ == "__main__":
       }
     });
 
-    this.speechProcess.stderr.on('data', (data) => {
+    this.speechProcess.stderr.on('data', data => {
       this.logger.error('Speech recognition error:', data.toString());
     });
 
-    this.speechProcess.on('close', (code) => {
+    this.speechProcess.on('close', code => {
       this.isRecognizing = false;
       this.speechProcess = null;
-      
+
       if (code !== 0) {
         this.logger.error(`Speech process exited with code ${code}`);
         this.emit('error', new Error(`Speech process exited with code ${code}`));
@@ -614,7 +626,7 @@ if __name__ == "__main__":
       }
     });
 
-    this.speechProcess.on('error', (error) => {
+    this.speechProcess.on('error', error => {
       this.logger.error('Speech process error:', error);
       this.emit('error', error);
     });
@@ -661,9 +673,9 @@ if __name__ == "__main__":
         if (this.config.engine === 'vosk') {
           this.speechProcess.stdin.write('EXIT\n');
         }
-        
+
         // Wait for process to exit gracefully
-        await new Promise((resolve) => {
+        await new Promise(resolve => {
           const timeout = setTimeout(() => {
             this.speechProcess.kill('SIGKILL');
             resolve();
@@ -734,9 +746,9 @@ if __name__ == "__main__":
    */
   async installDependencies() {
     const installCommands = {
-      'vosk': 'pip3 install vosk pyaudio',
-      'pocketsphinx': 'sudo apt-get install pocketsphinx pocketsphinx-en-us',
-      'deepspeech': 'pip3 install deepspeech'
+      vosk: 'pip3 install vosk pyaudio',
+      pocketsphinx: 'sudo apt-get install pocketsphinx pocketsphinx-en-us',
+      deepspeech: 'pip3 install deepspeech'
     };
 
     const command = installCommands[this.config.engine];

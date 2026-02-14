@@ -2,7 +2,7 @@ const EventEmitter = require('events');
 
 /**
  * RegressionDetector - Detects performance regressions with statistical analysis
- * 
+ *
  * Features:
  * - Statistical significance testing for regression detection
  * - Trend analysis and anomaly detection algorithms
@@ -12,53 +12,53 @@ const EventEmitter = require('events');
 class RegressionDetector extends EventEmitter {
   constructor(config = {}, baselineManager = null, logManager = null) {
     super();
-    
+
     this.config = this.mergeConfig(config);
     this.baselineManager = baselineManager;
     this.logManager = logManager;
     this.isInitialized = false;
-    
+
     // Regression detection rules
     this.regressionRules = new Map();
-    
+
     // Analysis results cache
     this.analysisCache = new Map();
     this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
-    
+
     // Default performance metrics with their thresholds
     this.defaultMetrics = {
       buttonLatency: {
         metric: 'button_press_response_time',
-        baseline: 25,        // ms
-        regressionThreshold: 1.5,  // 50% increase triggers alert
-        criticalThreshold: 2.0     // 100% increase fails build
+        baseline: 25, // ms
+        regressionThreshold: 1.5, // 50% increase triggers alert
+        criticalThreshold: 2.0 // 100% increase fails build
       },
       serialCommunication: {
-        metric: 'serial_round_trip_time', 
-        baseline: 15,        // ms
+        metric: 'serial_round_trip_time',
+        baseline: 15, // ms
         regressionThreshold: 1.3,
         criticalThreshold: 1.8
       },
       applicationStartup: {
         metric: 'app_startup_time',
-        baseline: 2000,      // ms
+        baseline: 2000, // ms
         regressionThreshold: 1.25,
         criticalThreshold: 1.5
       },
       memoryUsage: {
         metric: 'peak_memory_usage',
-        baseline: 80,        // MB
+        baseline: 80, // MB
         regressionThreshold: 1.2,
         criticalThreshold: 1.4
       },
       configurationLoading: {
         metric: 'config_load_time',
-        baseline: 100,       // ms
+        baseline: 100, // ms
         regressionThreshold: 1.4,
         criticalThreshold: 2.0
       }
     };
-    
+
     this.init();
   }
 
@@ -80,7 +80,7 @@ class RegressionDetector extends EventEmitter {
       alertOnRegression: true,
       alertOnImprovement: false
     };
-    
+
     return { ...defaultConfig, ...userConfig };
   }
 
@@ -91,16 +91,15 @@ class RegressionDetector extends EventEmitter {
     try {
       // Setup regression rules from default metrics and config
       this.setupRegressionRules();
-      
+
       // Setup cache cleanup interval
       if (this.config.cacheResults) {
         this.setupCacheCleanup();
       }
-      
+
       this.isInitialized = true;
       this.log('info', 'RegressionDetector initialized');
       this.emit('initialized');
-      
     } catch (error) {
       this.log('error', 'Failed to initialize RegressionDetector', { error: error.message });
       throw error;
@@ -115,7 +114,7 @@ class RegressionDetector extends EventEmitter {
     for (const [name, config] of Object.entries(this.defaultMetrics)) {
       this.addRegressionRule(name, config);
     }
-    
+
     // Add custom metrics from config
     if (this.config.customMetrics) {
       for (const [name, config] of Object.entries(this.config.customMetrics)) {
@@ -137,7 +136,7 @@ class RegressionDetector extends EventEmitter {
       enabled: config.enabled !== false,
       customAnalysis: config.customAnalysis || null
     };
-    
+
     this.regressionRules.set(name, rule);
     this.log('debug', `Added regression rule for ${name}`, rule);
   }
@@ -169,9 +168,9 @@ class RegressionDetector extends EventEmitter {
 
     try {
       // Get baseline comparison
-      const baseline = this.baselineManager ? 
-        await this.baselineManager.getBaseline(metricName) : 
-        { value: rule.baseline };
+      const baseline = this.baselineManager
+        ? await this.baselineManager.getBaseline(metricName)
+        : { value: rule.baseline };
 
       if (!baseline) {
         return {
@@ -183,8 +182,14 @@ class RegressionDetector extends EventEmitter {
       }
 
       // Perform regression analysis
-      const analysis = await this.performRegressionAnalysis(metricName, currentValue, baseline, rule, metadata);
-      
+      const analysis = await this.performRegressionAnalysis(
+        metricName,
+        currentValue,
+        baseline,
+        rule,
+        metadata
+      );
+
       // Cache result
       if (this.config.cacheResults) {
         this.analysisCache.set(cacheKey, {
@@ -201,7 +206,6 @@ class RegressionDetector extends EventEmitter {
       }
 
       return analysis;
-
     } catch (error) {
       this.log('error', `Failed to detect regression for ${metricName}`, { error: error.message });
       throw error;
@@ -218,38 +222,54 @@ class RegressionDetector extends EventEmitter {
     const ratio = currentValue / baselineValue;
 
     // Determine if this is a regression based on direction
-    const isWorseDirection = rule.direction === 'higher_is_worse' ? 
-      currentValue > baselineValue : 
-      currentValue < baselineValue;
+    const isWorseDirection =
+      rule.direction === 'higher_is_worse'
+        ? currentValue > baselineValue
+        : currentValue < baselineValue;
 
     // Check regression thresholds
-    const exceedsRegressionThreshold = rule.direction === 'higher_is_worse' ?
-      ratio >= rule.regressionThreshold :
-      ratio <= (2 - rule.regressionThreshold); // Inverse for lower_is_worse
+    const exceedsRegressionThreshold =
+      rule.direction === 'higher_is_worse'
+        ? ratio >= rule.regressionThreshold
+        : ratio <= 2 - rule.regressionThreshold; // Inverse for lower_is_worse
 
-    const exceedsCriticalThreshold = rule.direction === 'higher_is_worse' ?
-      ratio >= rule.criticalThreshold :
-      ratio <= (2 - rule.criticalThreshold);
+    const exceedsCriticalThreshold =
+      rule.direction === 'higher_is_worse'
+        ? ratio >= rule.criticalThreshold
+        : ratio <= 2 - rule.criticalThreshold;
 
     // Statistical significance testing
-    const statisticalAnalysis = baseline.statistics ? 
-      this.performStatisticalTest(currentValue, baseline) : null;
+    const statisticalAnalysis = baseline.statistics
+      ? this.performStatisticalTest(currentValue, baseline)
+      : null;
 
     // Trend analysis
-    const trendAnalysis = this.config.enableTrendAnalysis ?
-      await this.analyzeTrend(metricName) : null;
+    const trendAnalysis = this.config.enableTrendAnalysis
+      ? await this.analyzeTrend(metricName)
+      : null;
 
     // Anomaly detection
-    const anomalyAnalysis = this.config.enableAnomalyDetection ?
-      await this.detectAnomaly(metricName, currentValue) : null;
+    const anomalyAnalysis = this.config.enableAnomalyDetection
+      ? await this.detectAnomaly(metricName, currentValue)
+      : null;
 
     // Root cause analysis
-    const rootCauseAnalysis = this.config.enableRootCauseAnalysis ?
-      this.analyzeRootCause(metricName, currentValue, baseline, metadata) : null;
+    const rootCauseAnalysis = this.config.enableRootCauseAnalysis
+      ? this.analyzeRootCause(metricName, currentValue, baseline, metadata)
+      : null;
 
     // Determine severity and status
-    const severity = this.determineSeverity(ratio, rule, exceedsRegressionThreshold, exceedsCriticalThreshold);
-    const status = this.determineStatus(isWorseDirection, exceedsRegressionThreshold, exceedsCriticalThreshold);
+    const severity = this.determineSeverity(
+      ratio,
+      rule,
+      exceedsRegressionThreshold,
+      exceedsCriticalThreshold
+    );
+    const status = this.determineStatus(
+      isWorseDirection,
+      exceedsRegressionThreshold,
+      exceedsCriticalThreshold
+    );
 
     return {
       metricName,
@@ -282,18 +302,19 @@ class RegressionDetector extends EventEmitter {
     }
 
     const { statistics, confidenceInterval, sampleSize } = baseline;
-    
+
     // Calculate Z-score
     const zScore = Math.abs(currentValue - baseline.value) / statistics.standardDeviation;
-    
+
     // Check if value falls outside confidence interval
-    const outsideCI = currentValue < confidenceInterval.lower || currentValue > confidenceInterval.upper;
-    
+    const outsideCI =
+      currentValue < confidenceInterval.lower || currentValue > confidenceInterval.upper;
+
     // Calculate p-value approximation for Z-test
     const pValue = this.calculatePValue(zScore);
-    
+
     // Determine statistical significance
-    const isSignificant = pValue < (1 - this.config.regressionConfidenceLevel);
+    const isSignificant = pValue < 1 - this.config.regressionConfidenceLevel;
 
     return {
       zScore,
@@ -312,15 +333,21 @@ class RegressionDetector extends EventEmitter {
   calculatePValue(zScore) {
     // Approximation using complementary error function
     const absZ = Math.abs(zScore);
-    
+
     // Simple approximation for p-value
-    if (absZ > 6) return 0;
-    if (absZ < 0.5) return 1 - (absZ * 0.3989423);
-    
+    if (absZ > 6) {
+      return 0;
+    }
+    if (absZ < 0.5) {
+      return 1 - absZ * 0.3989423;
+    }
+
     const t = 1 / (1 + 0.2316419 * absZ);
-    const polynomial = t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
-    
-    return polynomial * Math.exp(-0.5 * absZ * absZ) / Math.sqrt(2 * Math.PI);
+    const polynomial =
+      t *
+      (0.31938153 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
+
+    return (polynomial * Math.exp(-0.5 * absZ * absZ)) / Math.sqrt(2 * Math.PI);
   }
 
   /**
@@ -331,8 +358,11 @@ class RegressionDetector extends EventEmitter {
       return null;
     }
 
-    const historicalData = this.baselineManager.getHistoricalData(metricName, this.config.trendAnalysisWindow);
-    
+    const historicalData = this.baselineManager.getHistoricalData(
+      metricName,
+      this.config.trendAnalysisWindow
+    );
+
     if (historicalData.length < 5) {
       return {
         status: 'insufficient_data',
@@ -345,16 +375,20 @@ class RegressionDetector extends EventEmitter {
 
     // Calculate linear regression
     const regression = this.calculateLinearRegression(timestamps, values);
-    
+
     // Analyze trend direction and strength
     const trendDirection = regression.slope > 0 ? 'increasing' : 'decreasing';
     const trendStrength = Math.abs(regression.correlation);
-    
+
     // Categorize trend strength
     let trendCategory = 'no_trend';
-    if (trendStrength > 0.8) trendCategory = 'strong_trend';
-    else if (trendStrength > 0.6) trendCategory = 'moderate_trend';
-    else if (trendStrength > 0.3) trendCategory = 'weak_trend';
+    if (trendStrength > 0.8) {
+      trendCategory = 'strong_trend';
+    } else if (trendStrength > 0.6) {
+      trendCategory = 'moderate_trend';
+    } else if (trendStrength > 0.3) {
+      trendCategory = 'weak_trend';
+    }
 
     return {
       status: 'analyzed',
@@ -382,7 +416,7 @@ class RegressionDetector extends EventEmitter {
 
     const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
     const intercept = (sumY - slope * sumX) / n;
-    
+
     // Calculate correlation coefficient
     const numerator = n * sumXY - sumX * sumY;
     const denominator = Math.sqrt((n * sumXX - sumX * sumX) * (n * sumYY - sumY * sumY));
@@ -399,8 +433,11 @@ class RegressionDetector extends EventEmitter {
       return null;
     }
 
-    const historicalData = this.baselineManager.getHistoricalData(metricName, this.config.trendAnalysisWindow);
-    
+    const historicalData = this.baselineManager.getHistoricalData(
+      metricName,
+      this.config.trendAnalysisWindow
+    );
+
     if (historicalData.length < this.config.minSampleSize) {
       return {
         status: 'insufficient_data',
@@ -409,7 +446,7 @@ class RegressionDetector extends EventEmitter {
     }
 
     const values = historicalData.map(d => d.value);
-    
+
     // Calculate basic statistics
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
     const variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length;
@@ -417,11 +454,11 @@ class RegressionDetector extends EventEmitter {
 
     // Calculate Z-score for current value
     const zScore = Math.abs(currentValue - mean) / stdDev;
-    
+
     // Modified Z-score for outlier detection
     const median = this.calculateMedian(values);
     const medianAbsoluteDeviation = this.calculateMedian(values.map(v => Math.abs(v - median)));
-    const modifiedZScore = 0.6745 * (currentValue - median) / medianAbsoluteDeviation;
+    const modifiedZScore = (0.6745 * (currentValue - median)) / medianAbsoluteDeviation;
 
     // Determine anomaly status
     const isAnomaly = zScore > this.config.anomalyDetectionSensitivity;
@@ -455,13 +492,19 @@ class RegressionDetector extends EventEmitter {
    */
   analyzeRootCause(metricName, currentValue, baseline, metadata) {
     const possibleCauses = [];
-    const severity = this.determineSeverity(currentValue / baseline.value, 
-      this.regressionRules.get(metricName), false, false);
+    const severity = this.determineSeverity(
+      currentValue / baseline.value,
+      this.regressionRules.get(metricName),
+      false,
+      false
+    );
 
     // Analyze based on metric type
     switch (metricName) {
       case 'buttonLatency':
-        possibleCauses.push(...this.analyzeButtonLatencyRootCause(currentValue, baseline, metadata));
+        possibleCauses.push(
+          ...this.analyzeButtonLatencyRootCause(currentValue, baseline, metadata)
+        );
         break;
       case 'serialCommunication':
         possibleCauses.push(...this.analyzeSerialCommRootCause(currentValue, baseline, metadata));
@@ -499,7 +542,7 @@ class RegressionDetector extends EventEmitter {
    */
   analyzeButtonLatencyRootCause(currentValue, baseline, metadata) {
     const causes = [];
-    
+
     if (currentValue > baseline.value * 2) {
       causes.push({
         category: 'hardware',
@@ -535,7 +578,7 @@ class RegressionDetector extends EventEmitter {
    */
   analyzeSerialCommRootCause(currentValue, baseline, metadata) {
     const causes = [];
-    
+
     if (currentValue > baseline.value * 1.5) {
       causes.push({
         category: 'communication',
@@ -562,7 +605,7 @@ class RegressionDetector extends EventEmitter {
    */
   analyzeStartupRootCause(currentValue, baseline, metadata) {
     const causes = [];
-    
+
     if (currentValue > baseline.value * 1.3) {
       causes.push({
         category: 'initialization',
@@ -572,7 +615,8 @@ class RegressionDetector extends EventEmitter {
       });
     }
 
-    if (metadata.configSize && metadata.configSize > 1000000) { // 1MB
+    if (metadata.configSize && metadata.configSize > 1000000) {
+      // 1MB
       causes.push({
         category: 'configuration',
         cause: 'Large configuration files slowing startup',
@@ -589,7 +633,7 @@ class RegressionDetector extends EventEmitter {
    */
   analyzeMemoryRootCause(currentValue, baseline, metadata) {
     const causes = [];
-    
+
     if (currentValue > baseline.value * 1.2) {
       causes.push({
         category: 'memory',
@@ -616,7 +660,7 @@ class RegressionDetector extends EventEmitter {
    */
   analyzeConfigLoadRootCause(currentValue, baseline, metadata) {
     const causes = [];
-    
+
     if (currentValue > baseline.value * 1.5) {
       causes.push({
         category: 'io',
@@ -643,9 +687,9 @@ class RegressionDetector extends EventEmitter {
    */
   generateRecommendations(metricName, possibleCauses) {
     const recommendations = [];
-    
+
     const highProbabilityCauses = possibleCauses.filter(c => c.probability > 0.7);
-    
+
     for (const cause of highProbabilityCauses) {
       switch (cause.category) {
         case 'hardware':
@@ -689,12 +733,20 @@ class RegressionDetector extends EventEmitter {
    * Determine severity level (1-5 scale)
    */
   determineSeverity(ratio, rule, exceedsRegression, exceedsCritical) {
-    if (exceedsCritical) return 5; // Critical
-    if (exceedsRegression) return 4; // High
-    
+    if (exceedsCritical) {
+      return 5;
+    } // Critical
+    if (exceedsRegression) {
+      return 4;
+    } // High
+
     const deviation = Math.abs(ratio - 1);
-    if (deviation > 0.3) return 3; // Medium
-    if (deviation > 0.15) return 2; // Low
+    if (deviation > 0.3) {
+      return 3;
+    } // Medium
+    if (deviation > 0.15) {
+      return 2;
+    } // Low
     return 1; // Minimal
   }
 
@@ -702,9 +754,15 @@ class RegressionDetector extends EventEmitter {
    * Determine overall status
    */
   determineStatus(isWorseDirection, exceedsRegression, exceedsCritical) {
-    if (!isWorseDirection) return 'improvement';
-    if (exceedsCritical) return 'critical_regression';
-    if (exceedsRegression) return 'regression';
+    if (!isWorseDirection) {
+      return 'improvement';
+    }
+    if (exceedsCritical) {
+      return 'critical_regression';
+    }
+    if (exceedsRegression) {
+      return 'regression';
+    }
     return 'within_threshold';
   }
 
@@ -713,7 +771,7 @@ class RegressionDetector extends EventEmitter {
    */
   async analyzeMultipleMetrics(metrics) {
     const results = new Map();
-    
+
     for (const [metricName, value] of Object.entries(metrics)) {
       try {
         const analysis = await this.detectRegression(metricName, value);
@@ -729,9 +787,9 @@ class RegressionDetector extends EventEmitter {
 
     // Generate summary
     const summary = this.generateAnalysisSummary(results);
-    
+
     this.emit('multipleMetricsAnalyzed', { results: Object.fromEntries(results), summary });
-    
+
     return {
       results: Object.fromEntries(results),
       summary
@@ -750,7 +808,7 @@ class RegressionDetector extends EventEmitter {
 
     for (const analysis of results.values()) {
       totalMetrics++;
-      
+
       switch (analysis.status) {
         case 'regression':
           regressions++;
@@ -768,9 +826,14 @@ class RegressionDetector extends EventEmitter {
       }
     }
 
-    const overallStatus = criticalRegressions > 0 ? 'critical' :
-                         regressions > 0 ? 'warning' :
-                         errors > 0 ? 'error' : 'pass';
+    const overallStatus =
+      criticalRegressions > 0
+        ? 'critical'
+        : regressions > 0
+          ? 'warning'
+          : errors > 0
+            ? 'error'
+            : 'pass';
 
     return {
       overallStatus,
@@ -823,7 +886,7 @@ class RegressionDetector extends EventEmitter {
 
     const updatedRule = { ...existingRule, ...updates };
     this.regressionRules.set(metricName, updatedRule);
-    
+
     this.log('info', `Updated regression rule for ${metricName}`, updates);
     this.emit('regressionRuleUpdated', metricName, updatedRule, existingRule);
   }
@@ -861,7 +924,7 @@ class RegressionDetector extends EventEmitter {
     this.clearCache();
     this.regressionRules.clear();
     this.removeAllListeners();
-    
+
     this.isInitialized = false;
     this.log('info', 'RegressionDetector cleaned up');
   }

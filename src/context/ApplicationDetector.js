@@ -17,13 +17,13 @@ class ApplicationDetector extends EventEmitter {
       error: () => {},
       debug: () => {}
     };
-    
+
     this.platform = process.platform;
     this.detector = null;
     this.currentApplication = null;
     this.monitoring = false;
     this.monitoringInterval = null;
-    
+
     // Performance tracking
     this.statistics = {
       detectionCount: 0,
@@ -33,7 +33,7 @@ class ApplicationDetector extends EventEmitter {
       totalDetectionTime: 0,
       errors: 0
     };
-    
+
     this.logger.info(`ApplicationDetector initialized for platform: ${this.platform}`);
   }
 
@@ -42,7 +42,7 @@ class ApplicationDetector extends EventEmitter {
    */
   static createDetector(logger) {
     const platform = process.platform;
-    
+
     switch (platform) {
       case 'win32':
         const WindowsApplicationDetector = require('./WindowsApplicationDetector');
@@ -76,10 +76,10 @@ class ApplicationDetector extends EventEmitter {
 
     await this.initialize();
     this.monitoring = true;
-    
+
     // Initial detection
     await this.detectCurrentApplication();
-    
+
     // Set up periodic monitoring
     this.monitoringInterval = setInterval(async () => {
       try {
@@ -117,34 +117,34 @@ class ApplicationDetector extends EventEmitter {
    */
   async detectCurrentApplication() {
     const startTime = Date.now();
-    
+
     try {
       const applicationInfo = await this.getCurrentApplication();
-      
+
       if (applicationInfo && this.isDifferentApplication(applicationInfo)) {
         const previousApplication = this.currentApplication;
         this.currentApplication = applicationInfo;
         this.statistics.applicationChanges++;
-        
+
         this.logger.debug('Application changed:', {
           from: previousApplication?.processName || 'Unknown',
           to: applicationInfo.processName
         });
-        
+
         this.emit('applicationChanged', {
           current: applicationInfo,
           previous: previousApplication
         });
       }
-      
+
       this.statistics.detectionCount++;
       this.statistics.lastDetection = new Date();
-      
+
       const detectionTime = Date.now() - startTime;
       this.statistics.totalDetectionTime += detectionTime;
-      this.statistics.averageDetectionTime = 
+      this.statistics.averageDetectionTime =
         this.statistics.totalDetectionTime / this.statistics.detectionCount;
-      
+
       return applicationInfo;
     } catch (error) {
       this.statistics.errors++;

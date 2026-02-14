@@ -13,7 +13,7 @@ class MacOSApplicationDetector extends ApplicationDetector {
   constructor(logger) {
     super(logger);
     this.platform = 'darwin';
-    
+
     // AppleScript commands for application detection
     this.commands = {
       // Get frontmost application with detailed information
@@ -23,20 +23,20 @@ class MacOSApplicationDetector extends ApplicationDetector {
           set frontAppName to name of frontApp
           set frontAppPID to unix id of frontApp
           set frontAppBundle to bundle identifier of frontApp
-          
+
           try
             set windowTitle to title of front window of frontApp
           on error
             set windowTitle to ""
           end try
-          
+
           return "{" & quote & "processName" & quote & ":" & quote & frontAppName & quote & "," & ¬
                       quote & "processId" & quote & ":" & frontAppPID & "," & ¬
                       quote & "windowTitle" & quote & ":" & quote & windowTitle & quote & "," & ¬
                       quote & "bundleId" & quote & ":" & quote & frontAppBundle & quote & "}"
         end tell
       `,
-      
+
       // Alternative method using NSWorkspace (requires different approach)
       activeApplicationAlt: `
         tell application "System Events"
@@ -44,7 +44,7 @@ class MacOSApplicationDetector extends ApplicationDetector {
           return frontApp
         end tell
       `,
-      
+
       // Get window title of active application
       activeWindowTitle: `
         tell application "System Events"
@@ -58,7 +58,7 @@ class MacOSApplicationDetector extends ApplicationDetector {
           end tell
         end tell
       `,
-      
+
       // Get all applications with windows
       allApplicationsWithWindows: `
         tell application "System Events"
@@ -81,7 +81,7 @@ class MacOSApplicationDetector extends ApplicationDetector {
         end tell
       `
     };
-    
+
     this.initialized = false;
   }
 
@@ -110,18 +110,28 @@ class MacOSApplicationDetector extends ApplicationDetector {
   async testAppleScriptCapabilities() {
     try {
       // Test basic AppleScript execution
-      await execAsync('osascript -e "tell application \\"System Events\\" to get name of first application process whose frontmost is true"');
-      
+      await execAsync(
+        'osascript -e "tell application \\"System Events\\" to get name of first application process whose frontmost is true"'
+      );
+
       // Test if we can access window information (requires accessibility permissions)
       try {
-        await execAsync('osascript -e "tell application \\"System Events\\" to tell process (name of first application process whose frontmost is true) to get title of front window"', { timeout: 3000 });
+        await execAsync(
+          'osascript -e "tell application \\"System Events\\" to tell process (name of first application process whose frontmost is true) to get title of front window"',
+          { timeout: 3000 }
+        );
       } catch (error) {
-        this.logger.warn('Window title access may require accessibility permissions:', error.message);
+        this.logger.warn(
+          'Window title access may require accessibility permissions:',
+          error.message
+        );
       }
-      
+
       return true;
     } catch (error) {
-      throw new Error(`AppleScript test failed: ${error.message}. You may need to grant accessibility permissions.`);
+      throw new Error(
+        `AppleScript test failed: ${error.message}. You may need to grant accessibility permissions.`
+      );
     }
   }
 
@@ -131,11 +141,11 @@ class MacOSApplicationDetector extends ApplicationDetector {
   async executeAppleScript(script) {
     try {
       const { stdout, stderr } = await execAsync(`osascript -e "${script}"`, { timeout: 5000 });
-      
+
       if (stderr) {
         this.logger.warn('AppleScript stderr output:', stderr);
       }
-      
+
       return stdout.trim();
     } catch (error) {
       this.logger.error('AppleScript execution failed:', error);
@@ -154,7 +164,7 @@ class MacOSApplicationDetector extends ApplicationDetector {
     try {
       // Try to get detailed information using custom AppleScript
       const result = await this.executeAppleScript(this.commands.activeApplication);
-      
+
       if (!result) {
         return null;
       }
@@ -168,13 +178,16 @@ class MacOSApplicationDetector extends ApplicationDetector {
         this.logger.warn('Failed to parse AppleScript JSON, using fallback method');
         return await this.getApplicationFallback();
       }
-      
+
       // Get additional information using system commands
-      const additionalInfo = await this.getAdditionalAppInfo(applicationInfo.processId, applicationInfo.bundleId);
-      
+      const additionalInfo = await this.getAdditionalAppInfo(
+        applicationInfo.processId,
+        applicationInfo.bundleId
+      );
+
       const normalizedInfo = {
         processName: applicationInfo.processName || 'Unknown',
-        processId: parseInt(applicationInfo.processId) || 0,
+        processId: parseInt(applicationInfo.processId, 10) || 0,
         windowTitle: applicationInfo.windowTitle || '',
         bundleId: applicationInfo.bundleId || '',
         executablePath: additionalInfo.executablePath || '',
@@ -188,10 +201,9 @@ class MacOSApplicationDetector extends ApplicationDetector {
 
       this.logger.debug('Detected macOS application:', normalizedInfo);
       return normalizedInfo;
-      
     } catch (error) {
       this.logger.error('Error detecting macOS application:', error);
-      
+
       // Fallback to simpler method
       try {
         return await this.getApplicationFallback();
@@ -216,13 +228,15 @@ class MacOSApplicationDetector extends ApplicationDetector {
 
     try {
       // Get process information using ps
-      const { stdout: psOutput } = await execAsync(`ps -p ${processId} -o pid,ppid,etime,pcpu,rss,comm`);
+      const { stdout: psOutput } = await execAsync(
+        `ps -p ${processId} -o pid,ppid,etime,pcpu,rss,comm`
+      );
       const lines = psOutput.trim().split('\n');
       if (lines.length > 1) {
         const processLine = lines[1].trim().split(/\s+/);
         if (processLine.length >= 5) {
           info.cpuUsage = parseFloat(processLine[3]) || 0;
-          info.memoryUsage = parseInt(processLine[4]) * 1024 || 0; // Convert KB to bytes
+          info.memoryUsage = parseInt(processLine[4], 10) * 1024 || 0; // Convert KB to bytes
           info.startTime = processLine[2] || '';
         }
       }
@@ -233,15 +247,19 @@ class MacOSApplicationDetector extends ApplicationDetector {
     try {
       // Get application bundle information
       if (bundleId) {
-        const { stdout: bundleOutput } = await execAsync(`mdfind "kMDItemCFBundleIdentifier == '${bundleId}'" | head -1`);
+        const { stdout: bundleOutput } = await execAsync(
+          `mdfind "kMDItemCFBundleIdentifier == '${bundleId}'" | head -1`
+        );
         const bundlePath = bundleOutput.trim();
-        
+
         if (bundlePath) {
           info.executablePath = bundlePath;
-          
+
           // Get version information from Info.plist
           try {
-            const { stdout: versionOutput } = await execAsync(`defaults read "${bundlePath}/Contents/Info" CFBundleShortVersionString 2>/dev/null || defaults read "${bundlePath}/Contents/Info" CFBundleVersion`);
+            const { stdout: versionOutput } = await execAsync(
+              `defaults read "${bundlePath}/Contents/Info" CFBundleShortVersionString 2>/dev/null || defaults read "${bundlePath}/Contents/Info" CFBundleVersion`
+            );
             info.version = versionOutput.trim();
           } catch (versionError) {
             this.logger.debug('Error getting version info:', versionError);
@@ -261,7 +279,7 @@ class MacOSApplicationDetector extends ApplicationDetector {
   async getApplicationFallback() {
     try {
       const appName = await this.executeAppleScript(this.commands.activeApplicationAlt);
-      
+
       if (!appName) {
         return null;
       }
@@ -278,28 +296,31 @@ class MacOSApplicationDetector extends ApplicationDetector {
       }
 
       try {
-        const pidResult = await this.executeAppleScript(`tell application "System Events" to get unix id of first application process whose name is "${appName}"`);
-        processId = parseInt(pidResult) || 0;
+        const pidResult = await this.executeAppleScript(
+          `tell application "System Events" to get unix id of first application process whose name is "${appName}"`
+        );
+        processId = parseInt(pidResult, 10) || 0;
       } catch (error) {
         this.logger.debug('Could not get process ID:', error);
       }
 
       try {
-        bundleId = await this.executeAppleScript(`tell application "System Events" to get bundle identifier of first application process whose name is "${appName}"`);
+        bundleId = await this.executeAppleScript(
+          `tell application "System Events" to get bundle identifier of first application process whose name is "${appName}"`
+        );
       } catch (error) {
         this.logger.debug('Could not get bundle ID:', error);
       }
-      
+
       return {
         processName: appName,
-        processId: processId,
-        windowTitle: windowTitle,
-        bundleId: bundleId,
+        processId,
+        windowTitle,
+        bundleId,
         executablePath: '',
         platform: 'darwin',
         timestamp: Date.now()
       };
-      
     } catch (error) {
       this.logger.error('Fallback detection failed:', error);
       return null;
@@ -312,7 +333,7 @@ class MacOSApplicationDetector extends ApplicationDetector {
   async getAllApplicationsWithWindows() {
     try {
       const result = await this.executeAppleScript(this.commands.allApplicationsWithWindows);
-      
+
       if (!result) {
         return [];
       }
@@ -326,15 +347,14 @@ class MacOSApplicationDetector extends ApplicationDetector {
         if (parts.length >= 3) {
           applications.push({
             processName: parts[0],
-            processId: parseInt(parts[1]) || 0,
+            processId: parseInt(parts[1], 10) || 0,
             windowTitle: parts[2] || '',
             platform: 'darwin'
           });
         }
       }
-      
+
       return applications;
-      
     } catch (error) {
       this.logger.error('Error getting all applications with windows:', error);
       return [];
@@ -348,9 +368,8 @@ class MacOSApplicationDetector extends ApplicationDetector {
     try {
       const script = `tell application "System Events" to exists application process "${processName}"`;
       const result = await this.executeAppleScript(script);
-      
+
       return result === 'true';
-      
     } catch (error) {
       this.logger.error(`Error checking if ${processName} is running:`, error);
       return false;
@@ -364,27 +383,26 @@ class MacOSApplicationDetector extends ApplicationDetector {
     try {
       const { stdout } = await execAsync(`ps -p ${processId} -o pid,ppid,etime,pcpu,rss,comm,args`);
       const lines = stdout.trim().split('\n');
-      
+
       if (lines.length > 1) {
         const processLine = lines[1].trim();
         const parts = processLine.split(/\s+/);
-        
+
         if (parts.length >= 6) {
           return {
-            processId: parseInt(parts[0]) || 0,
-            parentProcessId: parseInt(parts[1]) || 0,
+            processId: parseInt(parts[0], 10) || 0,
+            parentProcessId: parseInt(parts[1], 10) || 0,
             elapsedTime: parts[2] || '',
             cpuUsage: parseFloat(parts[3]) || 0,
-            memoryUsage: parseInt(parts[4]) * 1024 || 0, // Convert KB to bytes
+            memoryUsage: parseInt(parts[4], 10) * 1024 || 0, // Convert KB to bytes
             processName: parts[5] || 'Unknown',
             commandLine: parts.slice(6).join(' ') || '',
             platform: 'darwin'
           };
         }
       }
-      
+
       return null;
-      
     } catch (error) {
       this.logger.error(`Error getting process info for PID ${processId}:`, error);
       return null;
@@ -396,23 +414,27 @@ class MacOSApplicationDetector extends ApplicationDetector {
    */
   async getBundleInfo(bundleId) {
     try {
-      const { stdout } = await execAsync(`mdfind "kMDItemCFBundleIdentifier == '${bundleId}'" | head -1`);
+      const { stdout } = await execAsync(
+        `mdfind "kMDItemCFBundleIdentifier == '${bundleId}'" | head -1`
+      );
       const bundlePath = stdout.trim();
-      
+
       if (!bundlePath) {
         return null;
       }
 
       const bundleInfo = {
-        bundleId: bundleId,
-        bundlePath: bundlePath,
+        bundleId,
+        bundlePath,
         version: '',
         displayName: ''
       };
 
       // Get version information
       try {
-        const { stdout: versionOutput } = await execAsync(`defaults read "${bundlePath}/Contents/Info" CFBundleShortVersionString 2>/dev/null || defaults read "${bundlePath}/Contents/Info" CFBundleVersion`);
+        const { stdout: versionOutput } = await execAsync(
+          `defaults read "${bundlePath}/Contents/Info" CFBundleShortVersionString 2>/dev/null || defaults read "${bundlePath}/Contents/Info" CFBundleVersion`
+        );
         bundleInfo.version = versionOutput.trim();
       } catch (error) {
         this.logger.debug('Could not get version info:', error);
@@ -420,14 +442,15 @@ class MacOSApplicationDetector extends ApplicationDetector {
 
       // Get display name
       try {
-        const { stdout: nameOutput } = await execAsync(`defaults read "${bundlePath}/Contents/Info" CFBundleDisplayName 2>/dev/null || defaults read "${bundlePath}/Contents/Info" CFBundleName`);
+        const { stdout: nameOutput } = await execAsync(
+          `defaults read "${bundlePath}/Contents/Info" CFBundleDisplayName 2>/dev/null || defaults read "${bundlePath}/Contents/Info" CFBundleName`
+        );
         bundleInfo.displayName = nameOutput.trim();
       } catch (error) {
         this.logger.debug('Could not get display name:', error);
       }
 
       return bundleInfo;
-      
     } catch (error) {
       this.logger.error(`Error getting bundle info for ${bundleId}:`, error);
       return null;

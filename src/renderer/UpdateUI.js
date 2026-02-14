@@ -12,10 +12,10 @@ class UpdateUI {
       downloadProgress: null,
       updateInfo: null
     };
-    
+
     this.elements = {};
     this.eventListeners = [];
-    
+
     this.init();
   }
 
@@ -23,13 +23,15 @@ class UpdateUI {
    * Initialize the update UI components
    */
   init() {
-    if (this.isInitialized) return;
-    
+    if (this.isInitialized) {
+      return;
+    }
+
     this.createUIElements();
     this.bindEventListeners();
     this.setupIPCListeners();
     this.loadInitialStatus();
-    
+
     this.isInitialized = true;
     console.log('UpdateUI initialized');
   }
@@ -101,7 +103,9 @@ class UpdateUI {
    */
   createSettingsSection() {
     const settingsContainer = document.getElementById('settings-content');
-    if (!settingsContainer) return;
+    if (!settingsContainer) {
+      return;
+    }
 
     const updateSection = this.createElement('div', {
       className: 'settings-section update-settings',
@@ -109,22 +113,22 @@ class UpdateUI {
         <h3>Application Updates</h3>
         <div class="setting-group">
           <label class="setting-label">
-            <input type="checkbox" id="auto-update-enabled"> 
+            <input type="checkbox" id="auto-update-enabled">
             Enable automatic updates
           </label>
           <p class="setting-description">Automatically check for and download updates in the background</p>
         </div>
-        
+
         <div class="setting-group">
           <label class="setting-label">Current Version:</label>
           <span id="current-version" class="setting-value">Loading...</span>
         </div>
-        
+
         <div class="setting-group">
           <button id="manual-update-check" class="btn btn-secondary">Check for Updates Now</button>
           <span id="last-check-time" class="setting-description"></span>
         </div>
-        
+
         <div class="setting-group">
           <label class="setting-label">Update Statistics:</label>
           <div id="update-statistics" class="setting-value">
@@ -161,7 +165,7 @@ class UpdateUI {
     // Settings buttons
     if (this.elements.autoUpdateCheckbox) {
       this.addEventListeners([
-        [this.elements.autoUpdateCheckbox, 'change', (e) => this.toggleAutoUpdate(e.target.checked)],
+        [this.elements.autoUpdateCheckbox, 'change', e => this.toggleAutoUpdate(e.target.checked)],
         [this.elements.manualCheckBtn, 'click', () => this.checkForUpdates()]
       ]);
     }
@@ -172,7 +176,7 @@ class UpdateUI {
    */
   setupIPCListeners() {
     // Listen for update events from main process
-    window.electronAPI.onUpdateAvailable((updateInfo) => {
+    window.electronAPI.onUpdateAvailable(updateInfo => {
       console.log('Update available:', updateInfo);
       this.showUpdateAvailable(updateInfo);
     });
@@ -182,17 +186,17 @@ class UpdateUI {
       this.showUpToDate();
     });
 
-    window.electronAPI.onUpdateDownloadProgress((progress) => {
+    window.electronAPI.onUpdateDownloadProgress(progress => {
       console.log('Download progress:', progress);
       this.updateDownloadProgress(progress);
     });
 
-    window.electronAPI.onUpdateDownloaded((updateInfo) => {
+    window.electronAPI.onUpdateDownloaded(updateInfo => {
       console.log('Update downloaded:', updateInfo);
       this.showUpdateReady(updateInfo);
     });
 
-    window.electronAPI.onUpdateError((error) => {
+    window.electronAPI.onUpdateError(error => {
       console.error('Update error:', error);
       this.showUpdateError(error);
     });
@@ -205,14 +209,14 @@ class UpdateUI {
     try {
       const status = await window.electronAPI.getUpdateStatus();
       this.updateStatus(status);
-      
+
       const stats = await window.electronAPI.getUpdateStatistics();
       this.updateStatistics(stats);
-      
+
       if (this.elements.currentVersionSpan) {
         this.elements.currentVersionSpan.textContent = status.currentVersion;
       }
-      
+
       if (this.elements.autoUpdateCheckbox) {
         this.elements.autoUpdateCheckbox.checked = status.autoUpdateEnabled;
       }
@@ -297,9 +301,9 @@ class UpdateUI {
     this.currentStatus = {
       updateAvailable: true,
       isChecking: false,
-      updateInfo: updateInfo
+      updateInfo
     };
-    
+
     this.updateUI({
       icon: '📦',
       title: `Update Available: ${updateInfo.version}`,
@@ -316,15 +320,15 @@ class UpdateUI {
   showUpToDate() {
     this.currentStatus.isChecking = false;
     this.currentStatus.updateAvailable = false;
-    
+
     this.updateUI({
       icon: '✅',
-      title: 'You\'re up to date!',
+      title: "You're up to date!",
       subtitle: 'You have the latest version of Macro Keyboard',
       showProgress: false,
       actions: ['dismiss']
     });
-    
+
     // Auto-hide after 3 seconds
     setTimeout(() => {
       this.hide();
@@ -336,7 +340,7 @@ class UpdateUI {
    */
   showDownloading() {
     this.currentStatus.isDownloading = true;
-    
+
     this.updateUI({
       icon: '⬇️',
       title: 'Downloading update...',
@@ -351,7 +355,7 @@ class UpdateUI {
    */
   showUpdateReady(updateInfo) {
     this.currentStatus.isDownloading = false;
-    
+
     this.updateUI({
       icon: '🎉',
       title: 'Update ready to install',
@@ -370,7 +374,7 @@ class UpdateUI {
       isChecking: false,
       isDownloading: false
     };
-    
+
     this.updateUI({
       icon: '❌',
       title: 'Update Error',
@@ -384,16 +388,18 @@ class UpdateUI {
    * Update download progress
    */
   updateDownloadProgress(progress) {
-    if (!this.elements.progress || !this.currentStatus.isDownloading) return;
-    
+    if (!this.elements.progress || !this.currentStatus.isDownloading) {
+      return;
+    }
+
     const progressFill = this.elements.progress.querySelector('.progress-fill');
     const progressText = this.elements.progress.querySelector('.progress-text');
-    
+
     if (progressFill && progressText) {
       progressFill.style.width = `${progress.percent}%`;
       progressText.textContent = `${Math.round(progress.percent)}%`;
     }
-    
+
     this.currentStatus.downloadProgress = progress;
   }
 
@@ -405,18 +411,24 @@ class UpdateUI {
     const iconEl = this.elements.status.querySelector('.update-icon');
     const titleEl = this.elements.status.querySelector('.update-title');
     const subtitleEl = this.elements.status.querySelector('.update-subtitle');
-    
-    if (iconEl) iconEl.textContent = icon;
-    if (titleEl) titleEl.textContent = title;
-    if (subtitleEl) subtitleEl.textContent = subtitle;
-    
+
+    if (iconEl) {
+      iconEl.textContent = icon;
+    }
+    if (titleEl) {
+      titleEl.textContent = title;
+    }
+    if (subtitleEl) {
+      subtitleEl.textContent = subtitle;
+    }
+
     // Show/hide progress bar
     if (showProgress) {
       this.elements.progress.classList.remove('hidden');
     } else {
       this.elements.progress.classList.add('hidden');
     }
-    
+
     // Update action buttons
     this.updateActionButtons(actions);
   }
@@ -432,7 +444,7 @@ class UpdateUI {
       install: this.elements.installBtn,
       dismiss: this.elements.dismissBtn
     };
-    
+
     allButtons.forEach(action => {
       const button = buttonMap[action];
       if (button) {
@@ -450,7 +462,7 @@ class UpdateUI {
    */
   updateStatus(status) {
     this.currentStatus = { ...this.currentStatus, ...status };
-    
+
     if (status.updateAvailable && status.updateInfo) {
       this.showUpdateAvailable(status.updateInfo);
     } else if (status.isChecking) {
@@ -462,16 +474,24 @@ class UpdateUI {
    * Update statistics display
    */
   updateStatistics(stats) {
-    if (!this.elements.statisticsDiv) return;
-    
+    if (!this.elements.statisticsDiv) {
+      return;
+    }
+
     const checksSpan = document.getElementById('stat-checks');
     const availableSpan = document.getElementById('stat-available');
     const installedSpan = document.getElementById('stat-installed');
-    
-    if (checksSpan) checksSpan.textContent = stats.checksPerformed || 0;
-    if (availableSpan) availableSpan.textContent = stats.updatesAvailable || 0;
-    if (installedSpan) installedSpan.textContent = stats.updatesInstalled || 0;
-    
+
+    if (checksSpan) {
+      checksSpan.textContent = stats.checksPerformed || 0;
+    }
+    if (availableSpan) {
+      availableSpan.textContent = stats.updatesAvailable || 0;
+    }
+    if (installedSpan) {
+      installedSpan.textContent = stats.updatesInstalled || 0;
+    }
+
     if (this.elements.lastCheckSpan && stats.lastCheckTime) {
       const lastCheck = new Date(stats.lastCheckTime);
       this.elements.lastCheckSpan.textContent = `Last checked: ${lastCheck.toLocaleString()}`;
@@ -504,7 +524,7 @@ class UpdateUI {
    */
   createElement(tag, attributes = {}) {
     const element = document.createElement(tag);
-    
+
     Object.entries(attributes).forEach(([key, value]) => {
       if (key === 'innerHTML') {
         element.innerHTML = value;
@@ -514,7 +534,7 @@ class UpdateUI {
         element.setAttribute(key, value);
       }
     });
-    
+
     return element;
   }
 
@@ -537,13 +557,13 @@ class UpdateUI {
     this.eventListeners.forEach(({ element, event, handler }) => {
       element.removeEventListener(event, handler);
     });
-    
+
     this.eventListeners = [];
-    
+
     if (this.elements.container && this.elements.container.parentNode) {
       this.elements.container.parentNode.removeChild(this.elements.container);
     }
-    
+
     this.isInitialized = false;
     console.log('UpdateUI cleaned up');
   }

@@ -1,6 +1,6 @@
 /**
  * SystemIntegrationUI - User interface for advanced system integration features
- * 
+ *
  * This component provides a comprehensive interface for:
  * - Global shortcut management and registration
  * - Clipboard history and advanced clipboard operations
@@ -17,13 +17,13 @@ class SystemIntegrationUI {
     this.registeredShortcuts = new Map();
     this.clipboardHistory = [];
     this.systemIntegrationManager = null;
-    
+
     // Debounced functions
     this.debouncedSearch = this.debounce(this.performSearch.bind(this), 300);
-    
+
     this.initializeEventListeners();
   }
-  
+
   /**
    * Show the system integration management interface
    */
@@ -32,12 +32,12 @@ class SystemIntegrationUI {
       document.getElementById('system-integration-modal').style.display = 'block';
       return;
     }
-    
+
     await this.createModal();
     await this.loadSystemIntegrationData();
     this.isVisible = true;
   }
-  
+
   /**
    * Hide the system integration interface
    */
@@ -48,7 +48,7 @@ class SystemIntegrationUI {
     }
     this.isVisible = false;
   }
-  
+
   /**
    * Create the modal interface
    */
@@ -58,7 +58,7 @@ class SystemIntegrationUI {
     if (existingModal) {
       existingModal.remove();
     }
-    
+
     const modal = document.createElement('div');
     modal.id = 'system-integration-modal';
     modal.className = 'system-integration-modal';
@@ -68,7 +68,7 @@ class SystemIntegrationUI {
           <h2>Advanced System Integration</h2>
           <button class="close-button" id="close-system-integration">×</button>
         </div>
-        
+
         <div class="system-integration-tabs">
           <button class="tab-button active" data-tab="shortcuts">Global Shortcuts</button>
           <button class="tab-button" data-tab="clipboard">Clipboard Manager</button>
@@ -76,7 +76,7 @@ class SystemIntegrationUI {
           <button class="tab-button" data-tab="automation">Automation Rules</button>
           <button class="tab-button" data-tab="monitoring">System Monitoring</button>
         </div>
-        
+
         <div class="system-integration-body">
           <!-- Global Shortcuts Tab -->
           <div class="tab-content active" id="shortcuts-tab">
@@ -85,7 +85,7 @@ class SystemIntegrationUI {
                 <h3>Global Keyboard Shortcuts</h3>
                 <button class="add-shortcut-btn" id="add-shortcut-btn">Add New Shortcut</button>
               </div>
-              
+
               <div class="shortcuts-search">
                 <input type="text" id="shortcuts-search" placeholder="Search shortcuts...">
                 <select id="shortcuts-filter">
@@ -94,26 +94,26 @@ class SystemIntegrationUI {
                   <option value="inactive">Inactive</option>
                 </select>
               </div>
-              
+
               <div class="shortcuts-list" id="shortcuts-list">
                 <!-- Shortcuts will be populated here -->
               </div>
-              
+
               <!-- Add/Edit Shortcut Form -->
               <div class="shortcut-form hidden" id="shortcut-form">
                 <h4 id="shortcut-form-title">Add New Global Shortcut</h4>
-                
+
                 <div class="form-group">
                   <label for="shortcut-keys">Keyboard Combination:</label>
                   <input type="text" id="shortcut-keys" placeholder="Ctrl+Shift+K" readonly>
                   <button type="button" id="record-shortcut-btn">Record Keys</button>
                 </div>
-                
+
                 <div class="form-group">
                   <label for="shortcut-name">Shortcut Name:</label>
                   <input type="text" id="shortcut-name" placeholder="My Custom Shortcut">
                 </div>
-                
+
                 <div class="form-group">
                   <label for="shortcut-action-type">Action Type:</label>
                   <select id="shortcut-action-type">
@@ -125,11 +125,11 @@ class SystemIntegrationUI {
                     <option value="custom">Custom JavaScript</option>
                   </select>
                 </div>
-                
+
                 <div class="form-group" id="shortcut-action-params">
                   <!-- Dynamic action parameters will be inserted here -->
                 </div>
-                
+
                 <div class="form-actions">
                   <button type="button" id="save-shortcut-btn">Save Shortcut</button>
                   <button type="button" id="test-shortcut-btn">Test Action</button>
@@ -138,7 +138,7 @@ class SystemIntegrationUI {
               </div>
             </div>
           </div>
-          
+
           <!-- Clipboard Manager Tab -->
           <div class="tab-content" id="clipboard-tab">
             <div class="clipboard-section">
@@ -146,25 +146,25 @@ class SystemIntegrationUI {
                 <h3>Advanced Clipboard Management</h3>
                 <button class="clear-history-btn" id="clear-clipboard-history">Clear History</button>
               </div>
-              
+
               <div class="clipboard-controls">
                 <div class="clipboard-settings">
                   <label>
                     <input type="checkbox" id="clipboard-monitoring-enabled" checked>
                     Enable Clipboard Monitoring
                   </label>
-                  
+
                   <label>
-                    History Size: 
+                    History Size:
                     <input type="number" id="clipboard-history-size" value="100" min="10" max="1000">
                   </label>
-                  
+
                   <label>
                     <input type="checkbox" id="clipboard-auto-format" checked>
                     Auto-format Content
                   </label>
                 </div>
-                
+
                 <div class="clipboard-search">
                   <input type="text" id="clipboard-search" placeholder="Search clipboard history...">
                   <select id="clipboard-content-filter">
@@ -177,11 +177,11 @@ class SystemIntegrationUI {
                   </select>
                 </div>
               </div>
-              
+
               <div class="clipboard-history" id="clipboard-history">
                 <!-- Clipboard history items will be populated here -->
               </div>
-              
+
               <div class="clipboard-operations">
                 <h4>Quick Operations</h4>
                 <div class="clipboard-quick-actions">
@@ -196,7 +196,7 @@ class SystemIntegrationUI {
               </div>
             </div>
           </div>
-          
+
           <!-- Window Management Tab -->
           <div class="tab-content" id="windows-tab">
             <div class="windows-section">
@@ -204,7 +204,7 @@ class SystemIntegrationUI {
                 <h3>Window Management & Application Integration</h3>
                 <button class="refresh-windows-btn" id="refresh-windows-btn">Refresh</button>
               </div>
-              
+
               <div class="current-window-info">
                 <h4>Currently Focused Application:</h4>
                 <div class="window-info" id="current-window-info">
@@ -212,26 +212,26 @@ class SystemIntegrationUI {
                   <span class="window-process">N/A</span>
                 </div>
               </div>
-              
+
               <div class="window-rules">
                 <h4>Application-Specific Rules</h4>
-                
+
                 <div class="window-rules-list" id="window-rules-list">
                   <!-- Window rules will be populated here -->
                 </div>
-                
+
                 <button class="add-window-rule-btn" id="add-window-rule-btn">Add Window Rule</button>
               </div>
-              
+
               <!-- Add/Edit Window Rule Form -->
               <div class="window-rule-form hidden" id="window-rule-form">
                 <h4>Application Integration Rule</h4>
-                
+
                 <div class="form-group">
                   <label for="rule-application">Application Name/Pattern:</label>
                   <input type="text" id="rule-application" placeholder="Visual Studio Code">
                 </div>
-                
+
                 <div class="form-group">
                   <label for="rule-trigger">Trigger Event:</label>
                   <select id="rule-trigger">
@@ -242,7 +242,7 @@ class SystemIntegrationUI {
                     <option value="application-quit">Application Quit</option>
                   </select>
                 </div>
-                
+
                 <div class="form-group">
                   <label for="rule-action">Action:</label>
                   <select id="rule-action">
@@ -253,11 +253,11 @@ class SystemIntegrationUI {
                     <option value="custom">Custom JavaScript</option>
                   </select>
                 </div>
-                
+
                 <div class="form-group" id="rule-action-params">
                   <!-- Dynamic action parameters -->
                 </div>
-                
+
                 <div class="form-actions">
                   <button type="button" id="save-window-rule-btn">Save Rule</button>
                   <button type="button" id="test-window-rule-btn">Test Rule</button>
@@ -266,7 +266,7 @@ class SystemIntegrationUI {
               </div>
             </div>
           </div>
-          
+
           <!-- Automation Rules Tab -->
           <div class="tab-content" id="automation-tab">
             <div class="automation-section">
@@ -274,7 +274,7 @@ class SystemIntegrationUI {
                 <h3>System Automation Rules</h3>
                 <button class="add-automation-btn" id="add-automation-btn">Add Rule</button>
               </div>
-              
+
               <div class="automation-categories">
                 <div class="automation-category">
                   <h4>Conditional Triggers</h4>
@@ -282,14 +282,14 @@ class SystemIntegrationUI {
                     <!-- Conditional automations will be populated here -->
                   </div>
                 </div>
-                
+
                 <div class="automation-category">
                   <h4>Scheduled Actions</h4>
                   <div class="automation-list" id="scheduled-automation-list">
                     <!-- Scheduled automations will be populated here -->
                   </div>
                 </div>
-                
+
                 <div class="automation-category">
                   <h4>Event-Based Actions</h4>
                   <div class="automation-list" id="event-automation-list">
@@ -299,7 +299,7 @@ class SystemIntegrationUI {
               </div>
             </div>
           </div>
-          
+
           <!-- System Monitoring Tab -->
           <div class="tab-content" id="monitoring-tab">
             <div class="monitoring-section">
@@ -310,52 +310,52 @@ class SystemIntegrationUI {
                   <span id="monitoring-status-text">Active</span>
                 </div>
               </div>
-              
+
               <div class="system-metrics">
                 <div class="metric-card">
                   <h4>Memory Usage</h4>
                   <div class="metric-value" id="memory-usage">0%</div>
                   <div class="metric-chart" id="memory-chart"></div>
                 </div>
-                
+
                 <div class="metric-card">
                   <h4>CPU Usage</h4>
                   <div class="metric-value" id="cpu-usage">0%</div>
                   <div class="metric-chart" id="cpu-chart"></div>
                 </div>
-                
+
                 <div class="metric-card">
                   <h4>Active Application</h4>
                   <div class="metric-value" id="active-application">Unknown</div>
                   <div class="application-time" id="application-time">0s</div>
                 </div>
-                
+
                 <div class="metric-card">
                   <h4>Clipboard Activity</h4>
                   <div class="metric-value" id="clipboard-activity">0</div>
                   <div class="activity-graph" id="clipboard-graph"></div>
                 </div>
               </div>
-              
+
               <div class="monitoring-settings">
                 <h4>Monitoring Configuration</h4>
-                
+
                 <div class="settings-group">
                   <label>
                     <input type="checkbox" id="monitor-system-resources" checked>
                     Monitor System Resources
                   </label>
-                  
+
                   <label>
                     <input type="checkbox" id="monitor-application-focus" checked>
                     Monitor Application Focus
                   </label>
-                  
+
                   <label>
                     <input type="checkbox" id="monitor-clipboard-changes" checked>
                     Monitor Clipboard Changes
                   </label>
-                  
+
                   <label>
                     Update Interval:
                     <select id="monitoring-interval">
@@ -366,15 +366,15 @@ class SystemIntegrationUI {
                     </select>
                   </label>
                 </div>
-                
+
                 <div class="monitoring-alerts">
                   <h5>Alert Thresholds</h5>
-                  
+
                   <label>
                     High Memory Usage:
                     <input type="number" id="memory-alert-threshold" value="80" min="50" max="95">%
                   </label>
-                  
+
                   <label>
                     High CPU Usage:
                     <input type="number" id="cpu-alert-threshold" value="90" min="50" max="99">%
@@ -384,12 +384,12 @@ class SystemIntegrationUI {
             </div>
           </div>
         </div>
-        
+
         <div class="system-integration-footer">
           <div class="footer-status">
             <span id="integration-status">System Integration: Ready</span>
           </div>
-          
+
           <div class="footer-actions">
             <button class="export-settings-btn" id="export-settings-btn">Export Settings</button>
             <button class="import-settings-btn" id="import-settings-btn">Import Settings</button>
@@ -398,16 +398,16 @@ class SystemIntegrationUI {
         </div>
       </div>
     `;
-    
+
     document.body.appendChild(modal);
-    
+
     // Set up event listeners
     this.setupEventListeners();
-    
+
     // Load initial tab
     this.switchTab('shortcuts');
   }
-  
+
   /**
    * Initialize global event listeners
    */
@@ -417,7 +417,7 @@ class SystemIntegrationUI {
       this.handleSystemIntegrationEvent(event, data);
     });
   }
-  
+
   /**
    * Set up event listeners for the modal
    */
@@ -426,47 +426,47 @@ class SystemIntegrationUI {
     document.getElementById('close-system-integration').addEventListener('click', () => {
       this.hide();
     });
-    
+
     // Tab switching
     document.querySelectorAll('.tab-button').forEach(button => {
-      button.addEventListener('click', (e) => {
+      button.addEventListener('click', e => {
         this.switchTab(e.target.dataset.tab);
       });
     });
-    
+
     // Global Shortcuts tab events
     this.setupShortcutsEventListeners();
-    
+
     // Clipboard tab events
     this.setupClipboardEventListeners();
-    
+
     // Windows tab events
     this.setupWindowsEventListeners();
-    
+
     // Automation tab events
     this.setupAutomationEventListeners();
-    
+
     // Monitoring tab events
     this.setupMonitoringEventListeners();
-    
+
     // Footer events
     this.setupFooterEventListeners();
-    
+
     // Close modal when clicking outside
-    document.getElementById('system-integration-modal').addEventListener('click', (e) => {
+    document.getElementById('system-integration-modal').addEventListener('click', e => {
       if (e.target.id === 'system-integration-modal') {
         this.hide();
       }
     });
-    
+
     // Keyboard shortcuts for modal
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener('keydown', e => {
       if (this.isVisible) {
         this.handleKeyboardShortcuts(e);
       }
     });
   }
-  
+
   /**
    * Set up event listeners for shortcuts tab
    */
@@ -475,39 +475,39 @@ class SystemIntegrationUI {
     document.getElementById('add-shortcut-btn').addEventListener('click', () => {
       this.showShortcutForm();
     });
-    
+
     // Search and filter
-    document.getElementById('shortcuts-search').addEventListener('input', (e) => {
+    document.getElementById('shortcuts-search').addEventListener('input', e => {
       this.debouncedSearch('shortcuts', e.target.value);
     });
-    
-    document.getElementById('shortcuts-filter').addEventListener('change', (e) => {
+
+    document.getElementById('shortcuts-filter').addEventListener('change', e => {
       this.filterShortcuts(e.target.value);
     });
-    
+
     // Shortcut form events
     document.getElementById('record-shortcut-btn').addEventListener('click', () => {
       this.startShortcutRecording();
     });
-    
+
     document.getElementById('save-shortcut-btn').addEventListener('click', () => {
       this.saveShortcut();
     });
-    
+
     document.getElementById('test-shortcut-btn').addEventListener('click', () => {
       this.testShortcutAction();
     });
-    
+
     document.getElementById('cancel-shortcut-btn').addEventListener('click', () => {
       this.hideShortcutForm();
     });
-    
+
     // Dynamic action type handling
-    document.getElementById('shortcut-action-type').addEventListener('change', (e) => {
+    document.getElementById('shortcut-action-type').addEventListener('change', e => {
       this.updateShortcutActionParams(e.target.value);
     });
   }
-  
+
   /**
    * Set up event listeners for clipboard tab
    */
@@ -516,33 +516,33 @@ class SystemIntegrationUI {
     document.getElementById('clear-clipboard-history').addEventListener('click', () => {
       this.clearClipboardHistory();
     });
-    
+
     // Settings
-    document.getElementById('clipboard-monitoring-enabled').addEventListener('change', (e) => {
+    document.getElementById('clipboard-monitoring-enabled').addEventListener('change', e => {
       this.toggleClipboardMonitoring(e.target.checked);
     });
-    
-    document.getElementById('clipboard-history-size').addEventListener('change', (e) => {
-      this.updateClipboardHistorySize(parseInt(e.target.value));
+
+    document.getElementById('clipboard-history-size').addEventListener('change', e => {
+      this.updateClipboardHistorySize(parseInt(e.target.value, 10));
     });
-    
+
     // Search and filter
-    document.getElementById('clipboard-search').addEventListener('input', (e) => {
+    document.getElementById('clipboard-search').addEventListener('input', e => {
       this.debouncedSearch('clipboard', e.target.value);
     });
-    
-    document.getElementById('clipboard-content-filter').addEventListener('change', (e) => {
+
+    document.getElementById('clipboard-content-filter').addEventListener('change', e => {
       this.filterClipboardHistory(e.target.value);
     });
-    
+
     // Quick actions
     document.querySelectorAll('.clipboard-action-btn').forEach(button => {
-      button.addEventListener('click', (e) => {
+      button.addEventListener('click', e => {
         this.performClipboardAction(e.target.dataset.action);
       });
     });
   }
-  
+
   /**
    * Set up event listeners for windows tab
    */
@@ -551,26 +551,26 @@ class SystemIntegrationUI {
     document.getElementById('refresh-windows-btn').addEventListener('click', () => {
       this.refreshWindowInfo();
     });
-    
+
     // Add window rule
     document.getElementById('add-window-rule-btn').addEventListener('click', () => {
       this.showWindowRuleForm();
     });
-    
+
     // Window rule form
     document.getElementById('save-window-rule-btn').addEventListener('click', () => {
       this.saveWindowRule();
     });
-    
+
     document.getElementById('test-window-rule-btn').addEventListener('click', () => {
       this.testWindowRule();
     });
-    
+
     document.getElementById('cancel-window-rule-btn').addEventListener('click', () => {
       this.hideWindowRuleForm();
     });
   }
-  
+
   /**
    * Set up event listeners for automation tab
    */
@@ -580,38 +580,38 @@ class SystemIntegrationUI {
       this.showAutomationForm();
     });
   }
-  
+
   /**
    * Set up event listeners for monitoring tab
    */
   setupMonitoringEventListeners() {
     // Monitoring settings
-    document.getElementById('monitor-system-resources').addEventListener('change', (e) => {
+    document.getElementById('monitor-system-resources').addEventListener('change', e => {
       this.toggleSystemResourceMonitoring(e.target.checked);
     });
-    
-    document.getElementById('monitor-application-focus').addEventListener('change', (e) => {
+
+    document.getElementById('monitor-application-focus').addEventListener('change', e => {
       this.toggleApplicationFocusMonitoring(e.target.checked);
     });
-    
-    document.getElementById('monitor-clipboard-changes').addEventListener('change', (e) => {
+
+    document.getElementById('monitor-clipboard-changes').addEventListener('change', e => {
       this.toggleClipboardMonitoring(e.target.checked);
     });
-    
-    document.getElementById('monitoring-interval').addEventListener('change', (e) => {
-      this.updateMonitoringInterval(parseInt(e.target.value));
+
+    document.getElementById('monitoring-interval').addEventListener('change', e => {
+      this.updateMonitoringInterval(parseInt(e.target.value, 10));
     });
-    
+
     // Alert thresholds
-    document.getElementById('memory-alert-threshold').addEventListener('change', (e) => {
-      this.updateAlertThreshold('memory', parseInt(e.target.value));
+    document.getElementById('memory-alert-threshold').addEventListener('change', e => {
+      this.updateAlertThreshold('memory', parseInt(e.target.value, 10));
     });
-    
-    document.getElementById('cpu-alert-threshold').addEventListener('change', (e) => {
-      this.updateAlertThreshold('cpu', parseInt(e.target.value));
+
+    document.getElementById('cpu-alert-threshold').addEventListener('change', e => {
+      this.updateAlertThreshold('cpu', parseInt(e.target.value, 10));
     });
   }
-  
+
   /**
    * Set up event listeners for footer actions
    */
@@ -619,16 +619,16 @@ class SystemIntegrationUI {
     document.getElementById('export-settings-btn').addEventListener('click', () => {
       this.exportSettings();
     });
-    
+
     document.getElementById('import-settings-btn').addEventListener('click', () => {
       this.importSettings();
     });
-    
+
     document.getElementById('reset-settings-btn').addEventListener('click', () => {
       this.resetSettings();
     });
   }
-  
+
   /**
    * Handle keyboard shortcuts within the modal
    */
@@ -638,10 +638,12 @@ class SystemIntegrationUI {
       this.hide();
       event.preventDefault();
     }
-    
+
     // Ctrl+S to save (if in a form)
     if (event.ctrlKey && event.key === 's') {
-      const activeForm = document.querySelector('.shortcut-form:not(.hidden), .window-rule-form:not(.hidden)');
+      const activeForm = document.querySelector(
+        '.shortcut-form:not(.hidden), .window-rule-form:not(.hidden)'
+      );
       if (activeForm) {
         event.preventDefault();
         if (activeForm.classList.contains('shortcut-form')) {
@@ -651,18 +653,18 @@ class SystemIntegrationUI {
         }
       }
     }
-    
+
     // Tab switching with Ctrl+Number
     if (event.ctrlKey && event.key >= '1' && event.key <= '5') {
       const tabs = ['shortcuts', 'clipboard', 'windows', 'automation', 'monitoring'];
-      const tabIndex = parseInt(event.key) - 1;
+      const tabIndex = parseInt(event.key, 10) - 1;
       if (tabs[tabIndex]) {
         this.switchTab(tabs[tabIndex]);
         event.preventDefault();
       }
     }
   }
-  
+
   /**
    * Switch between tabs
    */
@@ -674,19 +676,19 @@ class SystemIntegrationUI {
         button.classList.add('active');
       }
     });
-    
+
     // Update tab content
     document.querySelectorAll('.tab-content').forEach(content => {
       content.classList.remove('active');
     });
-    
+
     document.getElementById(`${tabName}-tab`).classList.add('active');
     this.currentTab = tabName;
-    
+
     // Load tab-specific data if needed
     this.loadTabData(tabName);
   }
-  
+
   /**
    * Load data for specific tab
    */
@@ -709,7 +711,7 @@ class SystemIntegrationUI {
         break;
     }
   }
-  
+
   /**
    * Load system integration data
    */
@@ -717,16 +719,15 @@ class SystemIntegrationUI {
     try {
       const status = await window.electronAPI.getSystemIntegrationStatus();
       this.updateIntegrationStatus(status);
-      
+
       // Load initial tab data
       await this.loadTabData(this.currentTab);
-      
     } catch (error) {
       console.error('Failed to load system integration data:', error);
       this.showError('Failed to load system integration data');
     }
   }
-  
+
   /**
    * Update integration status display
    */
@@ -737,7 +738,7 @@ class SystemIntegrationUI {
       statusElement.className = status.initialized ? 'status-active' : 'status-inactive';
     }
   }
-  
+
   /**
    * Handle system integration events from main process
    */
@@ -759,7 +760,7 @@ class SystemIntegrationUI {
         console.log('Unknown system integration event:', event, data);
     }
   }
-  
+
   /**
    * Debounce utility function
    */
@@ -774,7 +775,7 @@ class SystemIntegrationUI {
       timeout = setTimeout(later, wait);
     };
   }
-  
+
   /**
    * Show error message
    */
@@ -787,16 +788,16 @@ class SystemIntegrationUI {
       errorDiv.className = 'error-notification';
       document.body.appendChild(errorDiv);
     }
-    
+
     errorDiv.textContent = message;
     errorDiv.style.display = 'block';
-    
+
     // Auto-hide after duration
     setTimeout(() => {
       errorDiv.style.display = 'none';
     }, duration);
   }
-  
+
   /**
    * Show success message
    */
@@ -809,72 +810,72 @@ class SystemIntegrationUI {
       successDiv.className = 'success-notification';
       document.body.appendChild(successDiv);
     }
-    
+
     successDiv.textContent = message;
     successDiv.style.display = 'block';
-    
+
     // Auto-hide after duration
     setTimeout(() => {
       successDiv.style.display = 'none';
     }, duration);
   }
-  
+
   // Placeholder methods for tab-specific functionality
   async loadShortcutsData() {
     // Implementation will be added
     console.log('Loading shortcuts data...');
   }
-  
+
   async loadClipboardData() {
     // Implementation will be added
     console.log('Loading clipboard data...');
   }
-  
+
   async loadWindowsData() {
     // Implementation will be added
     console.log('Loading windows data...');
   }
-  
+
   async loadAutomationData() {
     // Implementation will be added
     console.log('Loading automation data...');
   }
-  
+
   async loadMonitoringData() {
     // Implementation will be added
     console.log('Loading monitoring data...');
   }
-  
+
   showShortcutForm() {
     // Implementation will be added
     console.log('Showing shortcut form...');
   }
-  
+
   saveShortcut() {
     // Implementation will be added
     console.log('Saving shortcut...');
   }
-  
+
   clearClipboardHistory() {
     // Implementation will be added
     console.log('Clearing clipboard history...');
   }
-  
+
   refreshWindowInfo() {
     // Implementation will be added
     console.log('Refreshing window info...');
   }
-  
+
   exportSettings() {
     // Implementation will be added
     console.log('Exporting settings...');
   }
-  
+
   importSettings() {
     // Implementation will be added
     console.log('Importing settings...');
   }
-  
+
   resetSettings() {
     // Implementation will be added
     console.log('Resetting settings...');

@@ -1,6 +1,6 @@
 /**
  * Plugin Management UI Component
- * 
+ *
  * Provides a comprehensive interface for managing plugins including:
  * - Plugin discovery and installation
  * - Enable/disable plugin controls
@@ -15,7 +15,7 @@ class PluginManagerUI {
     this.isVisible = false;
     this.refreshTimer = null;
     this.currentView = 'installed'; // installed, marketplace, development
-    
+
     this.initializeUI();
     this.setupEventHandlers();
     this.loadPlugins();
@@ -28,7 +28,7 @@ class PluginManagerUI {
     this.container = document.createElement('div');
     this.container.className = 'plugin-manager';
     this.container.innerHTML = this.getUITemplate();
-    
+
     // Get UI elements
     this.headerElement = this.container.querySelector('.plugin-header');
     this.toolbarElement = this.container.querySelector('.plugin-toolbar');
@@ -61,7 +61,7 @@ class PluginManagerUI {
             <input type="text" placeholder="Search plugins..." class="search-input">
             <button class="search-clear">✕</button>
           </div>
-          
+
           <div class="plugin-filters">
             <label class="filter-label">
               <input type="checkbox" class="filter-enabled" checked> Enabled Only
@@ -99,7 +99,7 @@ class PluginManagerUI {
   setupEventHandlers() {
     // View selector
     this.container.querySelectorAll('.view-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', e => {
         this.switchView(e.target.dataset.view);
       });
     });
@@ -112,11 +112,11 @@ class PluginManagerUI {
     // Search functionality
     const searchInput = this.container.querySelector('.search-input');
     const searchClear = this.container.querySelector('.search-clear');
-    
-    searchInput.addEventListener('input', (e) => {
+
+    searchInput.addEventListener('input', e => {
       this.filterPlugins(e.target.value);
     });
-    
+
     searchClear.addEventListener('click', () => {
       searchInput.value = '';
       this.filterPlugins('');
@@ -194,8 +194,9 @@ class PluginManagerUI {
 
     pluginItems.forEach(item => {
       const name = item.querySelector('.plugin-name').textContent.toLowerCase();
-      const description = item.querySelector('.plugin-description')?.textContent?.toLowerCase() || '';
-      
+      const description =
+        item.querySelector('.plugin-description')?.textContent?.toLowerCase() || '';
+
       const matches = name.includes(term) || description.includes(term);
       item.style.display = matches ? '' : 'none';
     });
@@ -207,28 +208,28 @@ class PluginManagerUI {
   applyFilters() {
     const enabledOnly = this.container.querySelector('.filter-enabled').checked;
     const systemOnly = this.container.querySelector('.filter-system').checked;
-    
+
     const pluginItems = this.container.querySelectorAll('.plugin-item');
-    
+
     pluginItems.forEach(item => {
       const pluginId = item.dataset.pluginId;
       const plugin = this.plugins.find(p => p.id === pluginId);
-      
+
       if (!plugin) {
         item.style.display = 'none';
         return;
       }
-      
+
       let show = true;
-      
+
       if (enabledOnly && plugin.state !== 'enabled') {
         show = false;
       }
-      
+
       if (systemOnly && !plugin.isSystem) {
         show = false;
       }
-      
+
       item.style.display = show ? '' : 'none';
     });
   }
@@ -238,7 +239,7 @@ class PluginManagerUI {
    */
   renderPluginList() {
     const listContainer = this.container.querySelector('.plugin-list');
-    
+
     if (this.plugins.length === 0) {
       listContainer.innerHTML = '<div class="no-plugins">No plugins found</div>';
       return;
@@ -261,7 +262,7 @@ class PluginManagerUI {
   getPluginItemTemplate(plugin) {
     const stateClass = `state-${plugin.state}`;
     const stateIcon = this.getStateIcon(plugin.state);
-    
+
     return `
       <div class="plugin-item ${stateClass}" data-plugin-id="${plugin.id}">
         <div class="plugin-icon">
@@ -305,7 +306,9 @@ class PluginManagerUI {
     });
 
     const plugin = this.plugins.find(p => p.id === pluginId);
-    if (!plugin) return;
+    if (!plugin) {
+      return;
+    }
 
     this.selectedPlugin = plugin;
     await this.renderPluginDetails(plugin);
@@ -316,15 +319,14 @@ class PluginManagerUI {
    */
   async renderPluginDetails(plugin) {
     const detailsContainer = this.container.querySelector('.plugin-details');
-    
+
     try {
       // Get additional plugin info
       const pluginInfo = await window.electronAPI.getPluginDetails(plugin.id);
       const config = await window.electronAPI.getPluginConfig(plugin.id);
-      
+
       detailsContainer.innerHTML = this.getPluginDetailsTemplate(plugin, pluginInfo, config);
       this.setupDetailsEventHandlers(plugin);
-      
     } catch (error) {
       console.error('Failed to load plugin details:', error);
       detailsContainer.innerHTML = this.getErrorDetailsTemplate(plugin, error.message);
@@ -363,15 +365,15 @@ class PluginManagerUI {
           <div class="tab-panel active" data-tab="overview">
             ${this.getOverviewTabTemplate(plugin, info)}
           </div>
-          
+
           <div class="tab-panel" data-tab="configuration">
             ${this.getConfigurationTabTemplate(plugin, config)}
           </div>
-          
+
           <div class="tab-panel" data-tab="permissions">
             ${this.getPermissionsTabTemplate(plugin, info)}
           </div>
-          
+
           <div class="tab-panel" data-tab="logs">
             ${this.getLogsTabTemplate(plugin)}
           </div>
@@ -409,9 +411,9 @@ class PluginManagerUI {
       <div class="overview-section">
         <h5>Actions</h5>
         <div class="action-types">
-          ${(info.actionTypes || []).map(type => 
-            `<span class="action-type">${type}</span>`
-          ).join('')}
+          ${(info.actionTypes || [])
+            .map(type => `<span class="action-type">${type}</span>`)
+            .join('')}
         </div>
       </div>
     `;
@@ -425,14 +427,16 @@ class PluginManagerUI {
       return '<p>No configuration options available</p>';
     }
 
-    const configItems = Object.entries(config).map(([key, value]) => {
-      return `
+    const configItems = Object.entries(config)
+      .map(([key, value]) => {
+        return `
         <div class="config-item">
           <label class="config-label">${key}:</label>
           <input type="text" class="config-input" data-key="${key}" value="${value}">
         </div>
       `;
-    }).join('');
+      })
+      .join('');
 
     return `
       <div class="configuration-section">
@@ -452,7 +456,7 @@ class PluginManagerUI {
    */
   getPermissionsTabTemplate(plugin, info) {
     const permissions = info.permissions || {};
-    
+
     return `
       <div class="permissions-section">
         <h5>Requested Permissions</h5>
@@ -513,7 +517,7 @@ class PluginManagerUI {
 
     // Tab switching
     detailsContainer.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', e => {
         this.switchTab(e.target.dataset.tab);
       });
     });
@@ -562,7 +566,7 @@ class PluginManagerUI {
    */
   switchTab(tabName) {
     const detailsContainer = this.container.querySelector('.plugin-details');
-    
+
     // Update tab buttons
     detailsContainer.querySelectorAll('.tab-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.tab === tabName);
@@ -585,7 +589,9 @@ class PluginManagerUI {
   async togglePlugin(pluginId) {
     try {
       const plugin = this.plugins.find(p => p.id === pluginId);
-      if (!plugin) return;
+      if (!plugin) {
+        return;
+      }
 
       this.updateStatus(`${plugin.state === 'enabled' ? 'Disabling' : 'Enabling'} plugin...`);
 
@@ -599,7 +605,6 @@ class PluginManagerUI {
         `Plugin ${plugin.state === 'enabled' ? 'disabled' : 'enabled'} successfully`,
         'success'
       );
-
     } catch (error) {
       console.error('Failed to toggle plugin:', error);
       this.showNotification('Failed to toggle plugin', 'error');
@@ -630,24 +635,27 @@ class PluginManagerUI {
    */
   async uninstallPlugin(pluginId) {
     const plugin = this.plugins.find(p => p.id === pluginId);
-    if (!plugin) return;
+    if (!plugin) {
+      return;
+    }
 
     const confirmed = confirm(`Are you sure you want to uninstall "${plugin.name}"?`);
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     try {
       this.updateStatus('Uninstalling plugin...');
       await window.electronAPI.uninstallPlugin(pluginId);
       this.showNotification('Plugin uninstalled successfully', 'success');
       await this.refreshPlugins();
-      
+
       // Clear details if this plugin was selected
       if (this.selectedPlugin?.id === pluginId) {
         this.selectedPlugin = null;
-        this.container.querySelector('.plugin-details').innerHTML = 
+        this.container.querySelector('.plugin-details').innerHTML =
           '<div class="no-selection"><p>Select a plugin to view details</p></div>';
       }
-      
     } catch (error) {
       console.error('Failed to uninstall plugin:', error);
       this.showNotification('Failed to uninstall plugin', 'error');
@@ -670,7 +678,6 @@ class PluginManagerUI {
 
       await window.electronAPI.updatePluginConfig(pluginId, newConfig);
       this.showNotification('Configuration saved successfully', 'success');
-
     } catch (error) {
       console.error('Failed to save configuration:', error);
       this.showNotification('Failed to save configuration', 'error');
@@ -686,22 +693,25 @@ class PluginManagerUI {
       logViewer.innerHTML = '<div class="loading">Loading logs...</div>';
 
       const logs = await window.electronAPI.getPluginLogs(pluginId);
-      
+
       if (logs.length === 0) {
         logViewer.innerHTML = '<div class="no-logs">No logs found</div>';
         return;
       }
 
-      const logsHTML = logs.map(log => `
+      const logsHTML = logs
+        .map(
+          log => `
         <div class="log-entry log-${log.level}">
           <span class="log-timestamp">${new Date(log.timestamp).toLocaleString()}</span>
           <span class="log-level">${log.level.toUpperCase()}</span>
           <span class="log-message">${log.message}</span>
         </div>
-      `).join('');
+      `
+        )
+        .join('');
 
       logViewer.innerHTML = logsHTML;
-
     } catch (error) {
       console.error('Failed to load logs:', error);
       const logViewer = this.container.querySelector('.log-viewer');
@@ -782,7 +792,7 @@ class PluginManagerUI {
     if (plugin) {
       plugin.state = newState;
       this.renderPluginList();
-      
+
       if (this.selectedPlugin?.id === pluginId) {
         this.renderPluginDetails(plugin);
       }
@@ -827,7 +837,7 @@ class PluginManagerUI {
   setVisible(visible) {
     this.isVisible = visible;
     this.container.style.display = visible ? 'block' : 'none';
-    
+
     if (visible) {
       this.refreshPlugins();
     }
@@ -847,7 +857,7 @@ class PluginManagerUI {
     if (this.refreshTimer) {
       clearInterval(this.refreshTimer);
     }
-    
+
     if (this.container && this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
     }

@@ -14,10 +14,10 @@ class PerformanceUI {
       eventLoop: [],
       operations: []
     };
-    
+
     this.maxHistoryPoints = 50; // Keep last 50 data points for charts
     this.refreshRate = 2000; // Update every 2 seconds
-    
+
     this.init();
   }
 
@@ -25,8 +25,10 @@ class PerformanceUI {
    * Initialize the performance UI components
    */
   init() {
-    if (this.isInitialized) return;
-    
+    if (this.isInitialized) {
+      return;
+    }
+
     this.setupEventListeners();
     this.isInitialized = true;
     console.log('PerformanceUI initialized');
@@ -41,19 +43,19 @@ class PerformanceUI {
       window.electronAPI.on('system-metrics', (event, metrics) => {
         this.updateSystemMetrics(metrics);
       });
-      
+
       window.electronAPI.on('performance-measurement', (event, measurement) => {
         this.updateOperationMetrics(measurement);
       });
-      
+
       window.electronAPI.on('event-loop-lag', (event, lagData) => {
         this.updateEventLoopMetrics(lagData);
       });
-      
+
       window.electronAPI.on('performance-alert', (event, alert) => {
         this.showPerformanceAlert(alert);
       });
-      
+
       window.electronAPI.on('optimization-suggestions', (event, suggestions) => {
         this.updateOptimizationSuggestions(suggestions);
       });
@@ -65,14 +67,16 @@ class PerformanceUI {
    */
   async renderPerformanceDashboard() {
     const mainContent = document.querySelector('.container');
-    if (!mainContent) return;
+    if (!mainContent) {
+      return;
+    }
 
     // Create performance dashboard container
     const performanceContainer = this.createElement('div', ['performance-dashboard']);
     performanceContainer.innerHTML = `
       <div class="performance-section">
         <h3>Performance Monitoring</h3>
-        
+
         <!-- Control Panel -->
         <div class="performance-controls">
           <div class="controls-row">
@@ -89,7 +93,7 @@ class PerformanceUI {
               <span class="icon">🗑️</span> Clear Data
             </button>
           </div>
-          
+
           <div class="controls-row">
             <div class="control-group">
               <label for="perf-refresh-rate">Update Rate:</label>
@@ -100,14 +104,14 @@ class PerformanceUI {
                 <option value="10000">10 seconds</option>
               </select>
             </div>
-            
+
             <div class="perf-status">
               <span id="perf-status-indicator" class="status-indicator unknown">●</span>
               <span id="perf-status-text">Unknown</span>
             </div>
           </div>
         </div>
-        
+
         <!-- Metrics Overview -->
         <div class="performance-overview">
           <div class="metric-card">
@@ -115,44 +119,44 @@ class PerformanceUI {
             <div id="memory-current" class="metric-value">--</div>
             <div id="memory-trend" class="metric-trend"></div>
           </div>
-          
+
           <div class="metric-card">
             <h4>Event Loop Lag</h4>
             <div id="eventloop-current" class="metric-value">--</div>
             <div id="eventloop-trend" class="metric-trend"></div>
           </div>
-          
+
           <div class="metric-card">
             <h4>Active Operations</h4>
             <div id="operations-current" class="metric-value">--</div>
             <div id="operations-trend" class="metric-trend"></div>
           </div>
-          
+
           <div class="metric-card">
             <h4>Suggestions</h4>
             <div id="suggestions-current" class="metric-value">--</div>
             <div id="suggestions-trend" class="metric-trend"></div>
           </div>
         </div>
-        
+
         <!-- Charts Container -->
         <div class="performance-charts">
           <div class="chart-section">
             <h4>Memory Usage Over Time</h4>
             <canvas id="memory-chart" width="800" height="200"></canvas>
           </div>
-          
+
           <div class="chart-section">
             <h4>Event Loop Lag</h4>
             <canvas id="eventloop-chart" width="800" height="200"></canvas>
           </div>
-          
+
           <div class="chart-section">
             <h4>Operation Performance</h4>
             <div id="operations-table" class="operations-table"></div>
           </div>
         </div>
-        
+
         <!-- Optimization Suggestions -->
         <div class="optimization-suggestions">
           <h4>Optimization Suggestions</h4>
@@ -160,7 +164,7 @@ class PerformanceUI {
             <p class="no-suggestions">No suggestions available. Start monitoring to see recommendations.</p>
           </div>
         </div>
-        
+
         <!-- Performance Alerts -->
         <div id="performance-alerts" class="performance-alerts"></div>
       </div>
@@ -212,8 +216,8 @@ class PerformanceUI {
 
     // Refresh rate change
     const refreshRateSelect = document.getElementById('perf-refresh-rate');
-    refreshRateSelect?.addEventListener('change', (e) => {
-      this.refreshRate = parseInt(e.target.value);
+    refreshRateSelect?.addEventListener('change', e => {
+      this.refreshRate = parseInt(e.target.value, 10);
       this.restartRefreshTimer();
     });
   }
@@ -230,19 +234,22 @@ class PerformanceUI {
           type: 'line',
           data: {
             labels: [],
-            datasets: [{
-              label: 'Heap Used (MB)',
-              data: [],
-              borderColor: '#3b82f6',
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              tension: 0.4
-            }, {
-              label: 'RSS (MB)',
-              data: [],
-              borderColor: '#ef4444',
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-              tension: 0.4
-            }]
+            datasets: [
+              {
+                label: 'Heap Used (MB)',
+                data: [],
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                tension: 0.4
+              },
+              {
+                label: 'RSS (MB)',
+                data: [],
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                tension: 0.4
+              }
+            ]
           },
           options: this.getChartOptions('Memory Usage (MB)')
         });
@@ -255,18 +262,19 @@ class PerformanceUI {
           type: 'line',
           data: {
             labels: [],
-            datasets: [{
-              label: 'Event Loop Lag (ms)',
-              data: [],
-              borderColor: '#f59e0b',
-              backgroundColor: 'rgba(245, 158, 11, 0.1)',
-              tension: 0.4
-            }]
+            datasets: [
+              {
+                label: 'Event Loop Lag (ms)',
+                data: [],
+                borderColor: '#f59e0b',
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                tension: 0.4
+              }
+            ]
           },
           options: this.getChartOptions('Event Loop Lag (ms)')
         });
       }
-
     } catch (error) {
       console.error('Failed to initialize charts:', error);
     }
@@ -277,11 +285,11 @@ class PerformanceUI {
    */
   createChart(canvas, config) {
     const ctx = canvas.getContext('2d');
-    
+
     return {
-      canvas: canvas,
-      ctx: ctx,
-      config: config,
+      canvas,
+      ctx,
+      config,
       update: () => this.updateCanvasChart(canvas, config)
     };
   }
@@ -293,18 +301,18 @@ class PerformanceUI {
     const ctx = canvas.getContext('2d');
     const width = canvas.width;
     const height = canvas.height;
-    
+
     // Clear canvas
     ctx.clearRect(0, 0, width, height);
-    
+
     // Draw background
     ctx.fillStyle = '#f8f9fa';
     ctx.fillRect(0, 0, width, height);
-    
+
     // Draw grid
     ctx.strokeStyle = '#e9ecef';
     ctx.lineWidth = 1;
-    
+
     // Vertical grid lines
     for (let i = 0; i <= 10; i++) {
       const x = (width / 10) * i;
@@ -313,7 +321,7 @@ class PerformanceUI {
       ctx.lineTo(x, height);
       ctx.stroke();
     }
-    
+
     // Horizontal grid lines
     for (let i = 0; i <= 5; i++) {
       const y = (height / 5) * i;
@@ -322,28 +330,30 @@ class PerformanceUI {
       ctx.lineTo(width, y);
       ctx.stroke();
     }
-    
+
     // Draw data lines
     for (const dataset of config.data.datasets) {
-      if (dataset.data.length < 2) continue;
-      
+      if (dataset.data.length < 2) {
+        continue;
+      }
+
       ctx.strokeStyle = dataset.borderColor;
       ctx.lineWidth = 2;
       ctx.beginPath();
-      
+
       const maxValue = Math.max(...dataset.data) || 1;
-      
+
       for (let i = 0; i < dataset.data.length; i++) {
         const x = (width / (dataset.data.length - 1)) * i;
         const y = height - (dataset.data[i] / maxValue) * height;
-        
+
         if (i === 0) {
           ctx.moveTo(x, y);
         } else {
           ctx.lineTo(x, y);
         }
       }
-      
+
       ctx.stroke();
     }
   }
@@ -387,7 +397,7 @@ class PerformanceUI {
       if (window.electronAPI) {
         const statistics = await window.electronAPI.invoke('get-performance-statistics');
         this.updatePerformanceOverview(statistics);
-        
+
         const status = await window.electronAPI.invoke('get-performance-status');
         this.updateMonitoringStatus(status.isActive);
       }
@@ -406,18 +416,18 @@ class PerformanceUI {
       heapUsed: metrics.memory.heapUsed / 1024 / 1024, // Convert to MB
       rss: metrics.memory.rss / 1024 / 1024
     });
-    
+
     // Limit history size
     if (this.metricsHistory.memory.length > this.maxHistoryPoints) {
       this.metricsHistory.memory.shift();
     }
-    
+
     // Update current memory display
     const memoryCurrentElement = document.getElementById('memory-current');
     if (memoryCurrentElement) {
       memoryCurrentElement.textContent = this.formatBytes(metrics.memory.heapUsed);
     }
-    
+
     // Update memory chart
     if (this.charts.memory) {
       const dataset = this.charts.memory.config.data.datasets[0];
@@ -435,17 +445,17 @@ class PerformanceUI {
       timestamp: lagData.timestamp,
       lag: lagData.lag
     });
-    
+
     // Limit history size
     if (this.metricsHistory.eventLoop.length > this.maxHistoryPoints) {
       this.metricsHistory.eventLoop.shift();
     }
-    
+
     // Update current lag display
     const lagCurrentElement = document.getElementById('eventloop-current');
     if (lagCurrentElement) {
       lagCurrentElement.textContent = `${lagData.lag.toFixed(2)}ms`;
-      
+
       // Color code based on lag severity
       if (lagData.lag > 100) {
         lagCurrentElement.className = 'metric-value high';
@@ -455,7 +465,7 @@ class PerformanceUI {
         lagCurrentElement.className = 'metric-value normal';
       }
     }
-    
+
     // Update event loop chart
     if (this.charts.eventLoop) {
       const dataset = this.charts.eventLoop.config.data.datasets[0];
@@ -470,12 +480,12 @@ class PerformanceUI {
   updateOperationMetrics(measurement) {
     // Add to history
     this.metricsHistory.operations.push(measurement);
-    
+
     // Limit history size
     if (this.metricsHistory.operations.length > 100) {
       this.metricsHistory.operations.shift();
     }
-    
+
     // Update operations table
     this.updateOperationsTable();
   }
@@ -485,11 +495,13 @@ class PerformanceUI {
    */
   updateOperationsTable() {
     const operationsTable = document.getElementById('operations-table');
-    if (!operationsTable) return;
-    
+    if (!operationsTable) {
+      return;
+    }
+
     // Group operations by name and calculate stats
     const operationStats = new Map();
-    
+
     for (const op of this.metricsHistory.operations) {
       if (!operationStats.has(op.operation)) {
         operationStats.set(op.operation, {
@@ -500,20 +512,20 @@ class PerformanceUI {
           recentDuration: []
         });
       }
-      
+
       const stats = operationStats.get(op.operation);
       stats.count++;
       stats.totalDuration += op.duration;
       stats.minDuration = Math.min(stats.minDuration, op.duration);
       stats.maxDuration = Math.max(stats.maxDuration, op.duration);
       stats.recentDuration.push(op.duration);
-      
+
       // Keep only recent 10 durations
       if (stats.recentDuration.length > 10) {
         stats.recentDuration.shift();
       }
     }
-    
+
     // Create table HTML
     let tableHTML = `
       <table class="performance-table">
@@ -529,16 +541,18 @@ class PerformanceUI {
         </thead>
         <tbody>
     `;
-    
+
     // Sort by average duration (descending)
-    const sortedStats = Array.from(operationStats.entries())
-      .sort(([,a], [,b]) => (b.totalDuration / b.count) - (a.totalDuration / a.count));
-    
+    const sortedStats = Array.from(operationStats.entries()).sort(
+      ([, a], [, b]) => b.totalDuration / b.count - a.totalDuration / a.count
+    );
+
     for (const [operationName, stats] of sortedStats.slice(0, 10)) {
       const avgDuration = stats.totalDuration / stats.count;
-      const recentAvg = stats.recentDuration.reduce((sum, d) => sum + d, 0) / stats.recentDuration.length;
+      const recentAvg =
+        stats.recentDuration.reduce((sum, d) => sum + d, 0) / stats.recentDuration.length;
       const trend = recentAvg > avgDuration ? '📈' : recentAvg < avgDuration ? '📉' : '➡️';
-      
+
       tableHTML += `
         <tr>
           <td class="operation-name">${operationName}</td>
@@ -550,7 +564,7 @@ class PerformanceUI {
         </tr>
       `;
     }
-    
+
     tableHTML += '</tbody></table>';
     operationsTable.innerHTML = tableHTML;
   }
@@ -560,9 +574,11 @@ class PerformanceUI {
    */
   showPerformanceAlert(alert) {
     const alertsContainer = document.getElementById('performance-alerts');
-    if (!alertsContainer) return;
-    
-    const alertElement = this.createElement('div', [`alert`, `alert-${alert.severity}`]);
+    if (!alertsContainer) {
+      return;
+    }
+
+    const alertElement = this.createElement('div', ['alert', `alert-${alert.severity}`]);
     alertElement.innerHTML = `
       <div class="alert-header">
         <span class="alert-icon">${this.getAlertIcon(alert.severity)}</span>
@@ -571,14 +587,14 @@ class PerformanceUI {
       </div>
       <div class="alert-message">${alert.message}</div>
       <div class="alert-details">
-        Value: ${this.formatAlertValue(alert.value, alert.type)} | 
+        Value: ${this.formatAlertValue(alert.value, alert.type)} |
         Threshold: ${this.formatAlertValue(alert.threshold, alert.type)}
       </div>
     `;
-    
+
     // Add to container
     alertsContainer.appendChild(alertElement);
-    
+
     // Auto-remove after 10 seconds for warnings, 30 seconds for critical
     const autoRemoveDelay = alert.severity === 'critical' ? 30000 : 10000;
     setTimeout(() => {
@@ -593,15 +609,18 @@ class PerformanceUI {
    */
   updateOptimizationSuggestions(suggestions) {
     const suggestionsContainer = document.getElementById('suggestions-container');
-    if (!suggestionsContainer) return;
-    
-    if (suggestions.length === 0) {
-      suggestionsContainer.innerHTML = '<p class="no-suggestions">No optimization suggestions at this time.</p>';
+    if (!suggestionsContainer) {
       return;
     }
-    
+
+    if (suggestions.length === 0) {
+      suggestionsContainer.innerHTML =
+        '<p class="no-suggestions">No optimization suggestions at this time.</p>';
+      return;
+    }
+
     let suggestionsHTML = '';
-    
+
     for (const suggestion of suggestions) {
       suggestionsHTML += `
         <div class="suggestion-card ${suggestion.severity}">
@@ -617,9 +636,9 @@ class PerformanceUI {
         </div>
       `;
     }
-    
+
     suggestionsContainer.innerHTML = suggestionsHTML;
-    
+
     // Update suggestions count
     const suggestionsCurrentElement = document.getElementById('suggestions-current');
     if (suggestionsCurrentElement) {
@@ -631,14 +650,16 @@ class PerformanceUI {
    * Update performance overview metrics
    */
   updatePerformanceOverview(statistics) {
-    if (!statistics) return;
-    
+    if (!statistics) {
+      return;
+    }
+
     // Update active operations count
     const operationsCurrentElement = document.getElementById('operations-current');
     if (operationsCurrentElement) {
       operationsCurrentElement.textContent = statistics.totals.activeTimers.toString();
     }
-    
+
     // Update other overview metrics as needed
     if (statistics.current) {
       // Update memory if available
@@ -648,7 +669,7 @@ class PerformanceUI {
           memoryCurrentElement.textContent = this.formatBytes(statistics.current.memory.heapUsed);
         }
       }
-      
+
       // Update event loop lag if available
       const lagCurrentElement = document.getElementById('eventloop-current');
       if (lagCurrentElement) {
@@ -665,14 +686,14 @@ class PerformanceUI {
     const statusText = document.getElementById('perf-status-text');
     const startBtn = document.getElementById('perf-start-monitoring');
     const stopBtn = document.getElementById('perf-stop-monitoring');
-    
+
     if (statusIndicator && statusText) {
       if (isActive) {
         statusIndicator.className = 'status-indicator active';
         statusText.textContent = 'Active';
         startBtn && (startBtn.disabled = true);
         stopBtn && (stopBtn.disabled = false);
-        
+
         // Start refresh timer
         this.startRefreshTimer();
       } else {
@@ -680,7 +701,7 @@ class PerformanceUI {
         statusText.textContent = 'Inactive';
         startBtn && (startBtn.disabled = false);
         stopBtn && (stopBtn.disabled = true);
-        
+
         // Stop refresh timer
         this.stopRefreshTimer();
       }
@@ -692,7 +713,7 @@ class PerformanceUI {
    */
   startRefreshTimer() {
     this.stopRefreshTimer(); // Clear existing timer
-    
+
     this.refreshInterval = setInterval(async () => {
       try {
         const statistics = await window.electronAPI.invoke('get-performance-statistics');
@@ -728,12 +749,14 @@ class PerformanceUI {
   async exportPerformanceData() {
     try {
       const format = prompt('Export format (json or csv):', 'json');
-      if (!format || !['json', 'csv'].includes(format)) return;
-      
+      if (!format || !['json', 'csv'].includes(format)) {
+        return;
+      }
+
       const exported = await window.electronAPI.invoke('export-performance-data', format);
       if (exported) {
-        const blob = new Blob([exported], { 
-          type: format === 'csv' ? 'text/csv' : 'application/json' 
+        const blob = new Blob([exported], {
+          type: format === 'csv' ? 'text/csv' : 'application/json'
         });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -754,13 +777,15 @@ class PerformanceUI {
    * Clear performance data
    */
   clearPerformanceData() {
-    if (confirm('Are you sure you want to clear all performance data? This action cannot be undone.')) {
+    if (
+      confirm('Are you sure you want to clear all performance data? This action cannot be undone.')
+    ) {
       // Clear local history
       this.metricsHistory.memory = [];
       this.metricsHistory.cpu = [];
       this.metricsHistory.eventLoop = [];
       this.metricsHistory.operations = [];
-      
+
       // Update charts
       for (const chart of Object.values(this.charts)) {
         if (chart.config && chart.config.data) {
@@ -770,10 +795,10 @@ class PerformanceUI {
           chart.update();
         }
       }
-      
+
       // Update displays
       this.updateOperationsTable();
-      
+
       // Clear backend data
       if (window.electronAPI) {
         window.electronAPI.invoke('clear-performance-data').catch(error => {
@@ -824,11 +849,13 @@ class PerformanceUI {
    * Format bytes for human-readable display
    */
   formatBytes(bytes) {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) {
+      return '0 Bytes';
+    }
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
   }
 
   /**
@@ -850,7 +877,7 @@ class PerformanceUI {
    */
   setVisible(visible) {
     this.isVisible = visible;
-    
+
     if (visible) {
       this.loadInitialData();
       if (this.refreshInterval) {
@@ -866,16 +893,16 @@ class PerformanceUI {
    */
   cleanup() {
     this.stopRefreshTimer();
-    
+
     // Clear metrics history
     this.metricsHistory.memory = [];
     this.metricsHistory.cpu = [];
     this.metricsHistory.eventLoop = [];
     this.metricsHistory.operations = [];
-    
+
     // Clear charts
     this.charts = {};
-    
+
     // Remove event listeners
     if (window.electronAPI && window.electronAPI.removeListener) {
       window.electronAPI.removeListener('system-metrics');
@@ -884,7 +911,7 @@ class PerformanceUI {
       window.electronAPI.removeListener('performance-alert');
       window.electronAPI.removeListener('optimization-suggestions');
     }
-    
+
     this.isInitialized = false;
   }
 }

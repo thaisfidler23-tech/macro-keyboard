@@ -3,14 +3,14 @@ const semver = require('semver');
 
 /**
  * Plugin Dependency Resolver
- * 
+ *
  * Handles complex dependency resolution for plugin installation, including:
  * - Dependency tree construction and validation
  * - Circular dependency detection
  * - Version conflict resolution
  * - Shared dependency optimization
  * - Security scanning of dependency chains
- * 
+ *
  * Features:
  * - Semantic versioning support
  * - Multiple resolution strategies
@@ -21,27 +21,27 @@ const semver = require('semver');
 class DependencyResolver extends EventEmitter {
   constructor(config = {}, logManager = null, securityManager = null) {
     super();
-    
+
     this.config = this.mergeConfig(config);
     this.logManager = logManager;
     this.securityManager = securityManager;
-    
+
     // Dependency tracking
     this.dependencyCache = new Map(); // pluginId -> dependency tree
     this.resolvedVersions = new Map(); // pluginId -> resolved version
     this.conflictResolutions = new Map(); // conflict hash -> resolution
-    
+
     // Resolution strategies
     this.resolutionStrategies = new Map();
     this.initializeResolutionStrategies();
-    
+
     // Security tracking
     this.vulnerabilityDatabase = new Map(); // pluginId@version -> vulnerabilities
     this.trustedPublishers = new Set(this.config.trustedPublishers);
-    
+
     // Performance metrics
     this.resolutionMetrics = new Map(); // resolution session -> metrics
-    
+
     this.init();
   }
 
@@ -55,31 +55,31 @@ class DependencyResolver extends EventEmitter {
       allowPrerelease: false,
       maxResolutionDepth: 10,
       maxResolutionTime: 30000, // 30 seconds
-      
+
       // Conflict resolution
       autoResolveConflicts: true,
       preferStableVersions: true,
       allowDowngrades: false,
       strictVersionMatching: false,
-      
+
       // Security settings
       enableSecurityScanning: true,
       rejectVulnerablePackages: false,
       securitySeverityThreshold: 'medium', // 'low', 'medium', 'high', 'critical'
       trustedPublishers: [],
-      
+
       // Performance optimization
       enableDependencyCache: true,
       cacheExpirationTime: 300000, // 5 minutes
       parallelResolution: true,
       maxParallelRequests: 5,
-      
+
       // Validation settings
       validateDependencyIntegrity: true,
       requireSignedDependencies: false,
       allowCircularDependencies: false
     };
-    
+
     return { ...defaultConfig, ...userConfig };
   }
 
@@ -89,18 +89,17 @@ class DependencyResolver extends EventEmitter {
   async init() {
     try {
       this.log('info', 'DependencyResolver initializing...');
-      
+
       // Load vulnerability database
       if (this.config.enableSecurityScanning) {
         await this.loadVulnerabilityDatabase();
       }
-      
+
       // Load trusted publishers
       await this.loadTrustedPublishers();
-      
+
       this.log('info', 'DependencyResolver initialized successfully');
       this.emit('resolver-ready');
-      
     } catch (error) {
       this.log('error', 'Failed to initialize DependencyResolver:', error);
       throw error;
@@ -117,14 +116,14 @@ class DependencyResolver extends EventEmitter {
       description: 'Prefer the latest versions that satisfy all constraints',
       resolver: this.resolveLatestCompatible.bind(this)
     });
-    
+
     // Conservative strategy - prefer stable, well-tested versions
     this.resolutionStrategies.set('conservative', {
       name: 'Conservative',
       description: 'Prefer stable versions with proven compatibility',
       resolver: this.resolveConservative.bind(this)
     });
-    
+
     // Aggressive strategy - prefer newest versions even if potentially incompatible
     this.resolutionStrategies.set('aggressive', {
       name: 'Aggressive',
@@ -139,14 +138,14 @@ class DependencyResolver extends EventEmitter {
   async resolveDependencies(pluginManifest, options = {}) {
     const sessionId = this.generateSessionId();
     const startTime = Date.now();
-    
+
     try {
       this.log('info', `Starting dependency resolution for ${pluginManifest.name}`, {
         sessionId,
         plugin: pluginManifest.name,
         version: pluginManifest.version
       });
-      
+
       // Initialize resolution session
       const session = {
         sessionId,
@@ -159,65 +158,64 @@ class DependencyResolver extends EventEmitter {
         performanceImpact: 0,
         status: 'resolving'
       };
-      
+
       // Build dependency tree
       const dependencyTree = await this.buildDependencyTree(pluginManifest, session);
-      
+
       // Detect circular dependencies
       if (!this.config.allowCircularDependencies) {
         this.detectCircularDependencies(dependencyTree, session);
       }
-      
+
       // Resolve version conflicts
       const resolvedTree = await this.resolveVersionConflicts(dependencyTree, session);
-      
+
       // Optimize shared dependencies
       const optimizedTree = await this.optimizeSharedDependencies(resolvedTree, session);
-      
+
       // Perform security scanning
       if (this.config.enableSecurityScanning) {
         await this.performSecurityScan(optimizedTree, session);
       }
-      
+
       // Calculate performance impact
       session.performanceImpact = this.calculatePerformanceImpact(optimizedTree);
-      
+
       // Generate installation plan
       const installationPlan = this.generateInstallationPlan(optimizedTree, session);
-      
+
       session.status = 'completed';
       session.duration = Date.now() - startTime;
-      
-      this.log('info', `Dependency resolution completed`, {
+
+      this.log('info', 'Dependency resolution completed', {
         sessionId,
         duration: session.duration,
         totalDependencies: installationPlan.dependencies.length,
         conflicts: session.conflictingDependencies.size,
         securityIssues: session.securityIssues.length
       });
-      
+
       this.emit('resolution-complete', {
         sessionId,
         session,
         installationPlan
       });
-      
+
       return {
         success: true,
         sessionId,
         installationPlan,
         session
       };
-      
     } catch (error) {
       this.log('error', `Dependency resolution failed for ${pluginManifest.name}:`, error);
-      
+
       this.emit('resolution-error', {
         sessionId,
         error,
         plugin: pluginManifest.name
       });
-      
+
       throw error;
     }
   }
@@ -229,14 +227,14 @@ class DependencyResolver extends EventEmitter {
     if (depth > this.config.maxResolutionDepth) {
       throw new Error(`Maximum dependency depth exceeded: ${this.config.maxResolutionDepth}`);
     }
-    
+
     const pluginKey = `${manifest.name}@${manifest.version}`;
     if (visited.has(pluginKey)) {
       return null; // Circular dependency or already processed
     }
-    
+
     visited.add(pluginKey);
-    
+
     const node = {
       name: manifest.name,
       version: manifest.version,
@@ -249,20 +247,29 @@ class DependencyResolver extends EventEmitter {
         description: manifest.description
       }
     };
-    
+
     // Process dependencies if they exist
     if (manifest.dependencies) {
       const dependencyPromises = [];
-      
+
       for (const [depName, versionRange] of Object.entries(manifest.dependencies)) {
-        const depPromise = this.processDependency(depName, versionRange, session, depth + 1, new Set(visited));
+        const depPromise = this.processDependency(
+          depName,
+          versionRange,
+          session,
+          depth + 1,
+          new Set(visited)
+        );
         dependencyPromises.push(depPromise);
       }
-      
+
       if (this.config.parallelResolution) {
         // Process dependencies in parallel with concurrency limit
-        const results = await this.processInBatches(dependencyPromises, this.config.maxParallelRequests);
-        
+        const results = await this.processInBatches(
+          dependencyPromises,
+          this.config.maxParallelRequests
+        );
+
         for (let i = 0; i < results.length; i++) {
           const depName = Object.keys(manifest.dependencies)[i];
           if (results[i]) {
@@ -272,14 +279,20 @@ class DependencyResolver extends EventEmitter {
       } else {
         // Process dependencies sequentially
         for (const [depName, versionRange] of Object.entries(manifest.dependencies)) {
-          const depNode = await this.processDependency(depName, versionRange, session, depth + 1, new Set(visited));
+          const depNode = await this.processDependency(
+            depName,
+            versionRange,
+            session,
+            depth + 1,
+            new Set(visited)
+          );
           if (depNode) {
             node.dependencies.set(depName, depNode);
           }
         }
       }
     }
-    
+
     return node;
   }
 
@@ -296,16 +309,16 @@ class DependencyResolver extends EventEmitter {
           return cached.data;
         }
       }
-      
+
       // Get dependency manifest
       const depManifest = await this.getDependencyManifest(depName, versionRange);
       if (!depManifest) {
         throw new Error(`Dependency not found: ${depName}@${versionRange}`);
       }
-      
+
       // Recursively build dependency tree
       const depNode = await this.buildDependencyTree(depManifest, session, depth, visited);
-      
+
       // Cache result
       if (this.config.enableDependencyCache) {
         this.dependencyCache.set(cacheKey, {
@@ -313,18 +326,17 @@ class DependencyResolver extends EventEmitter {
           timestamp: Date.now()
         });
       }
-      
+
       return depNode;
-      
     } catch (error) {
       this.log('warn', `Failed to resolve dependency ${depName}@${versionRange}:`, error);
-      
+
       session.conflictingDependencies.set(depName, {
         requestedRange: versionRange,
         error: error.message,
         depth
       });
-      
+
       return null;
     }
   }
@@ -336,7 +348,7 @@ class DependencyResolver extends EventEmitter {
     // This would make a request to the marketplace API
     // For now, return mock manifest
     const mockVersion = this.selectVersionFromRange(pluginId, versionRange);
-    
+
     return {
       name: pluginId,
       version: mockVersion,
@@ -356,7 +368,7 @@ class DependencyResolver extends EventEmitter {
     // This would query available versions and select the best match
     // For now, return a mock version
     const strategy = this.resolutionStrategies.get(this.config.resolutionStrategy);
-    
+
     switch (this.config.resolutionStrategy) {
       case 'latest-compatible':
         return '1.2.0'; // Mock latest compatible
@@ -375,33 +387,35 @@ class DependencyResolver extends EventEmitter {
   detectCircularDependencies(dependencyTree, session) {
     const visited = new Set();
     const recursionStack = new Set();
-    
+
     const detectCycle = (node, path = []) => {
-      if (!node) return false;
-      
+      if (!node) {
+        return false;
+      }
+
       const nodeKey = `${node.name}@${node.version}`;
-      
+
       if (recursionStack.has(nodeKey)) {
         const cyclePath = [...path, nodeKey];
         throw new Error(`Circular dependency detected: ${cyclePath.join(' -> ')}`);
       }
-      
+
       if (visited.has(nodeKey)) {
         return false; // Already processed
       }
-      
+
       visited.add(nodeKey);
       recursionStack.add(nodeKey);
-      
+
       // Check all dependencies
       for (const [depName, depNode] of node.dependencies) {
         detectCycle(depNode, [...path, nodeKey]);
       }
-      
+
       recursionStack.delete(nodeKey);
       return false;
     };
-    
+
     detectCycle(dependencyTree);
   }
 
@@ -411,10 +425,10 @@ class DependencyResolver extends EventEmitter {
   async resolveVersionConflicts(dependencyTree, session) {
     const versionMap = new Map(); // pluginName -> [all requested versions]
     const conflicts = new Map();
-    
+
     // Collect all version requirements
     this.collectVersionRequirements(dependencyTree, versionMap);
-    
+
     // Identify conflicts
     for (const [pluginName, versions] of versionMap) {
       const uniqueVersions = new Set(versions.map(v => v.version));
@@ -426,20 +440,20 @@ class DependencyResolver extends EventEmitter {
         });
       }
     }
-    
+
     // Resolve conflicts
     if (conflicts.size > 0) {
       this.log('info', `Resolving ${conflicts.size} version conflicts`, {
         conflicts: Array.from(conflicts.keys())
       });
-      
+
       for (const [pluginName, conflict] of conflicts) {
         const resolved = await this.resolveVersionConflict(pluginName, conflict, session);
         conflict.resolved = resolved;
         session.conflictingDependencies.set(pluginName, conflict);
       }
     }
-    
+
     // Rebuild tree with resolved versions
     return this.rebuildTreeWithResolvedVersions(dependencyTree, conflicts);
   }
@@ -448,19 +462,21 @@ class DependencyResolver extends EventEmitter {
    * Collect version requirements from tree
    */
   collectVersionRequirements(node, versionMap, path = []) {
-    if (!node) return;
-    
+    if (!node) {
+      return;
+    }
+
     // Add current node
     if (!versionMap.has(node.name)) {
       versionMap.set(node.name, []);
     }
-    
+
     versionMap.get(node.name).push({
       version: node.version,
       versionRange: node.versionRange,
       requiredBy: path.join(' -> ') || 'root'
     });
-    
+
     // Process dependencies
     for (const [depName, depNode] of node.dependencies) {
       this.collectVersionRequirements(depNode, versionMap, [...path, node.name]);
@@ -472,25 +488,24 @@ class DependencyResolver extends EventEmitter {
    */
   async resolveVersionConflict(pluginName, conflict, session) {
     const strategy = this.resolutionStrategies.get(session.strategy);
-    
+
     // Get all available versions for the plugin
     const availableVersions = await this.getAvailableVersions(pluginName);
-    
+
     // Find versions that satisfy all constraints
     const compatibleVersions = this.findCompatibleVersions(
       availableVersions,
       conflict.constraints.map(c => c.versionRange)
     );
-    
+
     if (compatibleVersions.length === 0) {
       if (this.config.autoResolveConflicts) {
         // Try to find a compromise version
         return this.findCompromiseVersion(availableVersions, conflict.constraints);
-      } else {
-        throw new Error(`No compatible version found for ${pluginName}`);
       }
+      throw new Error(`No compatible version found for ${pluginName}`);
     }
-    
+
     // Use strategy to select best version
     return strategy.resolver(compatibleVersions, conflict.constraints);
   }
@@ -501,15 +516,15 @@ class DependencyResolver extends EventEmitter {
   async getAvailableVersions(pluginName) {
     // This would query the marketplace API
     // For now, return mock versions
-    return [
-      '1.0.0', '1.0.1', '1.1.0', '1.1.1', '1.2.0', '2.0.0-beta.1', '2.0.0'
-    ].filter(version => {
-      // Filter based on prerelease policy
-      if (!this.config.allowPrerelease && semver.prerelease(version)) {
-        return false;
+    return ['1.0.0', '1.0.1', '1.1.0', '1.1.1', '1.2.0', '2.0.0-beta.1', '2.0.0'].filter(
+      version => {
+        // Filter based on prerelease policy
+        if (!this.config.allowPrerelease && semver.prerelease(version)) {
+          return false;
+        }
+        return true;
       }
-      return true;
-    });
+    );
   }
 
   /**
@@ -534,7 +549,7 @@ class DependencyResolver extends EventEmitter {
     // Try to find the highest version that satisfies most constraints
     let bestVersion = null;
     let bestScore = -1;
-    
+
     for (const version of availableVersions) {
       let score = 0;
       for (const constraint of constraints) {
@@ -546,18 +561,21 @@ class DependencyResolver extends EventEmitter {
           // Invalid constraint, skip
         }
       }
-      
+
       if (score > bestScore) {
         bestScore = score;
         bestVersion = version;
       }
     }
-    
+
     if (bestVersion && bestScore >= constraints.length * 0.5) {
-      this.log('warn', `Using compromise version ${bestVersion} (satisfies ${bestScore}/${constraints.length} constraints)`);
+      this.log(
+        'warn',
+        `Using compromise version ${bestVersion} (satisfies ${bestScore}/${constraints.length} constraints)`
+      );
       return bestVersion;
     }
-    
+
     throw new Error('No acceptable compromise version found');
   }
 
@@ -569,7 +587,7 @@ class DependencyResolver extends EventEmitter {
     const sorted = compatibleVersions
       .filter(v => !semver.prerelease(v) || this.config.allowPrerelease)
       .sort(semver.rcompare);
-    
+
     return sorted[0] || compatibleVersions[0];
   }
 
@@ -579,7 +597,7 @@ class DependencyResolver extends EventEmitter {
   resolveConservative(compatibleVersions, constraints) {
     // Prefer stable, well-established versions
     const stableVersions = compatibleVersions.filter(v => !semver.prerelease(v));
-    
+
     if (stableVersions.length > 0) {
       // Find the highest patch version of the lowest minor version
       const byMinor = stableVersions.reduce((acc, version) => {
@@ -589,11 +607,11 @@ class DependencyResolver extends EventEmitter {
         }
         return acc;
       }, {});
-      
+
       const minorVersions = Object.keys(byMinor).sort(semver.compare);
       return byMinor[minorVersions[0]];
     }
-    
+
     return compatibleVersions.sort(semver.compare)[0];
   }
 
@@ -620,10 +638,10 @@ class DependencyResolver extends EventEmitter {
   async optimizeSharedDependencies(dependencyTree, session) {
     const sharedDeps = new Map(); // depName -> usage count
     const depVersions = new Map(); // depName -> Set of versions
-    
+
     // Analyze dependency usage
     this.analyzeSharedDependencies(dependencyTree, sharedDeps, depVersions);
-    
+
     // Optimize shared dependencies
     const optimizations = [];
     for (const [depName, usageCount] of sharedDeps) {
@@ -638,7 +656,7 @@ class DependencyResolver extends EventEmitter {
         }
       }
     }
-    
+
     this.log('info', `Applied ${optimizations.length} dependency optimizations`);
     return dependencyTree; // Would return optimized tree
   }
@@ -647,20 +665,22 @@ class DependencyResolver extends EventEmitter {
    * Analyze shared dependencies
    */
   analyzeSharedDependencies(node, sharedDeps, depVersions, visited = new Set()) {
-    if (!node || visited.has(`${node.name}@${node.version}`)) return;
-    
+    if (!node || visited.has(`${node.name}@${node.version}`)) {
+      return;
+    }
+
     visited.add(`${node.name}@${node.version}`);
-    
+
     // Count this dependency usage
     const count = sharedDeps.get(node.name) || 0;
     sharedDeps.set(node.name, count + 1);
-    
+
     // Track versions
     if (!depVersions.has(node.name)) {
       depVersions.set(node.name, new Set());
     }
     depVersions.get(node.name).add(node.version);
-    
+
     // Analyze subdependencies
     for (const [depName, depNode] of node.dependencies) {
       this.analyzeSharedDependencies(depNode, sharedDeps, depVersions, visited);
@@ -672,10 +692,10 @@ class DependencyResolver extends EventEmitter {
    */
   async unifyDependencyVersions(depName, versions) {
     const versionsArray = Array.from(versions);
-    
+
     // Find a version that's compatible with all usage scenarios
     const unifiedVersion = this.findUnifiedVersion(versionsArray);
-    
+
     if (unifiedVersion && unifiedVersion !== versionsArray[0]) {
       return {
         dependency: depName,
@@ -684,7 +704,7 @@ class DependencyResolver extends EventEmitter {
         savings: this.calculateSpaceSavings(depName, versionsArray, unifiedVersion)
       };
     }
-    
+
     return null;
   }
 
@@ -712,25 +732,27 @@ class DependencyResolver extends EventEmitter {
   async performSecurityScan(dependencyTree, session) {
     const securityIssues = [];
     const scannedPlugins = new Set();
-    
+
     await this.scanDependencyTree(dependencyTree, securityIssues, scannedPlugins);
-    
+
     // Filter by severity threshold
     const filteredIssues = securityIssues.filter(issue => {
       return this.isAboveSecurityThreshold(issue.severity);
     });
-    
+
     session.securityIssues = filteredIssues;
-    
+
     if (filteredIssues.length > 0) {
       this.log('warn', `Found ${filteredIssues.length} security issues`, {
         issues: filteredIssues.map(i => ({ plugin: i.plugin, severity: i.severity, type: i.type }))
       });
-      
+
       if (this.config.rejectVulnerablePackages) {
         const criticalIssues = filteredIssues.filter(i => i.severity === 'critical');
         if (criticalIssues.length > 0) {
-          throw new Error(`Critical security vulnerabilities detected: ${criticalIssues.length} issues`);
+          throw new Error(
+            `Critical security vulnerabilities detected: ${criticalIssues.length} issues`
+          );
         }
       }
     }
@@ -740,14 +762,16 @@ class DependencyResolver extends EventEmitter {
    * Scan dependency tree for security issues
    */
   async scanDependencyTree(node, issues, scanned) {
-    if (!node || scanned.has(`${node.name}@${node.version}`)) return;
-    
+    if (!node || scanned.has(`${node.name}@${node.version}`)) {
+      return;
+    }
+
     scanned.add(`${node.name}@${node.version}`);
-    
+
     // Check for known vulnerabilities
     const vulnerabilities = await this.checkVulnerabilities(node.name, node.version);
     issues.push(...vulnerabilities);
-    
+
     // Check publisher trust
     if (!this.isTrustedPublisher(node.metadata.publisher)) {
       issues.push({
@@ -758,7 +782,7 @@ class DependencyResolver extends EventEmitter {
         description: `Plugin published by untrusted publisher: ${node.metadata.publisher}`
       });
     }
-    
+
     // Scan subdependencies
     for (const [depName, depNode] of node.dependencies) {
       await this.scanDependencyTree(depNode, issues, scanned);
@@ -771,7 +795,7 @@ class DependencyResolver extends EventEmitter {
   async checkVulnerabilities(pluginName, version) {
     const key = `${pluginName}@${version}`;
     const vulnerabilities = this.vulnerabilityDatabase.get(key) || [];
-    
+
     return vulnerabilities.map(vuln => ({
       plugin: pluginName,
       version,
@@ -797,7 +821,7 @@ class DependencyResolver extends EventEmitter {
     const severityLevels = { low: 1, medium: 2, high: 3, critical: 4 };
     const thresholdLevel = severityLevels[this.config.securitySeverityThreshold];
     const issueSeverityLevel = severityLevels[severity];
-    
+
     return issueSeverityLevel >= thresholdLevel;
   }
 
@@ -805,25 +829,27 @@ class DependencyResolver extends EventEmitter {
    * Calculate performance impact
    */
   calculatePerformanceImpact(dependencyTree) {
-    let totalImpact = 0;
+    const totalImpact = 0;
     const processed = new Set();
-    
-    const calculateNodeImpact = (node) => {
-      if (!node || processed.has(`${node.name}@${node.version}`)) return 0;
-      
+
+    const calculateNodeImpact = node => {
+      if (!node || processed.has(`${node.name}@${node.version}`)) {
+        return 0;
+      }
+
       processed.add(`${node.name}@${node.version}`);
-      
+
       // Mock calculation based on size and dependencies
       let impact = (node.metadata.size || 100000) / 1000; // Base impact from size
-      
+
       // Add impact from subdependencies
       for (const [depName, depNode] of node.dependencies) {
         impact += calculateNodeImpact(depNode);
       }
-      
+
       return impact;
     };
-    
+
     return calculateNodeImpact(dependencyTree);
   }
 
@@ -834,18 +860,20 @@ class DependencyResolver extends EventEmitter {
     const dependencies = [];
     const installationOrder = [];
     const processed = new Set();
-    
+
     // Build installation order (dependencies first)
     const buildInstallOrder = (node, order = []) => {
-      if (!node || processed.has(`${node.name}@${node.version}`)) return;
-      
+      if (!node || processed.has(`${node.name}@${node.version}`)) {
+        return;
+      }
+
       processed.add(`${node.name}@${node.version}`);
-      
+
       // Install dependencies first
       for (const [depName, depNode] of node.dependencies) {
         buildInstallOrder(depNode, order);
       }
-      
+
       // Then install this node
       dependencies.push({
         name: node.name,
@@ -854,12 +882,12 @@ class DependencyResolver extends EventEmitter {
         publisher: node.metadata.publisher,
         dependencies: Array.from(node.dependencies.keys())
       });
-      
+
       order.push(`${node.name}@${node.version}`);
     };
-    
+
     buildInstallOrder(dependencyTree, installationOrder);
-    
+
     return {
       rootPlugin: session.rootPlugin.name,
       dependencies,
@@ -880,11 +908,11 @@ class DependencyResolver extends EventEmitter {
     const baseTime = 2000; // 2 seconds base
     const timePerDep = 500; // 0.5 seconds per dependency
     const timePerMB = 1000; // 1 second per MB
-    
+
     const totalSize = dependencies.reduce((sum, dep) => sum + (dep.size || 100000), 0);
     const sizeInMB = totalSize / (1024 * 1024);
-    
-    return baseTime + (dependencies.length * timePerDep) + (sizeInMB * timePerMB);
+
+    return baseTime + dependencies.length * timePerDep + sizeInMB * timePerMB;
   }
 
   /**
@@ -892,16 +920,16 @@ class DependencyResolver extends EventEmitter {
    */
   async processInBatches(promises, batchSize) {
     const results = [];
-    
+
     for (let i = 0; i < promises.length; i += batchSize) {
       const batch = promises.slice(i, i + batchSize);
       const batchResults = await Promise.allSettled(batch);
-      
-      results.push(...batchResults.map(result => 
-        result.status === 'fulfilled' ? result.value : null
-      ));
+
+      results.push(
+        ...batchResults.map(result => (result.status === 'fulfilled' ? result.value : null))
+      );
     }
-    
+
     return results;
   }
 
@@ -929,7 +957,7 @@ class DependencyResolver extends EventEmitter {
     // Add default trusted publishers
     this.trustedPublishers.add('official');
     this.trustedPublishers.add('macro-keyboard-team');
-    
+
     // Add user-configured trusted publishers
     for (const publisher of this.config.trustedPublishers) {
       this.trustedPublishers.add(publisher);
@@ -950,13 +978,13 @@ class DependencyResolver extends EventEmitter {
    */
   async dispose() {
     this.log('info', 'DependencyResolver disposing...');
-    
+
     // Clear caches
     this.dependencyCache.clear();
     this.resolvedVersions.clear();
     this.conflictResolutions.clear();
     this.vulnerabilityDatabase.clear();
-    
+
     this.emit('resolver-disposed');
     this.log('info', 'DependencyResolver disposed');
   }

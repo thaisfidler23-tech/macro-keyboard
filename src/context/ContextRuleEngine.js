@@ -8,14 +8,14 @@ const EventEmitter = require('events');
 class ContextRuleEngine extends EventEmitter {
   constructor(logger, rules = {}) {
     super();
-    
+
     this.logger = logger || {
       info: () => {},
       warn: () => {},
       error: () => {},
       debug: () => {}
     };
-    
+
     this.rules = {
       applicationBased: rules.applicationBased || {},
       windowTitleBased: { patterns: rules.windowTitleBased?.patterns || [] },
@@ -23,11 +23,11 @@ class ContextRuleEngine extends EventEmitter {
       systemStateBased: rules.systemStateBased || {},
       combined: rules.combined || []
     };
-    
+
     this.currentContext = null;
     this.evaluationHistory = [];
     this.maxHistorySize = 100;
-    
+
     // Rule priorities (higher = more important)
     this.rulePriorities = {
       combined: 150,
@@ -36,7 +36,7 @@ class ContextRuleEngine extends EventEmitter {
       systemState: 80,
       time: 50
     };
-    
+
     // Performance tracking
     this.statistics = {
       totalEvaluations: 0,
@@ -52,7 +52,7 @@ class ContextRuleEngine extends EventEmitter {
         combined: 0
       }
     };
-    
+
     this.logger.info('ContextRuleEngine initialized');
   }
 
@@ -61,7 +61,7 @@ class ContextRuleEngine extends EventEmitter {
    */
   evaluateContext(applicationInfo, systemState = {}) {
     const startTime = Date.now();
-    
+
     try {
       const context = {
         applicationInfo,
@@ -107,17 +107,17 @@ class ContextRuleEngine extends EventEmitter {
 
       // Select the best rule
       const bestRule = sortedRules.length > 0 ? sortedRules[0] : null;
-      
+
       // Update statistics
       this.updateStatistics(startTime, matchedRules, bestRule);
-      
+
       // Store evaluation in history
       this.addToHistory(context, matchedRules, bestRule);
-      
+
       // Update current context
       this.currentContext = {
         ...context,
-        matchedRules: matchedRules,
+        matchedRules,
         selectedRule: bestRule,
         selectedProfile: bestRule?.profile || null
       };
@@ -129,9 +129,8 @@ class ContextRuleEngine extends EventEmitter {
       });
 
       this.emit('contextEvaluated', this.currentContext);
-      
+
       return this.currentContext;
-      
     } catch (error) {
       this.logger.error('Error during context evaluation:', error);
       return null;
@@ -143,19 +142,19 @@ class ContextRuleEngine extends EventEmitter {
    */
   evaluateApplicationRules(context) {
     const matchedRules = [];
-    
+
     if (!context.applicationInfo?.processName) {
       return matchedRules;
     }
 
     for (const [appPattern, profile] of Object.entries(this.rules.applicationBased)) {
       const match = this.matchesApplication(context.applicationInfo.processName, appPattern);
-      
+
       if (match.isMatch) {
         matchedRules.push({
           type: 'application',
           pattern: appPattern,
-          profile: profile,
+          profile,
           priority: this.rulePriorities.application,
           confidence: match.confidence,
           metadata: {
@@ -164,11 +163,11 @@ class ContextRuleEngine extends EventEmitter {
             executablePath: context.applicationInfo.executablePath
           }
         });
-        
+
         this.statistics.ruleTypeMatches.application++;
       }
     }
-    
+
     return matchedRules;
   }
 
@@ -177,7 +176,7 @@ class ContextRuleEngine extends EventEmitter {
    */
   evaluateWindowTitleRules(context) {
     const matchedRules = [];
-    
+
     if (!context.applicationInfo?.windowTitle) {
       return matchedRules;
     }
@@ -218,18 +217,18 @@ class ContextRuleEngine extends EventEmitter {
           pattern: rule,
           profile: rule.profile,
           priority: this.rulePriorities.windowTitle,
-          confidence: confidence,
+          confidence,
           metadata: {
             windowTitle: context.applicationInfo.windowTitle,
-            matchType: matchType,
+            matchType,
             rulePattern: rule.regex?.source || rule.contains || rule.exact
           }
         });
-        
+
         this.statistics.ruleTypeMatches.windowTitle++;
       }
     }
-    
+
     return matchedRules;
   }
 
@@ -260,7 +259,7 @@ class ContextRuleEngine extends EventEmitter {
             currentTime: `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
           }
         });
-        
+
         this.statistics.ruleTypeMatches.time++;
       }
     }
@@ -280,7 +279,7 @@ class ContextRuleEngine extends EventEmitter {
             currentTime: `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
           }
         });
-        
+
         this.statistics.ruleTypeMatches.time++;
       }
     }
@@ -297,10 +296,10 @@ class ContextRuleEngine extends EventEmitter {
           confidence: 0.8,
           metadata: {
             dayOfWeek: currentDayName,
-            weekendDays: weekendDays
+            weekendDays
           }
         });
-        
+
         this.statistics.ruleTypeMatches.time++;
       }
     }
@@ -320,12 +319,12 @@ class ContextRuleEngine extends EventEmitter {
               conditions: customRule.conditions
             }
           });
-          
+
           this.statistics.ruleTypeMatches.time++;
         }
       }
     }
-    
+
     return matchedRules;
   }
 
@@ -334,41 +333,41 @@ class ContextRuleEngine extends EventEmitter {
    */
   evaluateSystemStateRules(context) {
     const matchedRules = [];
-    
+
     for (const [stateName, rule] of Object.entries(this.rules.systemStateBased)) {
       let isMatch = false;
       let confidence = 0;
 
       switch (stateName) {
-        case 'idle':
-          if (context.systemState.isIdle && rule.when === 'idle') {
-            isMatch = true;
-            confidence = 0.9;
-          } else if (!context.systemState.isIdle && rule.when === 'active') {
-            isMatch = true;
-            confidence = 0.9;
-          }
-          break;
-          
-        case 'locked':
-          if (context.systemState.isLocked && rule.when === 'locked') {
-            isMatch = true;
-            confidence = 1.0;
-          } else if (!context.systemState.isLocked && rule.when === 'unlocked') {
-            isMatch = true;
-            confidence = 1.0;
-          }
-          break;
-          
-        case 'presentation':
-          if (context.systemState.presentationMode && rule.when === 'active') {
-            isMatch = true;
-            confidence = 1.0;
-          } else if (!context.systemState.presentationMode && rule.when === 'inactive') {
-            isMatch = true;
-            confidence = 1.0;
-          }
-          break;
+      case 'idle':
+        if (context.systemState.isIdle && rule.when === 'idle') {
+          isMatch = true;
+          confidence = 0.9;
+        } else if (!context.systemState.isIdle && rule.when === 'active') {
+          isMatch = true;
+          confidence = 0.9;
+        }
+        break;
+
+      case 'locked':
+        if (context.systemState.isLocked && rule.when === 'locked') {
+          isMatch = true;
+          confidence = 1.0;
+        } else if (!context.systemState.isLocked && rule.when === 'unlocked') {
+          isMatch = true;
+          confidence = 1.0;
+        }
+        break;
+
+      case 'presentation':
+        if (context.systemState.presentationMode && rule.when === 'active') {
+          isMatch = true;
+          confidence = 1.0;
+        } else if (!context.systemState.presentationMode && rule.when === 'inactive') {
+          isMatch = true;
+          confidence = 1.0;
+        }
+        break;
       }
 
       if (isMatch) {
@@ -377,18 +376,18 @@ class ContextRuleEngine extends EventEmitter {
           pattern: stateName,
           profile: rule.profile,
           priority: this.rulePriorities.systemState,
-          confidence: confidence,
+          confidence,
           metadata: {
             systemState: stateName,
             condition: rule.when,
             currentState: context.systemState
           }
         });
-        
+
         this.statistics.ruleTypeMatches.systemState++;
       }
     }
-    
+
     return matchedRules;
   }
 
@@ -397,24 +396,24 @@ class ContextRuleEngine extends EventEmitter {
    */
   evaluateCombinedRules(context) {
     const matchedRules = [];
-    
+
     for (const combinedRule of this.rules.combined) {
       const conditionResults = [];
-      
+
       // Evaluate each condition in the combined rule
       for (const condition of combinedRule.conditions || []) {
         const result = this.evaluateCondition(condition, context);
         conditionResults.push(result);
       }
-      
+
       // Check if all conditions are met (AND logic) or any condition is met (OR logic)
       let isMatch = false;
       let averageConfidence = 0;
-      
+
       if (combinedRule.operator === 'OR') {
         isMatch = conditionResults.some(result => result.isMatch);
         const matchingResults = conditionResults.filter(result => result.isMatch);
-        averageConfidence = matchingResults.length > 0 
+        averageConfidence = matchingResults.length > 0
           ? matchingResults.reduce((sum, result) => sum + result.confidence, 0) / matchingResults.length
           : 0;
       } else { // Default to AND logic
@@ -423,7 +422,7 @@ class ContextRuleEngine extends EventEmitter {
           ? conditionResults.reduce((sum, result) => sum + result.confidence, 0) / conditionResults.length
           : 0;
       }
-      
+
       if (isMatch) {
         matchedRules.push({
           type: 'combined',
@@ -434,14 +433,14 @@ class ContextRuleEngine extends EventEmitter {
           metadata: {
             ruleName: combinedRule.name,
             operator: combinedRule.operator || 'AND',
-            conditionResults: conditionResults
+            conditionResults
           }
         });
-        
+
         this.statistics.ruleTypeMatches.combined++;
       }
     }
-    
+
     return matchedRules;
   }
 
@@ -450,36 +449,38 @@ class ContextRuleEngine extends EventEmitter {
    */
   evaluateCondition(condition, context) {
     switch (condition.type) {
-      case 'application':
-        if (context.applicationInfo?.processName) {
-          const match = this.matchesApplication(context.applicationInfo.processName, condition.value);
-          return { isMatch: match.isMatch, confidence: match.confidence };
-        }
-        break;
-        
-      case 'windowTitle':
-        if (context.applicationInfo?.windowTitle && condition.regex) {
-          const regex = new RegExp(condition.regex);
-          const isMatch = regex.test(context.applicationInfo.windowTitle);
-          return { isMatch, confidence: isMatch ? 0.9 : 0 };
-        }
-        break;
-        
-      case 'time':
-        const currentTime = context.systemState.currentTime;
-        if (condition.timeRange) {
-          const [start, end] = condition.timeRange.split('-');
-          const isMatch = this.isTimeInRange(currentTime.getHours(), currentTime.getMinutes(), start.trim(), end.trim());
-          return { isMatch, confidence: isMatch ? 0.8 : 0 };
-        }
-        break;
-        
-      case 'systemState':
-        const stateValue = context.systemState[condition.property];
-        const isMatch = stateValue === condition.value;
-        return { isMatch, confidence: isMatch ? 1.0 : 0 };
+    case 'application':
+      if (context.applicationInfo?.processName) {
+        const match = this.matchesApplication(context.applicationInfo.processName, condition.value);
+        return { isMatch: match.isMatch, confidence: match.confidence };
+      }
+      break;
+
+    case 'windowTitle':
+      if (context.applicationInfo?.windowTitle && condition.regex) {
+        const regex = new RegExp(condition.regex);
+        const isMatch = regex.test(context.applicationInfo.windowTitle);
+        return { isMatch, confidence: isMatch ? 0.9 : 0 };
+      }
+      break;
+
+    case 'time': {
+      const currentTime = context.systemState.currentTime;
+      if (condition.timeRange) {
+        const [start, end] = condition.timeRange.split('-');
+        const isMatch = this.isTimeInRange(currentTime.getHours(), currentTime.getMinutes(), start.trim(), end.trim());
+        return { isMatch, confidence: isMatch ? 0.8 : 0 };
+      }
+      break;
     }
-    
+
+    case 'systemState': {
+      const stateValue = context.systemState[condition.property];
+      const isMatch = stateValue === condition.value;
+      return { isMatch, confidence: isMatch ? 1.0 : 0 };
+    }
+    }
+
     return { isMatch: false, confidence: 0 };
   }
 
@@ -512,7 +513,7 @@ class ContextRuleEngine extends EventEmitter {
     // Fuzzy match (remove common suffixes/prefixes)
     const processCore = normalizedProcess.replace(/\.(exe|app|bin)$/, '');
     const patternCore = normalizedPattern.replace(/\.(exe|app|bin)$/, '');
-    
+
     if (processCore === patternCore) {
       return { isMatch: true, confidence: 0.9, matchType: 'core-match' };
     }
@@ -525,20 +526,19 @@ class ContextRuleEngine extends EventEmitter {
    */
   isTimeInRange(hour, minute, startTime, endTime) {
     const current = hour * 60 + minute;
-    
-    const [startHour, startMinute] = startTime.split(':').map(n => parseInt(n));
+
+    const [startHour, startMinute] = startTime.split(':').map(n => parseInt(n, 10));
     const start = startHour * 60 + startMinute;
-    
-    const [endHour, endMinute] = endTime.split(':').map(n => parseInt(n));
+
+    const [endHour, endMinute] = endTime.split(':').map(n => parseInt(n, 10));
     const end = endHour * 60 + endMinute;
-    
+
     if (start <= end) {
       // Same day range
       return current >= start && current <= end;
-    } else {
-      // Overnight range
-      return current >= start || current <= end;
     }
+    // Overnight range
+    return current >= start || current <= end;
   }
 
   /**
@@ -554,20 +554,20 @@ class ContextRuleEngine extends EventEmitter {
         const dayOfWeek = currentTime.getDay();
         const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
         const currentDayName = dayNames[dayOfWeek];
-        
+
         if (!condition.days.map(d => d.toLowerCase()).includes(currentDayName)) {
           return false;
         }
       } else if (condition.type === 'timeRange') {
         const hour = currentTime.getHours();
         const minute = currentTime.getMinutes();
-        
+
         if (!this.isTimeInRange(hour, minute, condition.start, condition.end)) {
           return false;
         }
       }
     }
-    
+
     return true;
   }
 
@@ -576,12 +576,12 @@ class ContextRuleEngine extends EventEmitter {
    */
   updateStatistics(startTime, matchedRules, bestRule) {
     const evaluationTime = Date.now() - startTime;
-    
+
     this.statistics.totalEvaluations++;
     this.statistics.totalEvaluationTime += evaluationTime;
     this.statistics.averageEvaluationTime = this.statistics.totalEvaluationTime / this.statistics.totalEvaluations;
     this.statistics.lastEvaluation = new Date();
-    
+
     if (matchedRules.length > 0) {
       this.statistics.ruleMatches++;
     }
@@ -645,7 +645,7 @@ class ContextRuleEngine extends EventEmitter {
         combined: 0
       }
     };
-    
+
     this.emit('statisticsReset');
   }
 
@@ -660,7 +660,7 @@ class ContextRuleEngine extends EventEmitter {
       systemStateBased: newRules.systemStateBased || {},
       combined: newRules.combined || []
     };
-    
+
     this.logger.info('Context rules updated');
     this.emit('rulesUpdated', this.rules);
   }

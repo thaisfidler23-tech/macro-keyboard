@@ -9,7 +9,7 @@ class ContextManagerUI {
     this.contextRules = [];
     this.currentContext = null;
     this.switchingEnabled = false;
-    
+
     // UI element references
     this.container = null;
     this.rulesContainer = null;
@@ -17,11 +17,11 @@ class ContextManagerUI {
     this.addRuleForm = null;
     this.statusToggle = null;
     this.historyContainer = null;
-    
+
     // State tracking
     this.editingRuleId = null;
     this.switchHistory = [];
-    
+
     // Initialize UI when DOM is ready
     this.initializeUI();
   }
@@ -92,7 +92,7 @@ class ContextManagerUI {
             <h4>Context Rules</h4>
             <button class="btn btn-primary" id="add-rule-btn">Add Rule</button>
           </div>
-          
+
           <div class="rules-list" id="rules-list">
             <!-- Rules will be populated here -->
           </div>
@@ -230,7 +230,7 @@ class ContextManagerUI {
    */
   setupEventListeners() {
     // Automatic switching toggle
-    this.statusToggle.addEventListener('change', async (e) => {
+    this.statusToggle.addEventListener('change', async e => {
       try {
         if (e.target.checked) {
           await window.electronAPI.invoke('enable-automatic-switching');
@@ -259,13 +259,13 @@ class ContextManagerUI {
     });
 
     // Rule form submission
-    this.addRuleForm.addEventListener('submit', async (e) => {
+    this.addRuleForm.addEventListener('submit', async e => {
       e.preventDefault();
       await this.saveRule();
     });
 
     // Rule type change - show/hide conditional fields
-    this.container.querySelector('#rule-type').addEventListener('change', (e) => {
+    this.container.querySelector('#rule-type').addEventListener('change', e => {
       this.toggleConditionalFields(e.target.value);
     });
 
@@ -287,41 +287,41 @@ class ContextManagerUI {
    */
   setupIPCListeners() {
     // Context change events
-    window.electronAPI.on('context-changed', (contextData) => {
+    window.electronAPI.on('context-changed', contextData => {
       this.currentContext = contextData;
       this.updateCurrentContextDisplay();
     });
 
-    window.electronAPI.on('application-changed', (appData) => {
+    window.electronAPI.on('application-changed', appData => {
       this.currentContext = { ...this.currentContext, application: appData };
       this.updateCurrentContextDisplay();
     });
 
-    window.electronAPI.on('system-state-changed', (stateData) => {
+    window.electronAPI.on('system-state-changed', stateData => {
       this.currentContext = { ...this.currentContext, systemState: stateData };
       this.updateCurrentContextDisplay();
     });
 
-    window.electronAPI.on('profile-switched', (switchData) => {
+    window.electronAPI.on('profile-switched', switchData => {
       this.switchHistory.unshift({
         ...switchData,
         timestamp: new Date().toISOString()
       });
-      
+
       // Keep only last 50 entries
       if (this.switchHistory.length > 50) {
         this.switchHistory = this.switchHistory.slice(0, 50);
       }
-      
+
       this.updateHistoryDisplay();
       this.updateCurrentContextDisplay();
     });
 
-    window.electronAPI.on('profile-switch-failed', (errorData) => {
+    window.electronAPI.on('profile-switch-failed', errorData => {
       this.showError(`Profile switch failed: ${errorData.error}`);
     });
 
-    window.electronAPI.on('switching-mode-changed', (modeData) => {
+    window.electronAPI.on('switching-mode-changed', modeData => {
       this.switchingEnabled = modeData.mode === 'automatic';
       this.statusToggle.checked = this.switchingEnabled;
     });
@@ -351,7 +351,6 @@ class ContextManagerUI {
 
       // Load available profiles for rule form
       await this.loadAvailableProfiles();
-
     } catch (error) {
       console.error('Error loading initial data:', error);
       this.showError('Failed to load context data');
@@ -365,10 +364,10 @@ class ContextManagerUI {
     try {
       const profiles = await window.electronAPI.invoke('get-profiles');
       const profileSelect = this.container.querySelector('#target-profile');
-      
+
       // Clear existing options except the first one
       profileSelect.innerHTML = '<option value="">Select profile</option>';
-      
+
       profiles.forEach(profile => {
         const option = document.createElement('option');
         option.value = profile.name;
@@ -384,7 +383,9 @@ class ContextManagerUI {
    * Update the current context display
    */
   updateCurrentContextDisplay() {
-    if (!this.currentContext) return;
+    if (!this.currentContext) {
+      return;
+    }
 
     const currentApp = this.container.querySelector('#current-app');
     const currentTime = this.container.querySelector('#current-time');
@@ -413,7 +414,9 @@ class ContextManagerUI {
    * Update the rules display
    */
   updateRulesDisplay() {
-    if (!this.rulesContainer) return;
+    if (!this.rulesContainer) {
+      return;
+    }
 
     this.rulesContainer.innerHTML = '';
 
@@ -474,7 +477,9 @@ class ContextManagerUI {
    * Update the switch history display
    */
   updateHistoryDisplay() {
-    if (!this.historyContainer) return;
+    if (!this.historyContainer) {
+      return;
+    }
 
     this.historyContainer.innerHTML = '';
 
@@ -495,10 +500,10 @@ class ContextManagerUI {
   createHistoryElement(entry) {
     const element = document.createElement('div');
     element.className = 'history-item';
-    
+
     const time = new Date(entry.timestamp).toLocaleTimeString();
     const triggerInfo = entry.trigger ? ` (${entry.trigger})` : '';
-    
+
     element.innerHTML = `
       <div class="history-time">${time}</div>
       <div class="history-details">
@@ -508,7 +513,7 @@ class ContextManagerUI {
         <span class="trigger">${triggerInfo}</span>
       </div>
     `;
-    
+
     return element;
   }
 
@@ -571,7 +576,7 @@ class ContextManagerUI {
           this.container.querySelector('#app-pattern').value = rule.processPattern;
         }
         break;
-        
+
       case 'time':
         if (rule.startTime) {
           this.container.querySelector('#start-time').value = rule.startTime;
@@ -582,11 +587,13 @@ class ContextManagerUI {
         if (rule.days) {
           rule.days.forEach(day => {
             const checkbox = this.container.querySelector(`input[name="days"][value="${day}"]`);
-            if (checkbox) checkbox.checked = true;
+            if (checkbox) {
+              checkbox.checked = true;
+            }
           });
         }
         break;
-        
+
       case 'system':
         if (rule.systemState) {
           this.container.querySelector('#system-state').value = rule.systemState;
@@ -634,16 +641,16 @@ class ContextManagerUI {
             rule.processPattern = formData.get('processPattern');
           }
           break;
-          
+
         case 'time':
           rule.startTime = formData.get('startTime');
           rule.endTime = formData.get('endTime');
           rule.days = formData.getAll('days');
           break;
-          
+
         case 'system':
           rule.systemState = formData.get('systemState');
-          rule.idleThreshold = parseInt(formData.get('idleThreshold'));
+          rule.idleThreshold = parseInt(formData.get('idleThreshold', 10));
           break;
       }
 
@@ -660,7 +667,6 @@ class ContextManagerUI {
       this.hideRuleForm();
       this.contextRules = await window.electronAPI.invoke('get-context-rules');
       this.updateRulesDisplay();
-
     } catch (error) {
       console.error('Error saving rule:', error);
       this.showError('Failed to save rule');
@@ -766,10 +772,10 @@ class ContextManagerUI {
     if (this.container && this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
     }
-    
+
     // Remove event listeners
     // Note: Most listeners are on elements that will be removed, so they'll be cleaned up automatically
-    
+
     this.isInitialized = false;
   }
 }

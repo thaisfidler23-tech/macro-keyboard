@@ -8,74 +8,85 @@ window.electronAPI = {
   // Profile management methods
   getProfiles: () => ipcRenderer.invoke('get-profiles'),
   getActiveProfileName: () => ipcRenderer.invoke('get-active-profile-name'),
-  activateProfile: (profileName) => ipcRenderer.invoke('activate-profile', profileName),
-  createProfile: (name, baseConfig, description) => ipcRenderer.invoke('create-profile', name, baseConfig, description),
-  updateProfile: (profileName, newConfig, description) => ipcRenderer.invoke('update-profile', profileName, newConfig, description),
-  updateProfileDescription: (profileName, description) => ipcRenderer.invoke('update-profile', profileName, null, description),
-  deleteProfile: (profileName) => ipcRenderer.invoke('delete-profile', profileName),
-  duplicateProfile: (sourceProfileName, newProfileName, description) => ipcRenderer.invoke('duplicate-profile', sourceProfileName, newProfileName, description),
-  exportProfile: (profileName, exportPath) => ipcRenderer.invoke('export-profile', profileName, exportPath),
-  importProfile: (importPath, profileName, overwrite) => ipcRenderer.invoke('import-profile', importPath, profileName, overwrite),
+  activateProfile: profileName => ipcRenderer.invoke('activate-profile', profileName),
+  createProfile: (name, baseConfig, description) =>
+    ipcRenderer.invoke('create-profile', name, baseConfig, description),
+  updateProfile: (profileName, newConfig, description) =>
+    ipcRenderer.invoke('update-profile', profileName, newConfig, description),
+  updateProfileDescription: (profileName, description) =>
+    ipcRenderer.invoke('update-profile', profileName, null, description),
+  deleteProfile: profileName => ipcRenderer.invoke('delete-profile', profileName),
+  duplicateProfile: (sourceProfileName, newProfileName, description) =>
+    ipcRenderer.invoke('duplicate-profile', sourceProfileName, newProfileName, description),
+  exportProfile: (profileName, exportPath) =>
+    ipcRenderer.invoke('export-profile', profileName, exportPath),
+  importProfile: (importPath, profileName, overwrite) =>
+    ipcRenderer.invoke('import-profile', importPath, profileName, overwrite),
   getProfileStatistics: () => ipcRenderer.invoke('get-profile-statistics'),
-  
+
   // File dialog methods
-  showSaveDialog: (options) => ipcRenderer.invoke('show-save-dialog', options),
-  showOpenDialog: (options) => ipcRenderer.invoke('show-open-dialog', options),
-  
+  showSaveDialog: options => ipcRenderer.invoke('show-save-dialog', options),
+  showOpenDialog: options => ipcRenderer.invoke('show-open-dialog', options),
+
   // Update management methods
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   downloadUpdate: () => ipcRenderer.invoke('download-update'),
   installUpdate: () => ipcRenderer.invoke('install-update'),
   getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),
-  setAutoUpdateEnabled: (enabled) => ipcRenderer.invoke('set-auto-update-enabled', enabled),
+  setAutoUpdateEnabled: enabled => ipcRenderer.invoke('set-auto-update-enabled', enabled),
   getUpdateStatistics: () => ipcRenderer.invoke('get-update-statistics'),
-  
+
   // Update event listeners
-  onUpdateAvailable: (callback) => {
+  onUpdateAvailable: callback => {
     ipcRenderer.on('update-available', (event, updateInfo) => callback(updateInfo));
   },
-  onUpdateNotAvailable: (callback) => {
+  onUpdateNotAvailable: callback => {
     ipcRenderer.on('update-not-available', () => callback());
   },
-  onUpdateDownloadProgress: (callback) => {
+  onUpdateDownloadProgress: callback => {
     ipcRenderer.on('update-download-progress', (event, progress) => callback(progress));
   },
-  onUpdateDownloaded: (callback) => {
+  onUpdateDownloaded: callback => {
     ipcRenderer.on('update-downloaded', (event, updateInfo) => callback(updateInfo));
   },
-  onUpdateError: (callback) => {
+  onUpdateError: callback => {
     ipcRenderer.on('update-error', (event, error) => callback(error));
   },
 
   // Log management methods
-  getRecentLogs: (limit) => ipcRenderer.invoke('get-recent-logs', limit),
+  getRecentLogs: limit => ipcRenderer.invoke('get-recent-logs', limit),
   getLogStatistics: () => ipcRenderer.invoke('get-log-statistics'),
-  exportLogs: (startDate, endDate, format) => ipcRenderer.invoke('export-logs', startDate, endDate, format),
+  exportLogs: (startDate, endDate, format) =>
+    ipcRenderer.invoke('export-logs', startDate, endDate, format),
   clearLogs: () => ipcRenderer.invoke('clear-logs'),
-  
+
   // Performance monitoring methods
-  startPerformanceMonitoring: (options) => ipcRenderer.invoke('start-performance-monitoring', options),
+  startPerformanceMonitoring: options =>
+    ipcRenderer.invoke('start-performance-monitoring', options),
   stopPerformanceMonitoring: () => ipcRenderer.invoke('stop-performance-monitoring'),
   getPerformanceMetrics: () => ipcRenderer.invoke('get-performance-metrics'),
-  getPerformanceHistory: (metricType, limit) => ipcRenderer.invoke('get-performance-history', metricType, limit),
+  getPerformanceHistory: (metricType, limit) =>
+    ipcRenderer.invoke('get-performance-history', metricType, limit),
   getOperationPerformance: () => ipcRenderer.invoke('get-operation-performance'),
   getOptimizationSuggestions: () => ipcRenderer.invoke('get-optimization-suggestions'),
-  exportPerformanceData: (format, startDate, endDate) => ipcRenderer.invoke('export-performance-data', format, startDate, endDate),
+  exportPerformanceData: (format, startDate, endDate) =>
+    ipcRenderer.invoke('export-performance-data', format, startDate, endDate),
   clearPerformanceData: () => ipcRenderer.invoke('clear-performance-data'),
-  
+
   // Plugin management methods
   getPlugins: () => ipcRenderer.invoke('get-plugins'),
-  getPluginDetails: (pluginId) => ipcRenderer.invoke('get-plugin-details', pluginId),
-  enablePlugin: (pluginId) => ipcRenderer.invoke('enable-plugin', pluginId),
-  disablePlugin: (pluginId) => ipcRenderer.invoke('disable-plugin', pluginId),
-  reloadPlugin: (pluginId) => ipcRenderer.invoke('reload-plugin', pluginId),
-  uninstallPlugin: (pluginId) => ipcRenderer.invoke('uninstall-plugin', pluginId),
-  getPluginConfig: (pluginId) => ipcRenderer.invoke('get-plugin-config', pluginId),
-  updatePluginConfig: (pluginId, config) => ipcRenderer.invoke('update-plugin-config', pluginId, config),
+  getPluginDetails: pluginId => ipcRenderer.invoke('get-plugin-details', pluginId),
+  enablePlugin: pluginId => ipcRenderer.invoke('enable-plugin', pluginId),
+  disablePlugin: pluginId => ipcRenderer.invoke('disable-plugin', pluginId),
+  reloadPlugin: pluginId => ipcRenderer.invoke('reload-plugin', pluginId),
+  uninstallPlugin: pluginId => ipcRenderer.invoke('uninstall-plugin', pluginId),
+  getPluginConfig: pluginId => ipcRenderer.invoke('get-plugin-config', pluginId),
+  updatePluginConfig: (pluginId, config) =>
+    ipcRenderer.invoke('update-plugin-config', pluginId, config),
   getPluginLogs: (pluginId, limit) => ipcRenderer.invoke('get-plugin-logs', pluginId, limit),
-  loadPluginFromPath: (pluginPath) => ipcRenderer.invoke('load-plugin-from-path', pluginPath),
-  createPluginTemplate: (options) => ipcRenderer.invoke('create-plugin-template', options),
-  
+  loadPluginFromPath: pluginPath => ipcRenderer.invoke('load-plugin-from-path', pluginPath),
+  createPluginTemplate: options => ipcRenderer.invoke('create-plugin-template', options),
+
   // Log event listener
   on: (channel, callback) => {
     if (channel === 'log-entry') {
@@ -98,47 +109,48 @@ window.electronAPI = {
       ipcRenderer.on('plugin-unloaded', (event, data) => callback(event, data));
     }
   },
-  
-  removeListener: (channel) => {
+
+  removeListener: channel => {
     if (channel === 'log-entry') {
       ipcRenderer.removeAllListeners('log-entry');
     }
   },
-  
+
   // Macro Recording methods
-  startMacroRecording: (sequenceName) => ipcRenderer.invoke('start-macro-recording', sequenceName),
+  startMacroRecording: sequenceName => ipcRenderer.invoke('start-macro-recording', sequenceName),
   stopMacroRecording: () => ipcRenderer.invoke('stop-macro-recording'),
   cancelMacroRecording: () => ipcRenderer.invoke('cancel-macro-recording'),
-  playMacroSequence: (sequenceName) => ipcRenderer.invoke('play-macro-sequence', sequenceName),
+  playMacroSequence: sequenceName => ipcRenderer.invoke('play-macro-sequence', sequenceName),
   stopMacroPlayback: () => ipcRenderer.invoke('stop-macro-playback'),
   getSavedSequences: () => ipcRenderer.invoke('get-saved-sequences'),
-  deleteMacroSequence: (sequenceName) => ipcRenderer.invoke('delete-macro-sequence', sequenceName),
-  duplicateMacroSequence: (sourceName, newName) => ipcRenderer.invoke('duplicate-macro-sequence', sourceName, newName),
+  deleteMacroSequence: sequenceName => ipcRenderer.invoke('delete-macro-sequence', sequenceName),
+  duplicateMacroSequence: (sourceName, newName) =>
+    ipcRenderer.invoke('duplicate-macro-sequence', sourceName, newName),
   getMacroStatistics: () => ipcRenderer.invoke('get-macro-statistics'),
-  
+
   // Macro Recording event listeners
-  onMacroRecordingStarted: (callback) => {
+  onMacroRecordingStarted: callback => {
     ipcRenderer.on('macro-recording-started', (event, data) => callback(data));
   },
-  onMacroActionRecorded: (callback) => {
+  onMacroActionRecorded: callback => {
     ipcRenderer.on('macro-action-recorded', (event, action) => callback(action));
   },
-  onMacroRecordingStopped: (callback) => {
+  onMacroRecordingStopped: callback => {
     ipcRenderer.on('macro-recording-stopped', (event, sequenceData) => callback(sequenceData));
   },
-  onMacroPlaybackStarted: (callback) => {
+  onMacroPlaybackStarted: callback => {
     ipcRenderer.on('macro-playback-started', (event, data) => callback(data));
   },
-  onMacroPlaybackProgress: (callback) => {
+  onMacroPlaybackProgress: callback => {
     ipcRenderer.on('macro-playback-progress', (event, progress) => callback(progress));
   },
-  onMacroPlaybackCompleted: (callback) => {
+  onMacroPlaybackCompleted: callback => {
     ipcRenderer.on('macro-playback-completed', (event, data) => callback(data));
   },
-  onMacroPlaybackStopped: (callback) => {
+  onMacroPlaybackStopped: callback => {
     ipcRenderer.on('macro-playback-stopped', (event, data) => callback(data));
   },
-  onMacroPlaybackError: (callback) => {
+  onMacroPlaybackError: callback => {
     ipcRenderer.on('macro-playback-error', (event, error) => callback(error));
   },
 
@@ -149,17 +161,23 @@ window.electronAPI = {
 
   // System Integration methods
   getSystemIntegrationStatus: () => ipcRenderer.invoke('get-system-integration-status'),
-  registerGlobalShortcut: (shortcut, action, metadata) => ipcRenderer.invoke('register-global-shortcut', shortcut, action, metadata),
-  unregisterGlobalShortcut: (shortcut) => ipcRenderer.invoke('unregister-global-shortcut', shortcut),
-  getClipboardHistory: (limit) => ipcRenderer.invoke('get-clipboard-history', limit),
-  setClipboardContent: (content, metadata) => ipcRenderer.invoke('set-clipboard-content', content, metadata),
+  registerGlobalShortcut: (shortcut, action, metadata) =>
+    ipcRenderer.invoke('register-global-shortcut', shortcut, action, metadata),
+  unregisterGlobalShortcut: shortcut => ipcRenderer.invoke('unregister-global-shortcut', shortcut),
+  getClipboardHistory: limit => ipcRenderer.invoke('get-clipboard-history', limit),
+  setClipboardContent: (content, metadata) =>
+    ipcRenderer.invoke('set-clipboard-content', content, metadata),
   getActiveWindow: () => ipcRenderer.invoke('get-active-window'),
-  executeSystemCommand: (command, args) => ipcRenderer.invoke('execute-system-command', command, args),
+  executeSystemCommand: (command, args) =>
+    ipcRenderer.invoke('execute-system-command', command, args),
   getSystemState: () => ipcRenderer.invoke('get-system-state'),
-  addApplicationIntegration: (appName, config) => ipcRenderer.invoke('add-application-integration', appName, config),
-  removeApplicationIntegration: (appName) => ipcRenderer.invoke('remove-application-integration', appName),
+  addApplicationIntegration: (appName, config) =>
+    ipcRenderer.invoke('add-application-integration', appName, config),
+  removeApplicationIntegration: appName =>
+    ipcRenderer.invoke('remove-application-integration', appName),
   exportSystemIntegrationSettings: () => ipcRenderer.invoke('export-system-integration-settings'),
-  importSystemIntegrationSettings: (settings) => ipcRenderer.invoke('import-system-integration-settings', settings),
+  importSystemIntegrationSettings: settings =>
+    ipcRenderer.invoke('import-system-integration-settings', settings),
 
   // Voice Recognition methods
   getVoiceRecognitionStatus: () => ipcRenderer.invoke('get-voice-recognition-status'),
@@ -167,30 +185,35 @@ window.electronAPI = {
   stopVoiceListening: () => ipcRenderer.invoke('stop-voice-listening'),
   pauseVoiceListening: () => ipcRenderer.invoke('pause-voice-listening'),
   resumeVoiceListening: () => ipcRenderer.invoke('resume-voice-listening'),
-  addVoiceCommand: (phrase, action, options) => ipcRenderer.invoke('add-voice-command', phrase, action, options),
-  removeVoiceCommand: (phrase) => ipcRenderer.invoke('remove-voice-command', phrase),
+  addVoiceCommand: (phrase, action, options) =>
+    ipcRenderer.invoke('add-voice-command', phrase, action, options),
+  removeVoiceCommand: phrase => ipcRenderer.invoke('remove-voice-command', phrase),
   getVoiceCommands: () => ipcRenderer.invoke('get-voice-commands'),
-  testVoiceCommand: (phrase) => ipcRenderer.invoke('test-voice-command', phrase),
-  switchVoiceProfile: (profileName) => ipcRenderer.invoke('switch-voice-profile', profileName),
+  testVoiceCommand: phrase => ipcRenderer.invoke('test-voice-command', phrase),
+  switchVoiceProfile: profileName => ipcRenderer.invoke('switch-voice-profile', profileName),
   getVoiceProfiles: () => ipcRenderer.invoke('get-voice-profiles'),
   createVoiceProfile: (name, config) => ipcRenderer.invoke('create-voice-profile', name, config),
   getVoiceRecognitionStatistics: () => ipcRenderer.invoke('get-voice-recognition-statistics'),
   resetVoiceRecognitionStatistics: () => ipcRenderer.invoke('reset-voice-recognition-statistics'),
-  saveVoiceRecognitionConfiguration: () => ipcRenderer.invoke('save-voice-recognition-configuration'),
-  setVoiceGain: (gain) => ipcRenderer.invoke('set-voice-gain', gain),
-  setVoiceNoiseThreshold: (threshold) => ipcRenderer.invoke('set-voice-noise-threshold', threshold),
-  setVoiceConfidenceThreshold: (threshold) => ipcRenderer.invoke('set-voice-confidence-threshold', threshold),
-  startVoiceTraining: (mode) => ipcRenderer.invoke('start-voice-training', mode),
+  saveVoiceRecognitionConfiguration: () =>
+    ipcRenderer.invoke('save-voice-recognition-configuration'),
+  setVoiceGain: gain => ipcRenderer.invoke('set-voice-gain', gain),
+  setVoiceNoiseThreshold: threshold => ipcRenderer.invoke('set-voice-noise-threshold', threshold),
+  setVoiceConfidenceThreshold: threshold =>
+    ipcRenderer.invoke('set-voice-confidence-threshold', threshold),
+  startVoiceTraining: mode => ipcRenderer.invoke('start-voice-training', mode),
 
   // Security Policy methods
   getSecurityConfiguration: () => ipcRenderer.invoke('get-security-configuration'),
-  updateSecurityPolicy: (newPolicy) => ipcRenderer.invoke('update-security-policy', newPolicy),
+  updateSecurityPolicy: newPolicy => ipcRenderer.invoke('update-security-policy', newPolicy),
   getSecurityStats: () => ipcRenderer.invoke('get-security-stats'),
-  getSecurityAuditEvents: (options) => ipcRenderer.invoke('get-security-audit-events', options),
+  getSecurityAuditEvents: options => ipcRenderer.invoke('get-security-audit-events', options),
   getUserRoles: () => ipcRenderer.invoke('get-user-roles'),
-  updateUserRole: (roleName, roleConfig) => ipcRenderer.invoke('update-user-role', roleName, roleConfig),
-  testSecurityPolicy: (testActions) => ipcRenderer.invoke('test-security-policy', testActions),
-  validateSecurityAction: (actionConfig, context) => ipcRenderer.invoke('validate-security-action', actionConfig, context)
+  updateUserRole: (roleName, roleConfig) =>
+    ipcRenderer.invoke('update-user-role', roleName, roleConfig),
+  testSecurityPolicy: testActions => ipcRenderer.invoke('test-security-policy', testActions),
+  validateSecurityAction: (actionConfig, context) =>
+    ipcRenderer.invoke('validate-security-action', actionConfig, context)
 };
 
 class ConfigUI {
@@ -221,7 +244,7 @@ class ConfigUI {
     this.initializeLogViewer();
     this.initializePerformanceUI();
     this.initializePluginManagerUI();
-    
+
     // Perform initial configuration validation
     await this.validateCurrentConfig();
   }
@@ -232,7 +255,7 @@ class ConfigUI {
       // Config loaded successfully
     } catch (error) {
       // Log error through main process instead of console
-      await ipcRenderer.invoke('log-error', 'Error loading config: ' + error.message);
+      await ipcRenderer.invoke('log-error', `Error loading config: ${error.message}`);
     }
   }
 
@@ -247,12 +270,12 @@ class ConfigUI {
           DISCONNECTED: 'disconnected',
           FAILED: 'failed'
         };
-        
+
         const uiState = stateMapping[connectionInfo.state] || 'unknown';
         this.updateConnectionStatus(uiState, connectionInfo.port);
       }
     } catch (error) {
-      await ipcRenderer.invoke('log-error', 'Error loading connection status: ' + error.message);
+      await ipcRenderer.invoke('log-error', `Error loading connection status: ${error.message}`);
     }
   }
 
@@ -277,24 +300,24 @@ class ConfigUI {
       this.loadSerialPorts();
     });
 
-    document.getElementById('button-count').addEventListener('change', (e) => {
-      this.config.device.buttons = parseInt(e.target.value);
+    document.getElementById('button-count').addEventListener('change', e => {
+      this.config.device.buttons = parseInt(e.target.value, 10);
       this.generateButtonConfig();
     });
 
-    document.getElementById('encoder-count').addEventListener('change', (e) => {
-      this.config.device.encoders = parseInt(e.target.value);
+    document.getElementById('encoder-count').addEventListener('change', e => {
+      this.config.device.encoders = parseInt(e.target.value, 10);
       this.generateEncoderConfig();
     });
 
-    document.getElementById('serial-port').addEventListener('change', (e) => {
+    document.getElementById('serial-port').addEventListener('change', e => {
       this.config.device.serialPort = e.target.value;
       this.updatePortDetails(e.target.value);
       this.updateTestButtonState();
     });
 
-    document.getElementById('baud-rate').addEventListener('change', (e) => {
-      this.config.device.baudRate = parseInt(e.target.value);
+    document.getElementById('baud-rate').addEventListener('change', e => {
+      this.config.device.baudRate = parseInt(e.target.value, 10);
     });
 
     // Connection testing
@@ -317,7 +340,7 @@ class ConfigUI {
       }
     });
 
-        // Listen for config reload from main process
+    // Listen for config reload from main process
     ipcRenderer.on('config-reloaded', (event, config) => {
       this.config = config;
       this.updateUI();
@@ -418,9 +441,9 @@ class ConfigUI {
       document.getElementById('clear-error-history').addEventListener('click', () => {
         this.clearErrorHistory();
       });
-      
+
       // Set up error status click handler to show error history
-      document.addEventListener('click', (e) => {
+      document.addEventListener('click', e => {
         if (e.target && e.target.id === 'error-status') {
           this.toggleErrorHistory();
         }
@@ -484,8 +507,8 @@ class ConfigUI {
 
     // Hardware errors
     if (
-      message.includes('serial') || 
-      message.includes('port') || 
+      message.includes('serial') ||
+      message.includes('port') ||
       message.includes('device') ||
       message.includes('arduino') ||
       message.includes('connection') ||
@@ -497,8 +520,8 @@ class ConfigUI {
 
     // Configuration errors
     if (
-      message.includes('config') || 
-      message.includes('validation') || 
+      message.includes('config') ||
+      message.includes('validation') ||
       message.includes('schema') ||
       message.includes('button') ||
       message.includes('encoder') ||
@@ -561,11 +584,11 @@ class ConfigUI {
         break;
     }
 
-    return suggestions.length > 0 
+    return suggestions.length > 0
       ? `<div class="error-actions">
           <strong>Suggested solutions:</strong>
           <ul>${suggestions.map(s => `<li>${s}</li>`).join('')}</ul>
-        </div>` 
+        </div>`
       : '';
   }
 
@@ -576,15 +599,16 @@ class ConfigUI {
     const container = document.getElementById('notification-container');
     const notificationElement = document.createElement('div');
     notificationElement.className = `notification error severity-${notification.severity.toLowerCase()} category-${notification.category || 'system'}`;
-    
+
     const severityIcon = this.getSeverityIcon(notification.severity);
     const categoryIcon = this.getCategoryIcon(notification.category);
-    const actionsHtml = notification.actions && notification.actions.length > 0 
-      ? `<div class="error-actions">
+    const actionsHtml =
+      notification.actions && notification.actions.length > 0
+        ? `<div class="error-actions">
           <strong>Try these solutions:</strong>
           <ul>${notification.actions.map(action => `<li>${action}</li>`).join('')}</ul>
-        </div>` 
-      : this.getRecoverySuggestions(notification);
+        </div>`
+        : this.getRecoverySuggestions(notification);
 
     notificationElement.innerHTML = `
       <div class="notification-content">
@@ -629,7 +653,7 @@ class ConfigUI {
    */
   handleErrorRecovery(errorType, component) {
     this.showSuccessNotification(`${component} error recovered: ${errorType}`);
-    
+
     // Update any relevant UI state
     this.updateConnectionStatus();
   }
@@ -669,7 +693,7 @@ class ConfigUI {
     const stateMapping = {
       CONNECTING: 'connecting',
       CONNECTED: 'connected',
-      RECONNECTING: 'reconnecting', 
+      RECONNECTING: 'reconnecting',
       DISCONNECTED: 'disconnected',
       FAILED: 'failed'
     };
@@ -703,7 +727,9 @@ class ConfigUI {
    */
   handleOfflineMode(enabled) {
     if (enabled) {
-      this.showWarningNotification('Running in offline mode - commands will be queued until device reconnects');
+      this.showWarningNotification(
+        'Running in offline mode - commands will be queued until device reconnects'
+      );
     } else {
       this.showSuccessNotification('Online mode restored - processing queued commands');
     }
@@ -715,28 +741,28 @@ class ConfigUI {
   handleActionStarted(actionInfo) {
     const { type, id, direction } = actionInfo;
     const actionName = type === 'encoder' ? `Encoder ${id} (${direction})` : `Button ${id}`;
-    
+
     // Add visual feedback to the specific button/encoder in UI
     this.highlightActionElement(type, id, 'active');
-    
+
     // Show brief notification for debugging (can be removed in production)
     this.showInfoNotification(`${actionName} pressed`, 1000);
   }
 
   /**
-   * Handle action completed feedback  
+   * Handle action completed feedback
    */
   handleActionCompleted(actionInfo) {
     const { type, id, direction, config } = actionInfo;
     const actionName = type === 'encoder' ? `Encoder ${id} (${direction})` : `Button ${id}`;
-    
+
     // Remove active highlight and add success feedback
     this.highlightActionElement(type, id, 'success');
-    
+
     // Show success notification with action details
     const actionDetails = config ? `executed "${config.action}"` : 'action completed';
     this.showSuccessNotification(`${actionName} ${actionDetails}`, 2000);
-    
+
     // Clear highlight after a delay
     setTimeout(() => {
       this.highlightActionElement(type, id, null);
@@ -749,16 +775,16 @@ class ConfigUI {
   handleActionFailed(actionInfo) {
     const { type, id, direction, error } = actionInfo;
     const actionName = type === 'encoder' ? `Encoder ${id} (${direction})` : `Button ${id}`;
-    
+
     // Add error highlight
     this.highlightActionElement(type, id, 'error');
-    
+
     // Show error notification
     this.showErrorNotification({
       message: `${actionName} failed: ${error}`,
       severity: 'MEDIUM'
     });
-    
+
     // Clear highlight after a delay
     setTimeout(() => {
       this.highlightActionElement(type, id, null);
@@ -771,11 +797,11 @@ class ConfigUI {
   highlightActionElement(type, id, state) {
     const elementId = type === 'encoder' ? `encoder${id}` : `button${id}`;
     const element = document.getElementById(elementId);
-    
+
     if (element) {
       // Remove existing highlight classes
       element.classList.remove('action-active', 'action-success', 'action-error');
-      
+
       // Add new state class if provided
       if (state) {
         element.classList.add(`action-${state}`);
@@ -803,13 +829,13 @@ class ConfigUI {
     container.innerHTML = '';
 
     const buttonCount = this.config.device.buttons || 8;
-    
+
     for (let i = 1; i <= buttonCount; i++) {
       const buttonDiv = document.createElement('div');
       buttonDiv.className = 'config-item';
-      
+
       const buttonConfig = this.config.buttons[`button${i}`] || { action: '', description: '' };
-      
+
       buttonDiv.innerHTML = `
         <h4>Button ${i}</h4>
         <div class="form-group">
@@ -831,7 +857,7 @@ class ConfigUI {
           <div id="btn${i}-shortcut-picker" class="shortcut-picker-container" style="display: none;"></div>
         </div>
       `;
-      
+
       container.appendChild(buttonDiv);
 
       // Add event listeners for this button
@@ -854,7 +880,7 @@ class ConfigUI {
 
       // Set current values
       typeSelect.value = buttonConfig.type || '';
-      
+
       // Initialize shortcut picker if needed
       if (buttonConfig.type === 'keypress') {
         this.toggleShortcutPicker(i, 'keypress');
@@ -867,19 +893,19 @@ class ConfigUI {
     container.innerHTML = '';
 
     const encoderCount = this.config.device.encoders || 0;
-    
+
     for (let i = 1; i <= encoderCount; i++) {
       const encoderDiv = document.createElement('div');
       encoderDiv.className = 'config-item';
-      
-      const encoderConfig = this.config.encoders[`encoder${i}`] || { 
-        description: '', 
-        actionCW: '', 
+
+      const encoderConfig = this.config.encoders[`encoder${i}`] || {
+        description: '',
+        actionCW: '',
         actionCCW: '',
         typeCW: '',
         typeCCW: ''
       };
-      
+
       encoderDiv.innerHTML = `
         <h4>Encoder ${i}</h4>
         <div class="form-group">
@@ -923,7 +949,7 @@ class ConfigUI {
           </div>
         </div>
       `;
-      
+
       container.appendChild(encoderDiv);
 
       // Add event listeners for this encoder
@@ -958,7 +984,7 @@ class ConfigUI {
       // Set current values
       typeCWSelect.value = encoderConfig.typeCW || '';
       typeCCWSelect.value = encoderConfig.typeCCW || '';
-      
+
       // Initialize shortcut pickers if needed
       if (encoderConfig.typeCW === 'keypress') {
         this.toggleEncoderShortcutPicker(i, 'cw', 'keypress');
@@ -977,7 +1003,7 @@ class ConfigUI {
       this.config.buttons[`button${buttonId}`] = {};
     }
     this.config.buttons[`button${buttonId}`][field] = value;
-    
+
     // Update hardware preview
     this.updateHardwarePreview();
   }
@@ -990,7 +1016,7 @@ class ConfigUI {
       this.config.encoders[`encoder${encoderId}`] = {};
     }
     this.config.encoders[`encoder${encoderId}`][field] = value;
-    
+
     // Update hardware preview
     this.updateHardwarePreview();
   }
@@ -1012,7 +1038,7 @@ class ConfigUI {
           layout: 'auto'
         }
       });
-      
+
       // Update with current configuration
       this.updateHardwarePreview();
     }
@@ -1034,7 +1060,7 @@ class ConfigUI {
     if (this.buttonStatePreview) {
       this.buttonStatePreview.handleHardwareEvent(hardwareEvent);
     }
-    
+
     // Also log to console for debugging
     console.log('Hardware event received:', hardwareEvent);
   }
@@ -1057,12 +1083,12 @@ class ConfigUI {
   initializeLogViewer() {
     if (typeof LogViewer !== 'undefined') {
       this.logViewer = new LogViewer();
-      
+
       // Add log viewer to the main container after initialization
       setTimeout(() => {
         this.addLogViewerToUI();
       }, 100);
-      
+
       console.log('LogViewer initialized');
     } else {
       console.warn('LogViewer class not available');
@@ -1079,9 +1105,9 @@ class ConfigUI {
       const logContainer = document.createElement('div');
       logContainer.id = 'log-viewer-main';
       logContainer.style.marginTop = '2rem';
-      
+
       mainContent.appendChild(logContainer);
-      
+
       // Add log viewer content
       const logSection = document.createElement('div');
       logSection.className = 'log-viewer-section';
@@ -1099,12 +1125,12 @@ class ConfigUI {
                 <option value="error">Error</option>
               </select>
             </div>
-            
+
             <div class="log-search-group">
               <label for="log-search">Search logs:</label>
               <input type="text" id="log-search" placeholder="Search messages...">
             </div>
-            
+
             <div class="log-action-group">
               <button id="log-refresh" class="btn btn-secondary">
                 <span class="icon">🔄</span> Refresh
@@ -1117,7 +1143,7 @@ class ConfigUI {
               </button>
             </div>
           </div>
-          
+
           <div class="log-controls-row">
             <div class="log-auto-refresh">
               <label>
@@ -1125,18 +1151,18 @@ class ConfigUI {
                 Auto-refresh every 5 seconds
               </label>
             </div>
-            
+
             <div class="log-stats">
               <span id="log-count">0 entries</span>
               <span id="log-stats-detail"></span>
             </div>
           </div>
         </div>
-        
+
         <div class="log-viewer-container">
           <div id="log-entries" class="log-entries"></div>
         </div>
-        
+
         <div class="log-pagination">
           <button id="log-prev" class="btn btn-secondary" disabled>Previous</button>
           <span id="log-page-info">Page 1</span>
@@ -1148,18 +1174,18 @@ class ConfigUI {
           </select>
         </div>
       `;
-      
+
       logContainer.appendChild(logSection);
-      
+
       // Setup event handlers
       this.logViewer.setupLogViewerEventHandlers();
-      
+
       // Load initial logs
       this.logViewer.loadLogs();
-      
+
       // Set as visible for auto-refresh
       this.logViewer.setVisible(true);
-      
+
       console.log('LogViewer added to UI');
     }
   }
@@ -1170,12 +1196,12 @@ class ConfigUI {
   initializePerformanceUI() {
     if (typeof PerformanceUI !== 'undefined') {
       this.performanceUI = new PerformanceUI();
-      
+
       // Delay to ensure DOM is ready
       setTimeout(() => {
         this.addPerformanceUIToSection();
       }, 100);
-      
+
       console.log('PerformanceUI initialized');
     } else {
       console.warn('PerformanceUI class not available');
@@ -1188,7 +1214,7 @@ class ConfigUI {
   initializePluginManagerUI() {
     if (typeof PluginManagerUI !== 'undefined') {
       this.pluginManagerUI = new PluginManagerUI();
-      
+
       // Set up plugin manager button handler
       const pluginManagerBtn = document.getElementById('plugin-manager-btn');
       if (pluginManagerBtn) {
@@ -1196,7 +1222,7 @@ class ConfigUI {
           this.showPluginManager();
         });
       }
-      
+
       // Set up macro recorder button handler
       const macroRecorderBtn = document.getElementById('macro-recorder-btn');
       if (macroRecorderBtn) {
@@ -1206,7 +1232,7 @@ class ConfigUI {
           }
         });
       }
-      
+
       // Set up context manager button handler
       const contextManagerBtn = document.getElementById('context-manager-btn');
       if (contextManagerBtn) {
@@ -1216,7 +1242,7 @@ class ConfigUI {
           }
         });
       }
-      
+
       // Set up LED manager button handler
       const ledManagerBtn = document.getElementById('led-manager-btn');
       if (ledManagerBtn) {
@@ -1226,7 +1252,7 @@ class ConfigUI {
           }
         });
       }
-      
+
       // Set up system integration button handler
       const systemIntegrationBtn = document.getElementById('system-integration-btn');
       if (systemIntegrationBtn) {
@@ -1236,7 +1262,7 @@ class ConfigUI {
           }
         });
       }
-      
+
       // Set up voice recognition button handler
       const voiceRecognitionBtn = document.getElementById('voice-recognition-btn');
       if (voiceRecognitionBtn) {
@@ -1246,7 +1272,7 @@ class ConfigUI {
           }
         });
       }
-      
+
       console.log('PluginManagerUI initialized');
     } else {
       console.warn('PluginManagerUI class not available');
@@ -1261,7 +1287,7 @@ class ConfigUI {
     if (performanceContent && this.performanceUI) {
       // Render the performance UI directly into the section
       this.performanceUI.render(performanceContent);
-      
+
       console.log('PerformanceUI added to performance monitoring section');
     }
   }
@@ -1270,12 +1296,11 @@ class ConfigUI {
     try {
       await ipcRenderer.invoke('save-config', this.config);
       this.showMessage('Configuration saved successfully!');
-      
+
       // Automatically validate configuration after saving
       await this.validateCurrentConfig();
-      
     } catch (error) {
-      await ipcRenderer.invoke('log-error', 'Error saving config: ' + error.message);
+      await ipcRenderer.invoke('log-error', `Error saving config: ${error.message}`);
       this.showMessage('Error saving configuration!', 'error');
     }
   }
@@ -1284,19 +1309,19 @@ class ConfigUI {
     try {
       const ports = await ipcRenderer.invoke('get-serial-ports');
       const select = document.getElementById('serial-port');
-      
+
       // Store port information for later reference
       this.availablePorts = {};
-      
+
       // Clear existing options except the first one
       while (select.children.length > 1) {
         select.removeChild(select.lastChild);
       }
-      
+
       ports.forEach(port => {
         // Store detailed port information
         this.availablePorts[port.path] = port;
-        
+
         const option = document.createElement('option');
         option.value = port.path;
         option.textContent = `${port.path}${port.manufacturer ? ` - ${port.manufacturer}` : ''}${port.productId ? ` (${port.productId})` : ''}`;
@@ -1305,15 +1330,14 @@ class ConfigUI {
 
       // Set current selection
       select.value = this.config.device.serialPort || '';
-      
+
       // Show port details if a port is selected
       this.updatePortDetails(select.value);
-      
+
       // Enable/disable test button
       this.updateTestButtonState();
-      
     } catch (error) {
-      await ipcRenderer.invoke('log-error', 'Error loading serial ports: ' + error.message);
+      await ipcRenderer.invoke('log-error', `Error loading serial ports: ${error.message}`);
       this.showMessage('Failed to load serial ports', 'error');
     }
   }
@@ -1321,36 +1345,38 @@ class ConfigUI {
   updatePortDetails(portPath) {
     const portDetails = document.getElementById('port-details');
     const testButton = document.getElementById('test-connection');
-    
+
     if (!portPath || !this.availablePorts[portPath]) {
       portDetails.style.display = 'none';
       testButton.disabled = true;
       return;
     }
-    
+
     const port = this.availablePorts[portPath];
     portDetails.style.display = 'block';
     testButton.disabled = false;
-    
+
     // Update port information display
     document.getElementById('port-path').textContent = port.path;
     document.getElementById('port-manufacturer').textContent = port.manufacturer || 'Unknown';
     document.getElementById('port-product-id').textContent = port.productId || 'Unknown';
     document.getElementById('port-vendor-id').textContent = port.vendorId || 'Unknown';
     document.getElementById('port-serial-number').textContent = port.serialNumber || 'Unknown';
-    
+
     // Update status based on current connection
     this.updatePortStatus(portPath);
   }
 
   updatePortStatus(portPath) {
     const statusElement = document.getElementById('port-status');
-    if (!statusElement) return;
-    
+    if (!statusElement) {
+      return;
+    }
+
     // Check if this port is currently connected
     const isCurrentPort = this.config?.device?.serialPort === portPath;
     const connectionStatus = this.lastConnectionStatus || 'unknown';
-    
+
     if (isCurrentPort && connectionStatus === 'connected') {
       statusElement.textContent = 'Connected';
       statusElement.className = 'status-indicator status-connected';
@@ -1366,7 +1392,7 @@ class ConfigUI {
   updateTestButtonState() {
     const select = document.getElementById('serial-port');
     const testButton = document.getElementById('test-connection');
-    
+
     if (testButton) {
       testButton.disabled = !select.value;
     }
@@ -1376,69 +1402,70 @@ class ConfigUI {
     const select = document.getElementById('serial-port');
     const testButton = document.getElementById('test-connection');
     const statusElement = document.getElementById('port-status');
-    
-    if (!select.value) return;
-    
+
+    if (!select.value) {
+      return;
+    }
+
     try {
       // Visual feedback - testing state
       testButton.textContent = '🔍 Testing...';
       testButton.className = 'testing';
       testButton.disabled = true;
-      
+
       if (statusElement) {
         statusElement.textContent = 'Testing';
         statusElement.className = 'status-indicator status-testing';
       }
-      
+
       // Test connection via IPC
       const result = await ipcRenderer.invoke('test-connection', {
         port: select.value,
         baudRate: this.config.device.baudRate || 115200
       });
-      
+
       if (result.success) {
         // Success feedback
         testButton.textContent = '✅ Success';
         testButton.className = 'success';
-        
+
         if (statusElement) {
           statusElement.textContent = 'Test Passed';
           statusElement.className = 'status-indicator status-connected';
         }
-        
+
         this.showMessage(`Connection test successful on ${select.value}`, 'success');
       } else {
         // Error feedback
         testButton.textContent = '❌ Failed';
         testButton.className = 'error';
-        
+
         if (statusElement) {
           statusElement.textContent = 'Test Failed';
           statusElement.className = 'status-indicator status-disconnected';
         }
-        
+
         this.showMessage(`Connection test failed: ${result.error}`, 'error');
       }
-      
     } catch (error) {
       // Error feedback
       testButton.textContent = '❌ Error';
       testButton.className = 'error';
-      
+
       if (statusElement) {
         statusElement.textContent = 'Test Error';
         statusElement.className = 'status-indicator status-disconnected';
       }
-      
-      await ipcRenderer.invoke('log-error', 'Connection test error: ' + error.message);
-      this.showMessage('Connection test failed: ' + error.message, 'error');
+
+      await ipcRenderer.invoke('log-error', `Connection test error: ${error.message}`);
+      this.showMessage(`Connection test failed: ${error.message}`, 'error');
     } finally {
       // Reset button after 3 seconds
       setTimeout(() => {
         testButton.textContent = '🔌 Test';
         testButton.className = '';
         testButton.disabled = false;
-        
+
         // Reset status to normal state
         this.updatePortStatus(select.value);
       }, 3000);
@@ -1450,9 +1477,9 @@ class ConfigUI {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}`;
     messageDiv.textContent = message;
-    
+
     document.body.appendChild(messageDiv);
-    
+
     setTimeout(() => {
       document.body.removeChild(messageDiv);
     }, 3000);
@@ -1460,13 +1487,13 @@ class ConfigUI {
 
   async applyHardwareConfig() {
     try {
-      const buttonCount = parseInt(document.getElementById('hw-button-count').value);
-      const encoderCount = parseInt(document.getElementById('hw-encoder-count').value);
+      const buttonCount = parseInt(document.getElementById('hw-button-count', 10).value);
+      const encoderCount = parseInt(document.getElementById('hw-encoder-count', 10).value);
 
       // Apply button configuration
       await ipcRenderer.invoke('configure-arduino-buttons', buttonCount);
-      
-      // Apply encoder configuration  
+
+      // Apply encoder configuration
       await ipcRenderer.invoke('configure-arduino-encoders', encoderCount);
 
       // Update UI to match new config
@@ -1474,17 +1501,17 @@ class ConfigUI {
       document.getElementById('encoder-count').value = encoderCount;
       this.config.device.buttons = buttonCount;
       this.config.device.encoders = encoderCount;
-      
+
       this.generateButtonConfig();
       this.generateEncoderConfig();
 
-      document.getElementById('arduino-config-status').textContent = 
+      document.getElementById('arduino-config-status').textContent =
         `${buttonCount} buttons, ${encoderCount} encoders`;
-      
+
       this.showMessage('Arduino configuration applied successfully!');
     } catch (error) {
-      await ipcRenderer.invoke('log-error', 'Error applying hardware config: ' + error.message);
-      this.showMessage('Failed to apply Arduino configuration: ' + error.message, 'error');
+      await ipcRenderer.invoke('log-error', `Error applying hardware config: ${error.message}`);
+      this.showMessage(`Failed to apply Arduino configuration: ${error.message}`, 'error');
     }
   }
 
@@ -1494,52 +1521,54 @@ class ConfigUI {
       this.parseArduinoConfigResponse(response);
       this.showMessage('Retrieved Arduino configuration');
     } catch (error) {
-      await ipcRenderer.invoke('log-error', 'Error getting Arduino config: ' + error.message);
-      this.showMessage('Failed to get Arduino configuration: ' + error.message, 'error');
+      await ipcRenderer.invoke('log-error', `Error getting Arduino config: ${error.message}`);
+      this.showMessage(`Failed to get Arduino configuration: ${error.message}`, 'error');
     }
   }
 
   async resetArduinoConfig() {
     try {
       await ipcRenderer.invoke('reset-arduino');
-      
+
       // Update UI to defaults
       document.getElementById('hw-button-count').value = '8';
       document.getElementById('hw-encoder-count').value = '0';
       document.getElementById('button-count').value = '8';
       document.getElementById('encoder-count').value = '0';
-      
+
       this.config.device.buttons = 8;
       this.config.device.encoders = 0;
-      
+
       this.generateButtonConfig();
       this.generateEncoderConfig();
-      
-      document.getElementById('arduino-config-status').textContent = '8 buttons, 0 encoders (default)';
-      
+
+      document.getElementById('arduino-config-status').textContent =
+        '8 buttons, 0 encoders (default)';
+
       this.showMessage('Arduino reset to default configuration');
     } catch (error) {
-      await ipcRenderer.invoke('log-error', 'Error resetting Arduino: ' + error.message);
-      this.showMessage('Failed to reset Arduino: ' + error.message, 'error');
+      await ipcRenderer.invoke('log-error', `Error resetting Arduino: ${error.message}`);
+      this.showMessage(`Failed to reset Arduino: ${error.message}`, 'error');
     }
   }
 
   parseArduinoConfigResponse(response) {
     // Parse response like "CONFIG:BUTTONS:8" or similar
     const lines = response.split('\n');
-    let buttons = 8, encoders = 0;
-    
+    let buttons = 8,
+      encoders = 0;
+
     lines.forEach(line => {
       if (line.startsWith('CONFIG:BUTTONS:')) {
-        buttons = parseInt(line.split(':')[2]);
+        buttons = parseInt(line.split(':', 10)[2]);
       } else if (line.startsWith('CONFIG:ENCODERS:')) {
-        encoders = parseInt(line.split(':')[2]);
+        encoders = parseInt(line.split(':', 10)[2]);
       }
     });
 
     document.getElementById('hw-button-count').value = buttons;
     document.getElementById('hw-encoder-count').value = encoders;
-    document.getElementById('arduino-config-status').textContent = 
+    document.getElementById('arduino-config-status').textContent =
       `${buttons} buttons, ${encoders} encoders`;
   }
 
@@ -1558,10 +1587,10 @@ class ConfigUI {
 
   getAutoRemoveTime(severity) {
     const times = {
-      CRITICAL: 0,    // Don't auto-remove critical errors
-      HIGH: 15000,    // 15 seconds
-      MEDIUM: 10000,  // 10 seconds
-      LOW: 5000       // 5 seconds
+      CRITICAL: 0, // Don't auto-remove critical errors
+      HIGH: 15000, // 15 seconds
+      MEDIUM: 10000, // 10 seconds
+      LOW: 5000 // 5 seconds
     };
     return times[severity] || 8000;
   }
@@ -1582,7 +1611,7 @@ class ConfigUI {
     const container = document.getElementById('notification-container');
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
-    
+
     const typeIcons = {
       success: '✅',
       info: 'ℹ️',
@@ -1617,14 +1646,15 @@ class ConfigUI {
     const toggle = document.getElementById('error-history-toggle');
     const errorStatus = document.getElementById('error-status');
     const errorCount = this.errorQueue.length;
-    
+
     if (toggle) {
       toggle.innerHTML = `⚠️ Errors (${errorCount})`;
-      toggle.className = errorCount > 0 
-        ? 'btn secondary error-history-toggle has-errors' 
-        : 'btn secondary error-history-toggle';
+      toggle.className =
+        errorCount > 0
+          ? 'btn secondary error-history-toggle has-errors'
+          : 'btn secondary error-history-toggle';
     }
-    
+
     // Update header error status indicator
     if (errorStatus) {
       if (errorCount === 0) {
@@ -1637,7 +1667,7 @@ class ConfigUI {
         const hasCritical = recentErrors.some(e => e.severity === 'CRITICAL');
         const hasHigh = recentErrors.some(e => e.severity === 'HIGH');
         const hasMedium = recentErrors.some(e => e.severity === 'MEDIUM');
-        
+
         let status, icon, className;
         if (hasCritical) {
           status = 'critical';
@@ -1656,7 +1686,7 @@ class ConfigUI {
           icon = '🟡';
           className = 'error-status status-low';
         }
-        
+
         errorStatus.textContent = `${icon} ${errorCount} Error${errorCount !== 1 ? 's' : ''}`;
         errorStatus.className = className;
         errorStatus.title = `${errorCount} error${errorCount !== 1 ? 's' : ''} (severity: ${status}). Click to view details.`;
@@ -1667,7 +1697,7 @@ class ConfigUI {
   toggleErrorHistory() {
     const panel = document.getElementById('error-history-panel');
     panel.classList.toggle('hidden');
-    
+
     if (!panel.classList.contains('hidden')) {
       this.updateErrorHistory();
     }
@@ -1677,14 +1707,17 @@ class ConfigUI {
     const list = document.getElementById('error-history-list');
     list.innerHTML = '';
 
-    this.errorQueue.slice().reverse().forEach((error, index) => {
-      const item = document.createElement('div');
-      item.className = `error-history-item severity-${error.severity.toLowerCase()} category-${error.category || 'system'}`;
-      
-      const timestamp = new Date(error.timestamp).toLocaleString();
-      const categoryIcon = this.getCategoryIcon(error.category);
-      
-      item.innerHTML = `
+    this.errorQueue
+      .slice()
+      .reverse()
+      .forEach((error, index) => {
+        const item = document.createElement('div');
+        item.className = `error-history-item severity-${error.severity.toLowerCase()} category-${error.category || 'system'}`;
+
+        const timestamp = new Date(error.timestamp).toLocaleString();
+        const categoryIcon = this.getCategoryIcon(error.category);
+
+        item.innerHTML = `
         <div class="error-history-header">
           <div class="error-category-info">
             <span class="category-icon">${categoryIcon}</span>
@@ -1694,19 +1727,21 @@ class ConfigUI {
           <span class="error-time">${timestamp}</span>
         </div>
         <div class="error-message">${error.message}</div>
-        ${error.actions && error.actions.length > 0 ? 
-          `<div class="error-actions-summary">
+        ${
+          error.actions && error.actions.length > 0
+            ? `<div class="error-actions-summary">
             ${error.actions.length} recovery action${error.actions.length !== 1 ? 's' : ''} suggested
-          </div>` : ''
+          </div>`
+            : ''
         }
       `;
 
-      item.addEventListener('click', () => {
-        this.showErrorDetails(error);
-      });
+        item.addEventListener('click', () => {
+          this.showErrorDetails(error);
+        });
 
-      list.appendChild(item);
-    });
+        list.appendChild(item);
+      });
 
     if (this.errorQueue.length === 0) {
       list.innerHTML = '<div class="no-errors">No errors recorded</div>';
@@ -1717,13 +1752,14 @@ class ConfigUI {
     // Create modal for error details
     const modal = document.createElement('div');
     modal.className = 'error-details-modal';
-    
-    const actionsHtml = error.actions && error.actions.length > 0 
-      ? `<div class="error-actions-detail">
+
+    const actionsHtml =
+      error.actions && error.actions.length > 0
+        ? `<div class="error-actions-detail">
           <h4>Suggested Solutions:</h4>
           <ul>${error.actions.map(action => `<li>${action}</li>`).join('')}</ul>
         </div>`
-      : '';
+        : '';
 
     modal.innerHTML = `
       <div class="modal-content">
@@ -1762,7 +1798,7 @@ class ConfigUI {
     });
 
     // Close on background click
-    modal.addEventListener('click', (e) => {
+    modal.addEventListener('click', e => {
       if (e.target === modal) {
         modal.remove();
       }
@@ -1779,12 +1815,12 @@ class ConfigUI {
   updateConnectionStatus(status = 'unknown', port = '') {
     // Store last connection status for port status updates
     this.lastConnectionStatus = status;
-    
+
     // Update connection status in UI
     const statusElement = document.getElementById('connection-status');
     if (statusElement) {
       const statusMessages = {
-        connected: `🟢 Connected${port ? ' (' + port + ')' : ''}`,
+        connected: `🟢 Connected${port ? ` (${port})` : ''}`,
         connecting: '🟡 Connecting...',
         reconnecting: '🟡 Reconnecting...',
         disconnected: '⭕ Disconnected',
@@ -1795,7 +1831,7 @@ class ConfigUI {
       statusElement.textContent = statusMessages[status] || statusMessages.unknown;
       statusElement.className = `connection-status status-${status}`;
     }
-    
+
     // Update port status in device selection if shown
     const currentPort = document.getElementById('serial-port')?.value;
     if (currentPort) {
@@ -1807,33 +1843,37 @@ class ConfigUI {
     // Trigger validation via IPC to main process
     try {
       const result = await window.electronAPI.invoke('validate-config');
-      
+
       if (result.valid) {
         this.updateValidationStatus('valid', 'Configuration is valid');
       } else {
         const errorCount = result.errors.length;
         const warningCount = result.warnings.length;
         let message = '';
-        
+
         if (errorCount > 0) {
           message += `${errorCount} error${errorCount !== 1 ? 's' : ''}`;
         }
         if (warningCount > 0) {
-          if (message) message += ', ';
+          if (message) {
+            message += ', ';
+          }
           message += `${warningCount} warning${warningCount !== 1 ? 's' : ''}`;
         }
-        
+
         this.updateValidationStatus('invalid', message, result.errors, result.warnings);
       }
     } catch (error) {
       console.error('Validation failed:', error);
-      this.updateValidationStatus('error', 'Validation failed: ' + error.message);
+      this.updateValidationStatus('error', `Validation failed: ${error.message}`);
     }
   }
 
   updateValidationStatus(status, message = '', errors = [], warnings = []) {
     const statusElement = document.getElementById('validation-status');
-    if (!statusElement) return;
+    if (!statusElement) {
+      return;
+    }
 
     const statusMessages = {
       valid: '✅ Valid',
@@ -1850,11 +1890,13 @@ class ConfigUI {
     if (errors.length > 0 || warnings.length > 0) {
       let details = '';
       if (errors.length > 0) {
-        details += 'Errors:\n' + errors.map(e => `• ${e.message}`).join('\n');
+        details += `Errors:\n${errors.map(e => `• ${e.message}`).join('\n')}`;
       }
       if (warnings.length > 0) {
-        if (details) details += '\n\n';
-        details += 'Warnings:\n' + warnings.map(w => `• ${w.message}`).join('\n');
+        if (details) {
+          details += '\n\n';
+        }
+        details += `Warnings:\n${warnings.map(w => `• ${w.message}`).join('\n')}`;
       }
       statusElement.title = details;
     }
@@ -1866,12 +1908,12 @@ class ConfigUI {
   toggleEncoderShortcutPicker(encoderId, direction, actionType) {
     const pickerContainer = document.getElementById(`enc${encoderId}-${direction}-shortcut-picker`);
     const actionInput = document.getElementById(`enc${encoderId}-action-${direction}`);
-    
+
     if (actionType === 'keypress') {
       // Show shortcut picker
       pickerContainer.style.display = 'block';
       actionInput.style.display = 'none';
-      
+
       // Create shortcut picker if not exists
       if (!pickerContainer.hasChildNodes()) {
         // Import and create the shortcut picker
@@ -1900,17 +1942,24 @@ class ConfigUI {
   createEncoderShortcutPicker(encoderId, direction, container, actionInput) {
     const fieldName = direction === 'cw' ? 'actionCW' : 'actionCCW';
     const picker = new KeyboardShortcutPicker(container, {
-      onChange: (shortcut) => {
+      onChange: shortcut => {
         // Update the action input and config
         actionInput.value = shortcut.electronFormat;
         this.updateEncoderConfig(encoderId, fieldName, shortcut.electronFormat);
-        
+
         // Also store human-readable format for display
-        this.updateEncoderConfig(encoderId, `shortcutDisplay${direction.toUpperCase()}`, shortcut.displayFormat);
+        this.updateEncoderConfig(
+          encoderId,
+          `shortcutDisplay${direction.toUpperCase()}`,
+          shortcut.displayFormat
+        );
       },
-      onConflict: (conflicts) => {
+      onConflict: conflicts => {
         // Handle shortcut conflicts
-        console.warn(`Shortcut conflicts detected for encoder ${encoderId} ${direction}:`, conflicts);
+        console.warn(
+          `Shortcut conflicts detected for encoder ${encoderId} ${direction}:`,
+          conflicts
+        );
       }
     });
 
@@ -1927,12 +1976,12 @@ class ConfigUI {
   toggleShortcutPicker(buttonId, actionType) {
     const pickerContainer = document.getElementById(`btn${buttonId}-shortcut-picker`);
     const actionInput = document.getElementById(`btn${buttonId}-action`);
-    
+
     if (actionType === 'keypress') {
       // Show shortcut picker
       pickerContainer.style.display = 'block';
       actionInput.style.display = 'none';
-      
+
       // Create shortcut picker if not exists
       if (!pickerContainer.hasChildNodes()) {
         // Import and create the shortcut picker
@@ -1960,15 +2009,15 @@ class ConfigUI {
    */
   createShortcutPicker(buttonId, container, actionInput) {
     const picker = new KeyboardShortcutPicker(container, {
-      onChange: (shortcut) => {
+      onChange: shortcut => {
         // Update the action input and config
         actionInput.value = shortcut.electronFormat;
         this.updateButtonConfig(buttonId, 'action', shortcut.electronFormat);
-        
+
         // Also store human-readable format for display
         this.updateButtonConfig(buttonId, 'shortcutDisplay', shortcut.displayFormat);
       },
-      onConflict: (conflicts) => {
+      onConflict: conflicts => {
         // Handle shortcut conflicts
         console.warn(`Shortcut conflicts detected for button ${buttonId}:`, conflicts);
       }
@@ -1991,12 +2040,12 @@ class ConfigUI {
       if (modalBody) {
         // Clear previous content
         modalBody.innerHTML = '';
-        
+
         // Render plugin manager UI
         this.pluginManagerUI.render(modalBody);
         this.pluginManagerUI.setVisible(true);
       }
-      
+
       modal.style.display = 'flex';
     }
   }
@@ -2008,7 +2057,7 @@ class ConfigUI {
     const modal = document.getElementById('plugin-manager-modal');
     if (modal) {
       modal.style.display = 'none';
-      
+
       if (this.pluginManagerUI) {
         this.pluginManagerUI.setVisible(false);
       }
@@ -2027,11 +2076,11 @@ function hidePluginManager() {
 document.addEventListener('DOMContentLoaded', () => {
   window.configUI = new ConfigUI();
   window.profileManagerUI = new ProfileManagerUI();
-  
+
   // Initialize the MacroRecorderUI
   window.macroRecorderUI = new MacroRecorderUI();
   document.body.appendChild(window.macroRecorderUI.getElement());
-  
+
   // Initialize the ContextManagerUI
   if (typeof ContextManagerUI !== 'undefined') {
     window.contextManagerUI = new ContextManagerUI();
@@ -2039,7 +2088,7 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     console.warn('ContextManagerUI class not available');
   }
-  
+
   // Initialize the LEDManagerUI
   if (typeof LEDManagerUI !== 'undefined') {
     window.ledManagerUI = new LEDManagerUI();
@@ -2047,7 +2096,7 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     console.warn('LEDManagerUI class not available');
   }
-  
+
   // Initialize the SystemIntegrationUI
   if (typeof SystemIntegrationUI !== 'undefined') {
     window.systemIntegrationUI = new SystemIntegrationUI();
@@ -2055,7 +2104,7 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     console.warn('SystemIntegrationUI class not available');
   }
-  
+
   // Initialize the VoiceRecognitionUI
   if (typeof VoiceRecognitionUI !== 'undefined') {
     window.voiceRecognitionUI = new VoiceRecognitionUI();
@@ -2063,7 +2112,7 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     console.warn('VoiceRecognitionUI class not available');
   }
-  
+
   // Initialize profile manager with the necessary dependencies
   window.profileManagerUI.initialize().catch(error => {
     console.error('Failed to initialize ProfileManagerUI:', error);

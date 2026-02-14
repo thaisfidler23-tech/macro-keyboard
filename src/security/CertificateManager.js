@@ -12,7 +12,7 @@ const HSMInterface = require('./HSMInterface');
 class CertificateManager extends EventEmitter {
   constructor(logger, config = {}) {
     super();
-    
+
     this.logger = logger;
     this.config = {
       certificateStore: config.certificateStore || path.join(process.cwd(), 'certificates'),
@@ -36,7 +36,7 @@ class CertificateManager extends EventEmitter {
     };
 
     this.initializeComponents();
-    
+
     this.logger.info('CertificateManager initialized');
   }
 
@@ -74,19 +74,19 @@ class CertificateManager extends EventEmitter {
    */
   async getSigningCertificate(platform) {
     const certKey = `${platform}_signing`;
-    
+
     if (this.certificates.has(certKey)) {
       const certificate = this.certificates.get(certKey);
-      
+
       // Validate certificate is still valid
       await this.validateCertificate(certificate);
-      
+
       return certificate;
     }
 
     // Try to load certificate for platform
     const certificate = await this.loadPlatformCertificate(platform);
-    
+
     if (certificate) {
       await this.validateCertificate(certificate);
       this.certificates.set(certKey, certificate);
@@ -101,7 +101,7 @@ class CertificateManager extends EventEmitter {
    */
   async loadPlatformCertificate(platform) {
     const certConfigs = this.config.certificates?.[platform];
-    
+
     if (!certConfigs) {
       this.logger.warn(`No certificate configuration found for platform: ${platform}`);
       return null;
@@ -156,11 +156,11 @@ class CertificateManager extends EventEmitter {
    */
   async loadCertificateFromFile(config) {
     const certPath = path.resolve(this.config.certificateStore, config.path);
-    
+
     try {
       const certData = await fs.readFile(certPath);
       const certificate = await this.parseCertificate(certData, config);
-      
+
       return {
         ...certificate,
         type: 'file',
@@ -272,14 +272,14 @@ class CertificateManager extends EventEmitter {
       if (certificate.validTo) {
         const now = new Date();
         const expiryDate = new Date(certificate.validTo);
-        
+
         if (expiryDate < now) {
           throw new Error('Certificate has expired');
         }
 
         // Check if expiring soon
         const daysUntilExpiry = Math.floor((expiryDate - now) / (24 * 60 * 60 * 1000));
-        
+
         if (daysUntilExpiry <= this.config.notificationThreshold) {
           await this.notifyCertificateExpiration(certificate, daysUntilExpiry);
         }
@@ -334,7 +334,9 @@ class CertificateManager extends EventEmitter {
       timestamp: new Date().toISOString()
     };
 
-    this.logger.warn(`Certificate expiring in ${daysUntilExpiry} days: ${certificate.subject || certificate.identity}`);
+    this.logger.warn(
+      `Certificate expiring in ${daysUntilExpiry} days: ${certificate.subject || certificate.identity}`
+    );
     this.emit('certificate-expiration', notification);
 
     // Send notification through configured channels
@@ -354,12 +356,14 @@ class CertificateManager extends EventEmitter {
    */
   async scheduleCertificateRenewal(certificate) {
     try {
-      this.logger.info(`Scheduling renewal for certificate: ${certificate.subject || certificate.identity}`);
-      
+      this.logger.info(
+        `Scheduling renewal for certificate: ${certificate.subject || certificate.identity}`
+      );
+
       this.statistics.renewalAttempts++;
-      
+
       const renewalResult = await this.renewCertificate(certificate);
-      
+
       if (renewalResult.success) {
         this.statistics.successfulRenewals++;
         this.emit('certificate-renewed', {
@@ -388,7 +392,7 @@ class CertificateManager extends EventEmitter {
     // This is a placeholder for certificate renewal
     // In production, implement proper renewal with CA
     this.logger.info(`Renewing certificate: ${certificate.subject || certificate.identity}`);
-    
+
     // Return mock renewal result
     return {
       success: false,
@@ -403,20 +407,20 @@ class CertificateManager extends EventEmitter {
   async loadCertificates() {
     try {
       const files = await fs.readdir(this.config.certificateStore);
-      
+
       for (const file of files) {
         if (file.endsWith('.pem') || file.endsWith('.p12') || file.endsWith('.pfx')) {
           try {
             const certPath = path.join(this.config.certificateStore, file);
             const certData = await fs.readFile(certPath);
-            
+
             const certificate = await this.parseCertificate(certData, {
               format: file.endsWith('.pem') ? 'PEM' : 'PKCS12'
             });
-            
+
             certificate.fileName = file;
             certificate.path = certPath;
-            
+
             this.certificates.set(file, certificate);
             this.statistics.certificatesLoaded++;
           } catch (error) {
@@ -448,7 +452,9 @@ class CertificateManager extends EventEmitter {
       }
     }, this.config.validationInterval);
 
-    this.logger.info(`Started periodic certificate validation (interval: ${this.config.validationInterval}ms)`);
+    this.logger.info(
+      `Started periodic certificate validation (interval: ${this.config.validationInterval}ms)`
+    );
   }
 
   /**
@@ -456,7 +462,7 @@ class CertificateManager extends EventEmitter {
    */
   async validateAllCertificates() {
     this.logger.debug('Performing periodic certificate validation');
-    
+
     for (const [key, certificate] of this.certificates) {
       try {
         await this.validateCertificate(certificate);
@@ -480,8 +486,10 @@ class CertificateManager extends EventEmitter {
    */
   async revokeCertificate(certificate, reason) {
     try {
-      this.logger.warn(`Emergency certificate revocation: ${certificate.subject || certificate.identity}`);
-      
+      this.logger.warn(
+        `Emergency certificate revocation: ${certificate.subject || certificate.identity}`
+      );
+
       // Remove from active certificates
       for (const [key, cert] of this.certificates) {
         if (cert.thumbprint === certificate.thumbprint) {
@@ -542,7 +550,7 @@ class CertificateManager extends EventEmitter {
       // Count expiring certificates
       const expiringCertificates = [];
       const now = new Date();
-      
+
       for (const [key, cert] of this.certificates) {
         if (cert.validTo) {
           const daysUntilExpiry = Math.floor((cert.validTo - now) / (24 * 60 * 60 * 1000));
@@ -557,7 +565,6 @@ class CertificateManager extends EventEmitter {
       if (expiringCertificates.length > 0) {
         healthStatus.status = 'degraded';
       }
-
     } catch (error) {
       healthStatus.status = 'critical';
       healthStatus.error = error.message;
@@ -571,12 +578,12 @@ class CertificateManager extends EventEmitter {
    */
   updateConfig(newConfig) {
     this.config = { ...this.config, ...newConfig };
-    
+
     // Restart validation if interval changed
     if (newConfig.validationInterval && this.validationTimer) {
       this.startPeriodicValidation();
     }
-    
+
     this.logger.info('Certificate manager configuration updated');
     this.emit('config-updated', this.config);
   }
@@ -597,7 +604,7 @@ class CertificateManager extends EventEmitter {
 
       this.certificates.clear();
       this.removeAllListeners();
-      
+
       this.logger.info('CertificateManager cleaned up');
     } catch (error) {
       this.logger.error('Error during certificate manager cleanup:', error);

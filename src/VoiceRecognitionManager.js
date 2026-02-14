@@ -1,10 +1,10 @@
 /**
  * Voice Recognition Manager
- * 
+ *
  * Provides comprehensive voice command recognition and processing for hands-free
  * macro keyboard operation. Supports speech-to-text processing, command parsing,
  * voice-triggered macro execution, and cross-platform voice recognition.
- * 
+ *
  * Features:
  * - Cross-platform speech recognition using Web Speech API and native engines
  * - Voice command parsing with natural language processing
@@ -23,7 +23,7 @@ const fs = require('fs').promises;
 class VoiceRecognitionManager extends EventEmitter {
   constructor(logger = console, options = {}) {
     super();
-    
+
     this.logger = logger;
     this.options = {
       language: 'en-US',
@@ -99,20 +99,20 @@ class VoiceRecognitionManager extends EventEmitter {
 
       // Check for required permissions and capabilities
       await this.checkPermissions();
-      
+
       // Initialize audio context and processing pipeline
       await this.initializeAudioProcessing();
-      
+
       // Initialize speech recognition engine
       await this.initializeSpeechRecognition();
-      
+
       // Load voice profiles and commands
       await this.loadVoiceProfiles();
       await this.loadVoiceCommands();
-      
+
       // Initialize command parsers
       this.initializeCommandParsers();
-      
+
       // Set up event listeners
       this.setupEventListeners();
 
@@ -124,7 +124,6 @@ class VoiceRecognitionManager extends EventEmitter {
       });
 
       this.logger.info('Voice recognition system initialized successfully');
-      
     } catch (error) {
       this.logger.error('Failed to initialize voice recognition system', error);
       throw error;
@@ -138,7 +137,8 @@ class VoiceRecognitionManager extends EventEmitter {
     const features = {
       webSpeechAPI: typeof window !== 'undefined' && 'webkitSpeechRecognition' in window,
       nativeSpeechAPI: false,
-      audioProcessing: typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined',
+      audioProcessing:
+        typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined',
       microphoneAccess: typeof navigator !== 'undefined' && 'mediaDevices' in navigator,
       speechSynthesis: typeof speechSynthesis !== 'undefined',
       backgroundListening: false
@@ -171,9 +171,8 @@ class VoiceRecognitionManager extends EventEmitter {
       return 'web-speech-api';
     } else if (this.platformFeatures.nativeSpeechAPI) {
       return 'native-api';
-    } else {
-      return 'fallback';
     }
+    return 'fallback';
   }
 
   /**
@@ -219,7 +218,7 @@ class VoiceRecognitionManager extends EventEmitter {
 
       // Create audio processing nodes
       const source = this.audioContext.createMediaStreamSource(this.mediaStream);
-      
+
       // Gain control
       this.gainNode = this.audioContext.createGain();
       this.gainNode.gain.value = 1.0;
@@ -240,7 +239,6 @@ class VoiceRecognitionManager extends EventEmitter {
       this.gainNode.connect(this.analyser);
 
       this.logger.info('Audio processing pipeline initialized');
-
     } catch (error) {
       this.logger.error('Failed to initialize audio processing', error);
       throw error;
@@ -272,7 +270,7 @@ class VoiceRecognitionManager extends EventEmitter {
     }
 
     this.recognition = new webkitSpeechRecognition();
-    
+
     // Configure recognition parameters
     this.recognition.continuous = this.options.continuous;
     this.recognition.interimResults = this.options.interimResults;
@@ -290,17 +288,18 @@ class VoiceRecognitionManager extends EventEmitter {
     this.recognition.onend = () => {
       this.isListening = false;
       if (this.recognitionStats.recognitionStartTime) {
-        this.recognitionStats.totalListeningTime += Date.now() - this.recognitionStats.recognitionStartTime;
+        this.recognitionStats.totalListeningTime +=
+          Date.now() - this.recognitionStats.recognitionStartTime;
       }
       this.emit('listening-stopped');
       this.logger.info('Voice recognition stopped');
     };
 
-    this.recognition.onresult = (event) => {
+    this.recognition.onresult = event => {
       this.handleRecognitionResult(event);
     };
 
-    this.recognition.onerror = (event) => {
+    this.recognition.onerror = event => {
       this.handleRecognitionError(event);
     };
 
@@ -352,7 +351,6 @@ class VoiceRecognitionManager extends EventEmitter {
       }
 
       this.logger.info(`Loaded ${this.voiceProfiles.size} voice profiles`);
-
     } catch (error) {
       this.logger.warn('Could not load voice profiles, using defaults', error);
       this.createDefaultProfile();
@@ -386,7 +384,9 @@ class VoiceRecognitionManager extends EventEmitter {
     if (profile) {
       this.voiceCommands = new Map(profile.commands);
       this.customVocabulary = new Set(profile.vocabulary);
-      this.logger.info(`Loaded ${this.voiceCommands.size} voice commands for profile '${this.currentProfile}'`);
+      this.logger.info(
+        `Loaded ${this.voiceCommands.size} voice commands for profile '${this.currentProfile}'`
+      );
     }
   }
 
@@ -395,13 +395,13 @@ class VoiceRecognitionManager extends EventEmitter {
    */
   initializeCommandParsers() {
     // Exact match parser
-    this.commandParsers.set('exact', (text) => {
+    this.commandParsers.set('exact', text => {
       const normalizedText = text.toLowerCase().trim();
       return this.voiceCommands.get(normalizedText);
     });
 
     // Fuzzy match parser
-    this.commandParsers.set('fuzzy', (text) => {
+    this.commandParsers.set('fuzzy', text => {
       const normalizedText = text.toLowerCase().trim();
       let bestMatch = null;
       let bestScore = 0;
@@ -418,13 +418,13 @@ class VoiceRecognitionManager extends EventEmitter {
     });
 
     // Keyword parser
-    this.commandParsers.set('keyword', (text) => {
+    this.commandParsers.set('keyword', text => {
       const words = text.toLowerCase().split(/\s+/);
-      
+
       for (const [command, config] of this.voiceCommands) {
         const commandWords = command.toLowerCase().split(/\s+/);
         const matches = commandWords.filter(word => words.includes(word));
-        
+
         if (matches.length >= commandWords.length * 0.7) {
           return config;
         }
@@ -455,10 +455,12 @@ class VoiceRecognitionManager extends EventEmitter {
     const dataArray = new Uint8Array(bufferLength);
 
     const updateLevel = () => {
-      if (!this.isListening) return;
+      if (!this.isListening) {
+        return;
+      }
 
       this.analyser.getByteFrequencyData(dataArray);
-      
+
       // Calculate RMS level
       let sum = 0;
       for (let i = 0; i < bufferLength; i++) {
@@ -468,7 +470,7 @@ class VoiceRecognitionManager extends EventEmitter {
 
       // Check noise threshold
       const isAboveThreshold = rms > this.options.noiseThreshold;
-      
+
       this.emit('audio-level', {
         level: rms,
         aboveThreshold: isAboveThreshold
@@ -559,7 +561,7 @@ class VoiceRecognitionManager extends EventEmitter {
           confidence,
           threshold: this.options.confidenceThreshold
         });
-        
+
         this.emit('low-confidence', {
           transcript,
           confidence
@@ -634,11 +636,10 @@ class VoiceRecognitionManager extends EventEmitter {
       if (this.options.voiceFeedback && commandResult.success) {
         this.provideVoiceFeedback(commandResult.message || 'Command executed');
       }
-
     } catch (error) {
       this.logger.error('Error processing voice command', error);
       this.recognitionStats.failedCommands++;
-      
+
       this.emit('command-error', {
         transcript,
         confidence,
@@ -653,7 +654,7 @@ class VoiceRecognitionManager extends EventEmitter {
   async executeVoiceCommand(commandConfig, context) {
     try {
       const { action } = commandConfig;
-      
+
       this.logger.info('Executing voice command', {
         action,
         transcript: context.transcript,
@@ -677,7 +678,6 @@ class VoiceRecognitionManager extends EventEmitter {
         message: `Executed ${action}`,
         context: executionContext
       };
-
     } catch (error) {
       this.logger.error('Voice command execution failed', error);
       return {
@@ -748,9 +748,8 @@ class VoiceRecognitionManager extends EventEmitter {
       utterance.lang = this.options.language;
 
       speechSynthesis.speak(utterance);
-      
+
       this.logger.debug('Voice feedback provided', { message });
-      
     } catch (error) {
       this.logger.error('Failed to provide voice feedback', error);
     }
@@ -775,7 +774,6 @@ class VoiceRecognitionManager extends EventEmitter {
       }
 
       this.logger.info('Voice recognition started');
-
     } catch (error) {
       this.logger.error('Failed to start voice recognition', error);
       throw error;
@@ -796,7 +794,6 @@ class VoiceRecognitionManager extends EventEmitter {
       }
 
       this.logger.info('Voice recognition stopped');
-
     } catch (error) {
       this.logger.error('Failed to stop voice recognition', error);
     }
@@ -840,7 +837,7 @@ class VoiceRecognitionManager extends EventEmitter {
     };
 
     this.voiceCommands.set(phrase.toLowerCase(), commandConfig);
-    
+
     // Add words to custom vocabulary
     const words = phrase.toLowerCase().split(/\s+/);
     words.forEach(word => this.customVocabulary.add(word));
@@ -905,9 +902,10 @@ class VoiceRecognitionManager extends EventEmitter {
    * Get recognition statistics
    */
   getStatistics() {
-    const successRate = this.recognitionStats.totalCommands > 0
-      ? (this.recognitionStats.successfulCommands / this.recognitionStats.totalCommands) * 100
-      : 0;
+    const successRate =
+      this.recognitionStats.totalCommands > 0
+        ? (this.recognitionStats.successfulCommands / this.recognitionStats.totalCommands) * 100
+        : 0;
 
     return {
       ...this.recognitionStats,
@@ -999,7 +997,6 @@ class VoiceRecognitionManager extends EventEmitter {
         profiles: this.voiceProfiles.size,
         currentProfile: this.currentProfile
       });
-
     } catch (error) {
       this.logger.error('Failed to import voice configuration', error);
       throw error;

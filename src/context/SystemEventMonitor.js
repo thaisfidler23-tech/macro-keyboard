@@ -1,6 +1,6 @@
 /**
  * System Event Monitor - Comprehensive system event monitoring and integration
- * 
+ *
  * This module provides unified system event monitoring across platforms including:
  * - Power management events (sleep, wake, battery status)
  * - Network connectivity changes (WiFi, Ethernet, VPN)
@@ -51,14 +51,14 @@ class CircularBuffer {
 class SystemEventMonitor extends EventEmitter {
   constructor(logger, config = {}) {
     super();
-    
+
     this.logger = logger || {
       info: () => {},
       warn: () => {},
       error: () => {},
       debug: () => {}
     };
-    
+
     this.config = {
       monitoringEnabled: config.monitoringEnabled !== false,
       eventHistorySize: config.eventHistorySize || 1000,
@@ -74,14 +74,14 @@ class SystemEventMonitor extends EventEmitter {
       },
       ...config
     };
-    
+
     this.platform = process.platform;
     this.monitors = new Map();
     this.eventHistory = new CircularBuffer(this.config.eventHistorySize);
     this.activeEvents = new Set();
     this.eventCounts = new Map();
     this.lastEventTimes = new Map();
-    
+
     // Performance tracking
     this.statistics = {
       totalEvents: 0,
@@ -94,20 +94,22 @@ class SystemEventMonitor extends EventEmitter {
       errorCount: 0,
       activeMonitors: 0
     };
-    
+
     // Correlation tracking for related events
     this.eventCorrelation = {
       correlationWindow: 5000, // 5 seconds
       correlationRules: new Map(),
       pendingCorrelations: new Map()
     };
-    
+
     this.monitoring = false;
     this.initializeMonitors();
-    
+
     this.logger.info('SystemEventMonitor initialized', {
       platform: this.platform,
-      enabledMonitors: Object.keys(this.config.enabledMonitors).filter(k => this.config.enabledMonitors[k])
+      enabledMonitors: Object.keys(this.config.enabledMonitors).filter(
+        k => this.config.enabledMonitors[k]
+      )
     });
   }
 
@@ -125,31 +127,30 @@ class SystemEventMonitor extends EventEmitter {
       if (this.config.enabledMonitors.power) {
         this.monitors.set('power', new PowerEventMonitor(monitorConfig));
       }
-      
+
       if (this.config.enabledMonitors.network) {
         this.monitors.set('network', new NetworkEventMonitor(monitorConfig));
       }
-      
+
       if (this.config.enabledMonitors.session) {
         this.monitors.set('session', new SessionEventMonitor(monitorConfig));
       }
-      
+
       if (this.config.enabledMonitors.hardware) {
         this.monitors.set('hardware', new HardwareEventMonitor(monitorConfig));
       }
-      
+
       if (this.config.enabledMonitors.system) {
         this.monitors.set('system', new SystemResourceMonitor(monitorConfig));
       }
 
       // Set up event forwarding from each monitor
       for (const [type, monitor] of this.monitors) {
-        monitor.on('event', (event) => this.handleSystemEvent(type, event));
-        monitor.on('error', (error) => this.handleMonitorError(type, error));
+        monitor.on('event', event => this.handleSystemEvent(type, event));
+        monitor.on('error', error => this.handleMonitorError(type, error));
       }
 
       this.statistics.activeMonitors = this.monitors.size;
-      
     } catch (error) {
       this.logger.error('Failed to initialize monitors:', error);
       this.statistics.errorCount++;
@@ -172,18 +173,16 @@ class SystemEventMonitor extends EventEmitter {
 
     this.monitoring = true;
     this.statistics.monitorStartTime = Date.now();
-    
+
     const startPromises = [];
-    
+
     for (const [type, monitor] of this.monitors) {
-      startPromises.push(
-        this.startMonitor(type, monitor)
-      );
+      startPromises.push(this.startMonitor(type, monitor));
     }
 
     // Start all monitors concurrently
     const results = await Promise.allSettled(startPromises);
-    
+
     let successCount = 0;
     results.forEach((result, index) => {
       const monitorType = Array.from(this.monitors.keys())[index];
@@ -197,7 +196,9 @@ class SystemEventMonitor extends EventEmitter {
     });
 
     if (successCount > 0) {
-      this.logger.info(`System event monitoring started (${successCount}/${this.monitors.size} monitors active)`);
+      this.logger.info(
+        `System event monitoring started (${successCount}/${this.monitors.size} monitors active)`
+      );
       this.emit('monitoringStarted', {
         activeMonitors: successCount,
         totalMonitors: this.monitors.size,
@@ -236,9 +237,9 @@ class SystemEventMonitor extends EventEmitter {
     }
 
     this.monitoring = false;
-    
+
     const stopPromises = [];
-    
+
     for (const [type, monitor] of this.monitors) {
       if (typeof monitor.stop === 'function') {
         stopPromises.push(
@@ -250,7 +251,7 @@ class SystemEventMonitor extends EventEmitter {
     }
 
     await Promise.allSettled(stopPromises);
-    
+
     if (this.statistics.monitorStartTime) {
       this.statistics.monitorUptime = Date.now() - this.statistics.monitorStartTime;
     }
@@ -273,31 +274,30 @@ class SystemEventMonitor extends EventEmitter {
       }
 
       const enrichedEvent = this.enrichEvent(category, event);
-      
+
       // Add to event history
       this.eventHistory.push(enrichedEvent);
-      
+
       // Update statistics
       this.updateEventStatistics(category, enrichedEvent);
-      
+
       // Update active events tracking
       this.updateActiveEvents(enrichedEvent);
-      
+
       // Check for event correlations
       this.checkEventCorrelations(enrichedEvent);
-      
+
       // Emit the unified system event
       this.emit('systemEvent', enrichedEvent);
-      
+
       // Emit category-specific events
       this.emit(`${category}Event`, enrichedEvent);
-      
+
       this.logger.debug('System event processed', {
         category,
         type: event.type,
         id: enrichedEvent.id
       });
-
     } catch (error) {
       this.logger.error('Error handling system event:', error);
       this.statistics.errorCount++;
@@ -325,13 +325,19 @@ class SystemEventMonitor extends EventEmitter {
   generateCorrelationKey(category, event) {
     // Create a key that can be used to correlate related events
     const keyParts = [category, event.type];
-    
+
     if (event.data && typeof event.data === 'object') {
-      if (event.data.interface) keyParts.push(event.data.interface);
-      if (event.data.device) keyParts.push(event.data.device);
-      if (event.data.source) keyParts.push(event.data.source);
+      if (event.data.interface) {
+        keyParts.push(event.data.interface);
+      }
+      if (event.data.device) {
+        keyParts.push(event.data.device);
+      }
+      if (event.data.source) {
+        keyParts.push(event.data.source);
+      }
     }
-    
+
     return keyParts.join(':').toLowerCase();
   }
 
@@ -341,12 +347,12 @@ class SystemEventMonitor extends EventEmitter {
   shouldThrottleEvent(category, event) {
     const eventKey = `${category}:${event.type}`;
     const now = Date.now();
-    
+
     const lastTime = this.lastEventTimes.get(eventKey);
-    if (lastTime && (now - lastTime) < this.config.throttleInterval) {
+    if (lastTime && now - lastTime < this.config.throttleInterval) {
       return true;
     }
-    
+
     this.lastEventTimes.set(eventKey, now);
     return false;
   }
@@ -357,18 +363,18 @@ class SystemEventMonitor extends EventEmitter {
   updateEventStatistics(category, event) {
     this.statistics.totalEvents++;
     this.statistics.lastEventTime = Date.now();
-    
+
     if (!this.statistics.eventsPerCategory[category]) {
       this.statistics.eventsPerCategory[category] = 0;
     }
     this.statistics.eventsPerCategory[category]++;
-    
+
     // Update event rate calculation
     if (this.statistics.monitorStartTime) {
       const uptime = Date.now() - this.statistics.monitorStartTime;
       this.statistics.averageEventRate = (this.statistics.totalEvents / uptime) * 1000; // events per second
     }
-    
+
     // Track event counts for rate monitoring
     const eventKey = `${category}:${event.type}`;
     this.eventCounts.set(eventKey, (this.eventCounts.get(eventKey) || 0) + 1);
@@ -378,7 +384,7 @@ class SystemEventMonitor extends EventEmitter {
    * Update active events tracking
    */
   updateActiveEvents(event) {
-    if (event.type && event.type.includes('start') || event.type.includes('connected')) {
+    if ((event.type && event.type.includes('start')) || event.type.includes('connected')) {
       this.activeEvents.add(event.correlationKey);
     } else if (event.type && (event.type.includes('end') || event.type.includes('disconnected'))) {
       this.activeEvents.delete(event.correlationKey);
@@ -392,17 +398,17 @@ class SystemEventMonitor extends EventEmitter {
     // Simple correlation: group events that happen within the correlation window
     const now = Date.now();
     const correlationKey = event.correlationKey;
-    
+
     if (!this.eventCorrelation.pendingCorrelations.has(correlationKey)) {
       this.eventCorrelation.pendingCorrelations.set(correlationKey, []);
     }
-    
+
     const correlationGroup = this.eventCorrelation.pendingCorrelations.get(correlationKey);
     correlationGroup.push(event);
-    
+
     // Clean up old correlations
     this.cleanupOldCorrelations(now);
-    
+
     // Emit correlation event if we have multiple related events
     if (correlationGroup.length > 1) {
       this.emit('eventCorrelation', {
@@ -418,10 +424,10 @@ class SystemEventMonitor extends EventEmitter {
    */
   cleanupOldCorrelations(now) {
     for (const [key, events] of this.eventCorrelation.pendingCorrelations) {
-      const recentEvents = events.filter(event => 
-        now - event.timestamp < this.eventCorrelation.correlationWindow
+      const recentEvents = events.filter(
+        event => now - event.timestamp < this.eventCorrelation.correlationWindow
       );
-      
+
       if (recentEvents.length === 0) {
         this.eventCorrelation.pendingCorrelations.delete(key);
       } else if (recentEvents.length !== events.length) {
@@ -436,7 +442,7 @@ class SystemEventMonitor extends EventEmitter {
   handleMonitorError(monitorType, error) {
     this.statistics.errorCount++;
     this.logger.error(`Monitor error (${monitorType}):`, error);
-    
+
     this.emit('monitorError', {
       monitorType,
       error: error.message,
@@ -456,7 +462,7 @@ class SystemEventMonitor extends EventEmitter {
       uptime: this.statistics.monitorStartTime ? Date.now() - this.statistics.monitorStartTime : 0,
       lastEventTime: this.statistics.lastEventTime
     };
-    
+
     // Get current state from each monitor
     for (const [type, monitor] of this.monitors) {
       if (typeof monitor.getCurrentState === 'function') {
@@ -467,7 +473,7 @@ class SystemEventMonitor extends EventEmitter {
         }
       }
     }
-    
+
     return state;
   }
 
@@ -535,12 +541,12 @@ class SystemEventMonitor extends EventEmitter {
       errorCount: 0,
       activeMonitors: this.monitors.size
     };
-    
+
     this.eventHistory = new CircularBuffer(this.config.eventHistorySize);
     this.activeEvents.clear();
     this.eventCounts.clear();
     this.lastEventTimes.clear();
-    
+
     this.emit('statisticsReset');
   }
 }

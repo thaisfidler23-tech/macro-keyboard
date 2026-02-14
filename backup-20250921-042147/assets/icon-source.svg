@@ -1,0 +1,59 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="keyboardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4A90E2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#357ABD;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="keyGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F5F5F5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E0E0E0;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="3" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#keyboardGradient)" filter="url(#shadow)"/>
+  
+  <!-- Keyboard base -->
+  <rect x="96" y="180" width="320" height="200" rx="20" ry="20" fill="#2C3E50" opacity="0.8"/>
+  
+  <!-- Button grid (4x2 layout representing macro keys) -->
+  <!-- Row 1 -->
+  <rect x="120" y="210" width="45" height="35" rx="5" ry="5" fill="url(#keyGradient)" filter="url(#shadow)"/>
+  <rect x="180" y="210" width="45" height="35" rx="5" ry="5" fill="url(#keyGradient)" filter="url(#shadow)"/>
+  <rect x="240" y="210" width="45" height="35" rx="5" ry="5" fill="url(#keyGradient)" filter="url(#shadow)"/>
+  <rect x="300" y="210" width="45" height="35" rx="5" ry="5" fill="url(#keyGradient)" filter="url(#shadow)"/>
+  
+  <!-- Row 2 -->
+  <rect x="120" y="265" width="45" height="35" rx="5" ry="5" fill="url(#keyGradient)" filter="url(#shadow)"/>
+  <rect x="180" y="265" width="45" height="35" rx="5" ry="5" fill="url(#keyGradient)" filter="url(#shadow)"/>
+  <rect x="240" y="265" width="45" height="35" rx="5" ry="5" fill="url(#keyGradient)" filter="url(#shadow)"/>
+  <rect x="300" y="265" width="45" height="35" rx="5" ry="5" fill="url(#keyGradient)" filter="url(#shadow)"/>
+  
+  <!-- Rotary encoder -->
+  <circle cx="380" cy="242" r="25" fill="#34495E" filter="url(#shadow)"/>
+  <circle cx="380" cy="242" r="20" fill="url(#keyGradient)"/>
+  <circle cx="380" cy="242" r="8" fill="#2C3E50"/>
+  <line x1="380" y1="234" x2="380" y2="242" stroke="#E74C3C" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- USB connector indication -->
+  <rect x="200" y="360" width="112" height="12" rx="6" ry="6" fill="#7F8C8D"/>
+  <rect x="212" y="362" width="88" height="8" rx="4" ry="4" fill="#BDC3C7"/>
+  
+  <!-- Key legends -->
+  <text x="142" y="232" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#2C3E50" text-anchor="middle">1</text>
+  <text x="202" y="232" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#2C3E50" text-anchor="middle">2</text>
+  <text x="262" y="232" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#2C3E50" text-anchor="middle">3</text>
+  <text x="322" y="232" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#2C3E50" text-anchor="middle">4</text>
+  
+  <text x="142" y="287" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#2C3E50" text-anchor="middle">5</text>
+  <text x="202" y="287" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#2C3E50" text-anchor="middle">6</text>
+  <text x="262" y="287" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#2C3E50" text-anchor="middle">7</text>
+  <text x="322" y="287" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#2C3E50" text-anchor="middle">8</text>
+  
+  <!-- Title text -->
+  <text x="256" y="140" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#FFFFFF" text-anchor="middle">MACRO</text>
+  <text x="256" y="420" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#FFFFFF" text-anchor="middle">KEYBOARD</text>
+</svg>

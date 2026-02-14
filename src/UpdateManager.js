@@ -11,27 +11,27 @@ const os = require('os');
 class UpdateManager extends EventEmitter {
   constructor(logger, config = {}) {
     super();
-    
+
     this.logger = logger;
     this.config = {
       // GitHub repository information
       owner: config.owner || 'jmassardo',
       repo: config.repo || 'macro-keyboard',
-      
+
       // Update checking behavior
       checkInterval: config.checkInterval || 24 * 60 * 60 * 1000, // 24 hours
       autoDownload: config.autoDownload !== false, // Default true
       autoInstallOnAppQuit: config.autoInstallOnAppQuit !== false, // Default true
-      
+
       // User interaction settings
       allowPrerelease: config.allowPrerelease || false,
       notify: config.notify !== false, // Default true
       silent: config.silent || false,
-      
+
       // Server configuration
       provider: config.provider || 'github',
       updaterCacheDirName: config.updaterCacheDirName || 'macro-keyboard-updater',
-      
+
       ...config
     };
 
@@ -44,10 +44,10 @@ class UpdateManager extends EventEmitter {
 
     // Initialize auto-updater configuration
     this.setupAutoUpdater();
-    
+
     // Bind event handlers
     this.bindAutoUpdaterEvents();
-    
+
     this.logger.info(`UpdateManager initialized for version ${this.currentVersion}`);
   }
 
@@ -69,7 +69,6 @@ class UpdateManager extends EventEmitter {
       autoUpdater.allowPrerelease = this.config.allowPrerelease;
 
       this.logger.info('Auto-updater configured for GitHub releases');
-
     } catch (error) {
       this.logger.error('Failed to setup auto-updater:', error);
     }
@@ -85,45 +84,45 @@ class UpdateManager extends EventEmitter {
       this.emit('checking-for-update');
     });
 
-    autoUpdater.on('update-available', (info) => {
+    autoUpdater.on('update-available', info => {
       this.isChecking = false;
       this.updateAvailable = true;
       this.updateInfo = info;
       this.logger.info(`Update available: ${info.version}`, info);
       this.emit('update-available', info);
-      
+
       if (this.config.notify) {
         this.showUpdateAvailableDialog(info);
       }
     });
 
-    autoUpdater.on('update-not-available', (info) => {
+    autoUpdater.on('update-not-available', info => {
       this.isChecking = false;
       this.updateAvailable = false;
       this.logger.info('No updates available');
       this.emit('update-not-available', info);
     });
 
-    autoUpdater.on('error', (error) => {
+    autoUpdater.on('error', error => {
       this.isChecking = false;
       this.logger.error('Auto-updater error:', error);
       this.emit('error', error);
-      
+
       if (this.config.notify && !this.config.silent) {
         this.showUpdateErrorDialog(error);
       }
     });
 
-    autoUpdater.on('download-progress', (progressObj) => {
+    autoUpdater.on('download-progress', progressObj => {
       this.downloadProgress = progressObj;
       this.logger.debug('Download progress:', progressObj);
       this.emit('download-progress', progressObj);
     });
 
-    autoUpdater.on('update-downloaded', (info) => {
+    autoUpdater.on('update-downloaded', info => {
       this.logger.info('Update downloaded, will install on app restart', info);
       this.emit('update-downloaded', info);
-      
+
       if (this.config.notify) {
         this.showUpdateReadyDialog(info);
       }
@@ -141,13 +140,15 @@ class UpdateManager extends EventEmitter {
 
     // Initial check
     this.checkForUpdates();
-    
+
     // Schedule periodic checks
     this.updateCheckTimer = setInterval(() => {
       this.checkForUpdates();
     }, this.config.checkInterval);
-    
-    this.logger.info(`Automatic update checking started (interval: ${this.config.checkInterval}ms)`);
+
+    this.logger.info(
+      `Automatic update checking started (interval: ${this.config.checkInterval}ms)`
+    );
   }
 
   /**
@@ -222,7 +223,7 @@ class UpdateManager extends EventEmitter {
     const response = await dialog.showMessageBox({
       type: 'info',
       title: 'Update Available',
-      message: `A new version of Macro Keyboard is available!`,
+      message: 'A new version of Macro Keyboard is available!',
       detail: `Current version: ${this.currentVersion}\nLatest version: ${updateInfo.version}\n\nWould you like to download and install the update?`,
       buttons: ['Download Update', 'Later', 'View Release Notes'],
       defaultId: 0,
@@ -304,7 +305,7 @@ class UpdateManager extends EventEmitter {
   updateConfig(newConfig) {
     this.config = { ...this.config, ...newConfig };
     this.logger.info('UpdateManager configuration updated');
-    
+
     // Restart update checking if interval changed
     if (newConfig.checkInterval && this.updateCheckTimer) {
       this.stopUpdateChecking();
@@ -337,7 +338,7 @@ class UpdateManager extends EventEmitter {
     } else {
       this.stopUpdateChecking();
     }
-    
+
     this.config.autoDownload = enabled;
     this.logger.info(`Automatic updates ${enabled ? 'enabled' : 'disabled'}`);
     this.emit('auto-update-toggled', enabled);

@@ -1,6 +1,6 @@
 /**
  * macOS Speech Recognition Integration
- * 
+ *
  * Provides macOS-specific speech recognition using NSSpeechRecognizer
  * and macOS Speech framework through native Objective-C bridge.
  */
@@ -12,7 +12,7 @@ const path = require('path');
 class MacOSSpeechEngine extends EventEmitter {
   constructor(config = {}) {
     super();
-    
+
     this.config = {
       language: 'en-US',
       confidenceThreshold: 0.7,
@@ -59,10 +59,9 @@ class MacOSSpeechEngine extends EventEmitter {
 
       this.isInitialized = true;
       this.emit('initialized');
-      
+
       this.logger.info('macOS Speech Recognition initialized successfully');
       return true;
-
     } catch (error) {
       this.logger.error('Failed to initialize macOS Speech Recognition:', error);
       throw error;
@@ -82,15 +81,15 @@ class MacOSSpeechEngine extends EventEmitter {
       let output = '';
       let error = '';
 
-      checkProcess.stdout.on('data', (data) => {
+      checkProcess.stdout.on('data', data => {
         output += data.toString();
       });
 
-      checkProcess.stderr.on('data', (data) => {
+      checkProcess.stderr.on('data', data => {
         error += data.toString();
       });
 
-      checkProcess.on('close', (code) => {
+      checkProcess.on('close', code => {
         if (code === 0) {
           this.logger.info('macOS Speech Recognition system available');
           resolve(true);
@@ -108,14 +107,14 @@ class MacOSSpeechEngine extends EventEmitter {
   async checkSpeechFramework() {
     return new Promise((resolve, reject) => {
       const checkProcess = spawn('system_profiler', ['SPAudioDataType']);
-      
+
       let output = '';
 
-      checkProcess.stdout.on('data', (data) => {
+      checkProcess.stdout.on('data', data => {
         output += data.toString();
       });
 
-      checkProcess.on('close', (code) => {
+      checkProcess.on('close', code => {
         if (output.includes('Built-in Microphone') || output.includes('microphone')) {
           this.logger.info('Audio input available for speech recognition');
           resolve(true);
@@ -149,7 +148,7 @@ class MacOSSpeechEngine extends EventEmitter {
 
     // Compile Objective-C bridge
     await this.compileObjectiveCBridge(sourcePath, bridgePath);
-    
+
     this.logger.info('Objective-C bridge compiled successfully');
   }
 
@@ -184,10 +183,10 @@ class MacOSSpeechEngine extends EventEmitter {
     NSLocale *locale = [[NSLocale alloc] initWithLocaleIdentifier:languageCode];
     self.speechRecognizer = [[SFSpeechRecognizer alloc] initWithLocale:locale];
     self.speechRecognizer.delegate = self;
-    
+
     self.audioEngine = [[AVAudioEngine alloc] init];
     self.inputNode = [self.audioEngine inputNode];
-    
+
     // Request authorization
     [SFSpeechRecognizer requestAuthorization:^(SFSpeechRecognizerAuthorizationStatus status) {
         dispatch_async(dispatch_get_main_queue(), ^{
@@ -206,10 +205,10 @@ class MacOSSpeechEngine extends EventEmitter {
         [self.recognitionTask cancel];
         self.recognitionTask = nil;
     }
-    
+
     AVAudioSession *audioSession = [AVAudioSession sharedInstance];
     NSError *error;
-    
+
     [audioSession setCategory:AVAudioSessionCategoryRecord
                   withOptions:AVAudioSessionCategoryOptionMeasurement
                         error:&error];
@@ -217,23 +216,23 @@ class MacOSSpeechEngine extends EventEmitter {
         [self outputJSON:@{@"type": @"error", @"message": [error localizedDescription]}];
         return;
     }
-    
+
     [audioSession setActive:YES withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation error:&error];
     if (error) {
         [self outputJSON:@{@"type": @"error", @"message": [error localizedDescription]}];
         return;
     }
-    
+
     self.recognitionRequest = [[SFSpeechAudioBufferRecognitionRequest alloc] init];
     self.recognitionRequest.shouldReportPartialResults = YES;
-    
+
     self.recognitionTask = [self.speechRecognizer recognitionTaskWithRequest:self.recognitionRequest
                                                                resultHandler:^(SFSpeechRecognitionResult *result, NSError *error) {
         if (error) {
             [self outputJSON:@{@"type": @"error", @"message": [error localizedDescription]}];
             return;
         }
-        
+
         if (result) {
             NSMutableArray *alternativesArray = [[NSMutableArray alloc] init];
             for (SFTranscription *transcription in result.transcriptions) {
@@ -242,7 +241,7 @@ class MacOSSpeechEngine extends EventEmitter {
                     @"confidence": @(transcription.averageConfidence)
                 }];
             }
-            
+
             NSDictionary *resultData = @{
                 @"type": @"result",
                 @"text": result.bestTranscription.formattedString,
@@ -253,19 +252,19 @@ class MacOSSpeechEngine extends EventEmitter {
             [self outputJSON:resultData];
         }
     }];
-    
+
     AVAudioFormat *recordingFormat = [self.inputNode outputFormatForBus:0];
     [self.inputNode installTapOnBus:0 bufferSize:1024 format:recordingFormat block:^(AVAudioPCMBuffer *buffer, AVAudioTime *when) {
         [self.recognitionRequest appendAudioPCMBuffer:buffer];
     }];
-    
+
     [self.audioEngine prepare];
     [self.audioEngine startAndReturnError:&error];
     if (error) {
         [self outputJSON:@{@"type": @"error", @"message": [error localizedDescription]}];
         return;
     }
-    
+
     self.isRecording = YES;
     [self outputJSON:@{@"type": @"started"}];
 }
@@ -275,17 +274,17 @@ class MacOSSpeechEngine extends EventEmitter {
         [self.audioEngine stop];
         [self.inputNode removeTapOnBus:0];
     }
-    
+
     if (self.recognitionRequest) {
         [self.recognitionRequest endAudio];
         self.recognitionRequest = nil;
     }
-    
+
     if (self.recognitionTask) {
         [self.recognitionTask cancel];
         self.recognitionTask = nil;
     }
-    
+
     self.isRecording = NO;
     [self outputJSON:@{@"type": @"stopped"}];
 }
@@ -314,25 +313,25 @@ class MacOSSpeechEngine extends EventEmitter {
 int main(int argc, const char * argv[]) {
     @autoreleasepool {
         SpeechRecognitionManager *manager = [[SpeechRecognitionManager alloc] init];
-        
+
         // Initialize with language code from command line or default
         NSString *languageCode = @"en-US";
         if (argc > 1) {
             languageCode = [NSString stringWithUTF8String:argv[1]];
         }
-        
+
         [manager initializeSpeechRecognition:languageCode];
-        
+
         // Command processing loop
         NSFileHandle *stdin = [NSFileHandle fileHandleWithStandardInput];
-        
+
         while (YES) {
             NSData *inputData = [stdin availableData];
             if (inputData.length == 0) break;
-            
+
             NSString *input = [[NSString alloc] initWithData:inputData encoding:NSUTF8StringEncoding];
             input = [input stringByTrimmingCharactersInSet:[NSCharacterSet newlineCharacterSet]];
-            
+
             if ([input isEqualToString:@"START"]) {
                 [manager startRecognition];
             } else if ([input isEqualToString:@"STOP"]) {
@@ -354,20 +353,24 @@ int main(int argc, const char * argv[]) {
   async compileObjectiveCBridge(sourcePath, outputPath) {
     return new Promise((resolve, reject) => {
       const compileProcess = spawn('clang', [
-        '-framework', 'Foundation',
-        '-framework', 'Speech',
-        '-framework', 'AVFoundation',
-        '-o', outputPath,
+        '-framework',
+        'Foundation',
+        '-framework',
+        'Speech',
+        '-framework',
+        'AVFoundation',
+        '-o',
+        outputPath,
         sourcePath
       ]);
 
       let error = '';
 
-      compileProcess.stderr.on('data', (data) => {
+      compileProcess.stderr.on('data', data => {
         error += data.toString();
       });
 
-      compileProcess.on('close', (code) => {
+      compileProcess.on('close', code => {
         if (code === 0) {
           resolve();
         } else {
@@ -392,20 +395,19 @@ int main(int argc, const char * argv[]) {
 
     try {
       const bridgePath = path.join(__dirname, 'macos-speech-bridge');
-      
+
       this.speechProcess = spawn(bridgePath, [this.config.language], {
         stdio: ['pipe', 'pipe', 'pipe']
       });
 
       this.setupProcessEventHandlers();
-      
+
       // Start recognition
       this.speechProcess.stdin.write('START\n');
       this.isRecognizing = true;
-      
+
       this.emit('started');
       this.logger.info('macOS speech recognition started');
-
     } catch (error) {
       this.logger.error('Failed to start macOS speech recognition:', error);
       throw error;
@@ -423,10 +425,9 @@ int main(int argc, const char * argv[]) {
     try {
       this.speechProcess.stdin.write('STOP\n');
       this.isRecognizing = false;
-      
+
       this.emit('stopped');
       this.logger.info('macOS speech recognition stopped');
-
     } catch (error) {
       this.logger.error('Failed to stop macOS speech recognition:', error);
       throw error;
@@ -439,13 +440,13 @@ int main(int argc, const char * argv[]) {
   setupProcessEventHandlers() {
     let buffer = '';
 
-    this.speechProcess.stdout.on('data', (data) => {
+    this.speechProcess.stdout.on('data', data => {
       buffer += data.toString();
-      
+
       // Process complete events (delimited by ---EVENT---)
       const events = buffer.split('---EVENT---');
       buffer = events.pop(); // Keep incomplete event in buffer
-      
+
       for (const eventData of events) {
         if (eventData.trim()) {
           try {
@@ -458,14 +459,14 @@ int main(int argc, const char * argv[]) {
       }
     });
 
-    this.speechProcess.stderr.on('data', (data) => {
+    this.speechProcess.stderr.on('data', data => {
       this.logger.error('macOS speech recognition error:', data.toString());
     });
 
-    this.speechProcess.on('close', (code) => {
+    this.speechProcess.on('close', code => {
       this.isRecognizing = false;
       this.speechProcess = null;
-      
+
       if (code !== 0) {
         this.logger.error(`macOS speech process exited with code ${code}`);
         this.emit('error', new Error(`Speech process exited with code ${code}`));
@@ -474,7 +475,7 @@ int main(int argc, const char * argv[]) {
       }
     });
 
-    this.speechProcess.on('error', (error) => {
+    this.speechProcess.on('error', error => {
       this.logger.error('macOS speech process error:', error);
       this.emit('error', error);
     });
@@ -543,11 +544,11 @@ int main(int argc, const char * argv[]) {
 
       let output = '';
 
-      checkProcess.stdout.on('data', (data) => {
+      checkProcess.stdout.on('data', data => {
         output += data.toString();
       });
 
-      checkProcess.on('close', (code) => {
+      checkProcess.on('close', code => {
         const hasPermission = output.trim() === 'true';
         resolve(hasPermission);
       });
@@ -558,7 +559,7 @@ int main(int argc, const char * argv[]) {
    * Request microphone permission
    */
   async requestMicrophonePermission() {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const requestProcess = spawn('osascript', [
         '-e',
         `tell application "System Preferences"
@@ -581,9 +582,9 @@ int main(int argc, const char * argv[]) {
     if (this.speechProcess) {
       try {
         this.speechProcess.stdin.write('EXIT\n');
-        
+
         // Wait for process to exit gracefully
-        await new Promise((resolve) => {
+        await new Promise(resolve => {
           const timeout = setTimeout(() => {
             this.speechProcess.kill('SIGTERM');
             resolve();
@@ -614,9 +615,29 @@ int main(int argc, const char * argv[]) {
       platform: 'darwin',
       engine: 'Speech.framework',
       features: this.features,
-      languages: ['en-US', 'en-GB', 'en-AU', 'en-CA', 'es-ES', 'es-MX', 'fr-FR', 'fr-CA', 
-                  'de-DE', 'it-IT', 'pt-BR', 'pt-PT', 'ja-JP', 'ko-KR', 'zh-CN', 'zh-TW',
-                  'ru-RU', 'ar-SA', 'hi-IN', 'th-TH', 'tr-TR'],
+      languages: [
+        'en-US',
+        'en-GB',
+        'en-AU',
+        'en-CA',
+        'es-ES',
+        'es-MX',
+        'fr-FR',
+        'fr-CA',
+        'de-DE',
+        'it-IT',
+        'pt-BR',
+        'pt-PT',
+        'ja-JP',
+        'ko-KR',
+        'zh-CN',
+        'zh-TW',
+        'ru-RU',
+        'ar-SA',
+        'hi-IN',
+        'th-TH',
+        'tr-TR'
+      ],
       maxAlternatives: 5,
       confidenceScoring: true,
       partialResults: true,

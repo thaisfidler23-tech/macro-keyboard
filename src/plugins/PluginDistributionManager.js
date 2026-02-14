@@ -7,10 +7,10 @@ const { promisify } = require('util');
 
 /**
  * Plugin Distribution Manager
- * 
+ *
  * Handles secure plugin download, verification, and distribution from the marketplace.
  * Supports progressive downloads, digital signature verification, and integrity validation.
- * 
+ *
  * Features:
  * - Secure HTTPS downloads with resume capability
  * - RSA digital signature verification
@@ -22,23 +22,23 @@ const { promisify } = require('util');
 class PluginDistributionManager extends EventEmitter {
   constructor(config = {}, logManager = null, securityManager = null) {
     super();
-    
+
     this.config = this.mergeConfig(config);
     this.logManager = logManager;
     this.securityManager = securityManager;
-    
+
     // Active downloads tracking
     this.activeDownloads = new Map(); // downloadId -> DownloadSession
     this.downloadQueue = []; // Queued downloads
     this.downloadHistory = new Map(); // pluginId -> download history
-    
+
     // Security verification
     this.trustedCertificates = new Map(); // certificate fingerprint -> certificate data
     this.signatureVerifier = null;
-    
+
     // Performance tracking
     this.downloadMetrics = new Map(); // pluginId -> metrics
-    
+
     this.init();
   }
 
@@ -52,28 +52,28 @@ class PluginDistributionManager extends EventEmitter {
       downloadTimeout: 300000, // 5 minutes
       retryAttempts: 3,
       retryDelay: 2000, // 2 seconds
-      
+
       // Security settings
       requireSignatureVerification: true,
       enableIntegrityCheck: true,
       enableMalwareScan: false,
       trustedPublishers: [],
-      
+
       // Storage settings
       tempDirectory: path.join(process.cwd(), 'temp', 'downloads'),
       downloadDirectory: path.join(process.cwd(), 'downloads'),
       maxTempFileAge: 86400000, // 24 hours
-      
+
       // Network settings
       userAgent: 'MacroKeyboard-Plugin-Downloader/1.0',
       allowInsecureConnections: false,
       proxy: null,
-      
+
       // Progress tracking
       progressUpdateInterval: 1000, // 1 second
       enableProgressEvents: true
     };
-    
+
     return { ...defaultConfig, ...userConfig };
   }
 
@@ -83,24 +83,23 @@ class PluginDistributionManager extends EventEmitter {
   async init() {
     try {
       this.log('info', 'PluginDistributionManager initializing...');
-      
+
       // Set up directories
       await this.setupDirectories();
-      
+
       // Initialize signature verifier
       if (this.config.requireSignatureVerification) {
         await this.initializeSignatureVerifier();
       }
-      
+
       // Clean up old temporary files
       await this.cleanupTempFiles();
-      
+
       // Load trusted certificates
       await this.loadTrustedCertificates();
-      
+
       this.log('info', 'PluginDistributionManager initialized successfully');
       this.emit('manager-ready');
-      
     } catch (error) {
       this.log('error', 'Failed to initialize PluginDistributionManager:', error);
       throw error;
@@ -111,11 +110,8 @@ class PluginDistributionManager extends EventEmitter {
    * Set up required directories
    */
   async setupDirectories() {
-    const directories = [
-      this.config.tempDirectory,
-      this.config.downloadDirectory
-    ];
-    
+    const directories = [this.config.tempDirectory, this.config.downloadDirectory];
+
     for (const dir of directories) {
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
@@ -143,26 +139,27 @@ class PluginDistributionManager extends EventEmitter {
   async cleanupTempFiles() {
     try {
       const tempDir = this.config.tempDirectory;
-      if (!fs.existsSync(tempDir)) return;
-      
+      if (!fs.existsSync(tempDir)) {
+        return;
+      }
+
       const files = fs.readdirSync(tempDir);
       const now = Date.now();
       let cleanedCount = 0;
-      
+
       for (const file of files) {
         const filePath = path.join(tempDir, file);
         const stats = fs.statSync(filePath);
-        
+
         if (now - stats.mtime.getTime() > this.config.maxTempFileAge) {
           fs.unlinkSync(filePath);
           cleanedCount++;
         }
       }
-      
+
       if (cleanedCount > 0) {
         this.log('info', `Cleaned up ${cleanedCount} old temporary files`);
       }
-      
     } catch (error) {
       this.log('warn', 'Failed to clean up temporary files:', error);
     }
@@ -187,21 +184,21 @@ class PluginDistributionManager extends EventEmitter {
    */
   async downloadPlugin(pluginId, version, downloadUrl, options = {}) {
     const downloadId = this.generateDownloadId(pluginId, version);
-    
+
     try {
       this.log('info', `Starting download for plugin ${pluginId} v${version}`, {
         downloadId,
         url: downloadUrl
       });
-      
+
       // Check if already downloading
       if (this.activeDownloads.has(downloadId)) {
         throw new Error(`Plugin ${pluginId} v${version} is already being downloaded`);
       }
-      
+
       // Get plugin metadata for verification
       const metadata = await this.getPluginMetadata(pluginId, version);
-      
+
       // Create download session
       const session = await this.createDownloadSession(downloadId, {
         pluginId,
@@ -212,26 +209,26 @@ class PluginDistributionManager extends EventEmitter {
         signature: metadata.signature,
         ...options
       });
-      
+
       this.activeDownloads.set(downloadId, session);
-      
+
       // Start download
       const filePath = await this.executeDownload(session);
-      
+
       // Verify downloaded file
       await this.verifyDownloadedFile(filePath, session);
-      
+
       // Move to final location
       const finalPath = await this.moveToDownloadDirectory(filePath, session);
-      
+
       // Record download history
       this.recordDownloadHistory(session, finalPath);
-      
+
       this.log('info', `Plugin download completed successfully: ${pluginId} v${version}`, {
         downloadId,
         filePath: finalPath
       });
-      
+
       this.emit('download-complete', {
         pluginId,
         version,
@@ -239,29 +236,27 @@ class PluginDistributionManager extends EventEmitter {
         filePath: finalPath,
         session
       });
-      
+
       return {
         success: true,
         filePath: finalPath,
         downloadId,
         metadata: session.metadata
       };
-      
     } catch (error) {
       this.log('error', `Plugin download failed: ${pluginId} v${version}`, error);
-      
+
       // Clean up failed download
       await this.cleanupFailedDownload(downloadId);
-      
+
       this.emit('download-error', {
         pluginId,
         version,
         downloadId,
         error
       });
-      
+
       throw error;
-      
     } finally {
       this.activeDownloads.delete(downloadId);
     }
@@ -288,11 +283,8 @@ class PluginDistributionManager extends EventEmitter {
    * Create download session
    */
   async createDownloadSession(downloadId, options) {
-    const tempFilePath = path.join(
-      this.config.tempDirectory,
-      `${downloadId}.mkbp.tmp`
-    );
-    
+    const tempFilePath = path.join(this.config.tempDirectory, `${downloadId}.mkbp.tmp`);
+
     return {
       downloadId,
       pluginId: options.pluginId,
@@ -326,23 +318,23 @@ class PluginDistributionManager extends EventEmitter {
           'User-Agent': this.config.userAgent
         }
       };
-      
+
       // Check if partial file exists for resume
       let resumePosition = 0;
       if (fs.existsSync(session.tempFilePath)) {
         const stats = fs.statSync(session.tempFilePath);
         resumePosition = stats.size;
-        options.headers['Range'] = `bytes=${resumePosition}-`;
+        options.headers.Range = `bytes=${resumePosition}-`;
         session.bytesDownloaded = resumePosition;
       }
-      
+
       session.status = 'downloading';
       this.log('debug', `Starting download with resume position: ${resumePosition}`, {
         downloadId: session.downloadId,
         url: session.url
       });
-      
-      const request = https.get(session.url, options, (response) => {
+
+      const request = https.get(session.url, options, response => {
         if (response.statusCode === 416) {
           // Range not satisfiable - file already complete
           if (resumePosition > 0) {
@@ -350,23 +342,23 @@ class PluginDistributionManager extends EventEmitter {
             return;
           }
         }
-        
+
         if (response.statusCode !== 200 && response.statusCode !== 206) {
           reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
           return;
         }
-        
+
         // Update total bytes if available
         const contentLength = parseInt(response.headers['content-length'], 10);
         if (contentLength && !session.totalBytes) {
           session.totalBytes = contentLength + resumePosition;
         }
-        
+
         // Create write stream (append mode for resume)
         const writeStream = fs.createWriteStream(session.tempFilePath, {
           flags: resumePosition > 0 ? 'a' : 'w'
         });
-        
+
         // Track progress
         let progressTimer;
         if (this.config.enableProgressEvents) {
@@ -374,33 +366,37 @@ class PluginDistributionManager extends EventEmitter {
             this.emitProgress(session);
           }, this.config.progressUpdateInterval);
         }
-        
-        response.on('data', (chunk) => {
+
+        response.on('data', chunk => {
           session.bytesDownloaded += chunk.length;
         });
-        
+
         response.on('end', () => {
-          if (progressTimer) clearInterval(progressTimer);
+          if (progressTimer) {
+            clearInterval(progressTimer);
+          }
           session.status = 'completed';
           this.emitProgress(session);
           resolve(session.tempFilePath);
         });
-        
-        response.on('error', (error) => {
-          if (progressTimer) clearInterval(progressTimer);
+
+        response.on('error', error => {
+          if (progressTimer) {
+            clearInterval(progressTimer);
+          }
           session.status = 'error';
           writeStream.destroy();
           reject(error);
         });
-        
+
         response.pipe(writeStream);
       });
-      
-      request.on('error', (error) => {
+
+      request.on('error', error => {
         session.status = 'error';
         reject(error);
       });
-      
+
       request.setTimeout(this.config.downloadTimeout, () => {
         request.destroy();
         session.status = 'timeout';
@@ -419,12 +415,14 @@ class PluginDistributionManager extends EventEmitter {
       version: session.version,
       bytesDownloaded: session.bytesDownloaded,
       totalBytes: session.totalBytes,
-      percentage: session.totalBytes ? Math.round((session.bytesDownloaded / session.totalBytes) * 100) : 0,
+      percentage: session.totalBytes
+        ? Math.round((session.bytesDownloaded / session.totalBytes) * 100)
+        : 0,
       speed: this.calculateDownloadSpeed(session),
       estimatedTimeRemaining: this.calculateETA(session),
       status: session.status
     };
-    
+
     this.emit('download-progress', progress);
   }
 
@@ -433,7 +431,9 @@ class PluginDistributionManager extends EventEmitter {
    */
   calculateDownloadSpeed(session) {
     const elapsed = Date.now() - session.startTime;
-    if (elapsed === 0) return 0;
+    if (elapsed === 0) {
+      return 0;
+    }
     return Math.round((session.bytesDownloaded / elapsed) * 1000); // bytes per second
   }
 
@@ -441,11 +441,15 @@ class PluginDistributionManager extends EventEmitter {
    * Calculate estimated time remaining
    */
   calculateETA(session) {
-    if (!session.totalBytes || session.bytesDownloaded === 0) return null;
-    
+    if (!session.totalBytes || session.bytesDownloaded === 0) {
+      return null;
+    }
+
     const speed = this.calculateDownloadSpeed(session);
-    if (speed === 0) return null;
-    
+    if (speed === 0) {
+      return null;
+    }
+
     const remainingBytes = session.totalBytes - session.bytesDownloaded;
     return Math.round(remainingBytes / speed); // seconds
   }
@@ -455,25 +459,27 @@ class PluginDistributionManager extends EventEmitter {
    */
   async verifyDownloadedFile(filePath, session) {
     this.log('debug', `Verifying downloaded file: ${filePath}`);
-    
+
     // Verify file exists and size
     if (!fs.existsSync(filePath)) {
       throw new Error('Downloaded file not found');
     }
-    
+
     const stats = fs.statSync(filePath);
     if (session.expectedSize && stats.size !== session.expectedSize) {
       throw new Error(`File size mismatch. Expected: ${session.expectedSize}, Got: ${stats.size}`);
     }
-    
+
     // Verify checksum
     if (this.config.enableIntegrityCheck && session.expectedChecksum) {
       const actualChecksum = await this.calculateFileChecksum(filePath);
       if (actualChecksum !== session.expectedChecksum) {
-        throw new Error(`Checksum verification failed. Expected: ${session.expectedChecksum}, Got: ${actualChecksum}`);
+        throw new Error(
+          `Checksum verification failed. Expected: ${session.expectedChecksum}, Got: ${actualChecksum}`
+        );
       }
     }
-    
+
     // Verify digital signature
     if (this.config.requireSignatureVerification && session.signature) {
       const signatureValid = await this.verifySignature(filePath, session.signature);
@@ -481,12 +487,12 @@ class PluginDistributionManager extends EventEmitter {
         throw new Error('Digital signature verification failed');
       }
     }
-    
+
     // Malware scan (if enabled)
     if (this.config.enableMalwareScan) {
       await this.performMalwareScan(filePath);
     }
-    
+
     this.log('debug', 'File verification completed successfully');
   }
 
@@ -497,15 +503,15 @@ class PluginDistributionManager extends EventEmitter {
     return new Promise((resolve, reject) => {
       const hash = crypto.createHash(algorithm);
       const stream = fs.createReadStream(filePath);
-      
-      stream.on('data', (data) => {
+
+      stream.on('data', data => {
         hash.update(data);
       });
-      
+
       stream.on('end', () => {
         resolve(hash.digest('hex'));
       });
-      
+
       stream.on('error', reject);
     });
   }
@@ -517,19 +523,18 @@ class PluginDistributionManager extends EventEmitter {
     try {
       // In a real implementation, this would use proper cryptographic verification
       // For now, we'll simulate signature verification
-      
+
       if (!this.signatureVerifier) {
         this.log('warn', 'Signature verifier not initialized, skipping verification');
         return true;
       }
-      
+
       // Mock verification - in reality would use RSA verification
       const fileContent = fs.readFileSync(filePath);
       const mockSignatureValid = signature && signature.startsWith('mock-signature');
-      
+
       this.log('debug', `Signature verification result: ${mockSignatureValid}`);
       return mockSignatureValid;
-      
     } catch (error) {
       this.log('error', 'Signature verification failed:', error);
       return false;
@@ -542,26 +547,20 @@ class PluginDistributionManager extends EventEmitter {
   async performMalwareScan(filePath) {
     // This would integrate with antivirus/malware scanning
     // For now, we'll implement basic pattern detection
-    
+
     try {
       const fileContent = fs.readFileSync(filePath, 'utf-8');
-      
+
       // Basic suspicious pattern detection
-      const suspiciousPatterns = [
-        /eval\s*\(/gi,
-        /exec\s*\(/gi,
-        /system\s*\(/gi,
-        /spawn\s*\(/gi
-      ];
-      
+      const suspiciousPatterns = [/eval\s*\(/gi, /exec\s*\(/gi, /system\s*\(/gi, /spawn\s*\(/gi];
+
       for (const pattern of suspiciousPatterns) {
         if (pattern.test(fileContent)) {
           throw new Error(`Suspicious pattern detected: ${pattern}`);
         }
       }
-      
+
       this.log('debug', 'Malware scan completed - no threats detected');
-      
     } catch (error) {
       if (error.message.includes('Suspicious pattern')) {
         throw error;
@@ -577,16 +576,16 @@ class PluginDistributionManager extends EventEmitter {
   async moveToDownloadDirectory(tempFilePath, session) {
     const finalFileName = `${session.pluginId}-${session.version}.mkbp`;
     const finalPath = path.join(this.config.downloadDirectory, finalFileName);
-    
+
     // Ensure destination directory exists
     const finalDir = path.dirname(finalPath);
     if (!fs.existsSync(finalDir)) {
       fs.mkdirSync(finalDir, { recursive: true });
     }
-    
+
     // Move file
     fs.renameSync(tempFilePath, finalPath);
-    
+
     this.log('debug', `Moved downloaded file to: ${finalPath}`);
     return finalPath;
   }
@@ -605,13 +604,13 @@ class PluginDistributionManager extends EventEmitter {
       downloadDuration: Date.now() - session.startTime,
       success: true
     };
-    
+
     if (!this.downloadHistory.has(session.pluginId)) {
       this.downloadHistory.set(session.pluginId, []);
     }
-    
+
     this.downloadHistory.get(session.pluginId).push(historyEntry);
-    
+
     // Keep only last 10 entries per plugin
     const history = this.downloadHistory.get(session.pluginId);
     if (history.length > 10) {
@@ -642,11 +641,11 @@ class PluginDistributionManager extends EventEmitter {
     if (!session) {
       throw new Error(`Download not found: ${downloadId}`);
     }
-    
+
     session.status = 'cancelled';
     await this.cleanupFailedDownload(downloadId);
     this.activeDownloads.delete(downloadId);
-    
+
     this.log('info', `Download cancelled: ${downloadId}`);
     this.emit('download-cancelled', { downloadId, session });
   }
@@ -659,7 +658,7 @@ class PluginDistributionManager extends EventEmitter {
     if (!session) {
       return { status: 'not-found' };
     }
-    
+
     return {
       status: session.status,
       pluginId: session.pluginId,
@@ -667,7 +666,9 @@ class PluginDistributionManager extends EventEmitter {
       progress: {
         bytesDownloaded: session.bytesDownloaded,
         totalBytes: session.totalBytes,
-        percentage: session.totalBytes ? Math.round((session.bytesDownloaded / session.totalBytes) * 100) : 0
+        percentage: session.totalBytes
+          ? Math.round((session.bytesDownloaded / session.totalBytes) * 100)
+          : 0
       },
       startTime: session.startTime,
       duration: Date.now() - session.startTime
@@ -679,11 +680,11 @@ class PluginDistributionManager extends EventEmitter {
    */
   getActiveDownloads() {
     const downloads = [];
-    
+
     for (const [downloadId, session] of this.activeDownloads) {
       downloads.push(this.getDownloadStatus(downloadId));
     }
-    
+
     return downloads;
   }
 
@@ -701,7 +702,7 @@ class PluginDistributionManager extends EventEmitter {
    */
   async dispose() {
     this.log('info', 'PluginDistributionManager disposing...');
-    
+
     // Cancel all active downloads
     const activeDownloadIds = Array.from(this.activeDownloads.keys());
     for (const downloadId of activeDownloadIds) {
@@ -711,10 +712,10 @@ class PluginDistributionManager extends EventEmitter {
         this.log('warn', `Failed to cancel download ${downloadId}:`, error);
       }
     }
-    
+
     // Clean up temporary files
     await this.cleanupTempFiles();
-    
+
     this.emit('manager-disposed');
     this.log('info', 'PluginDistributionManager disposed');
   }

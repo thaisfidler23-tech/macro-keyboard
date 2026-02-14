@@ -1,6 +1,6 @@
 /**
  * Serial Connection Manager with Automatic Reconnection
- * 
+ *
  * Handles serial port connections with automatic reconnection, exponential backoff,
  * device detection, and graceful degradation when hardware is unavailable.
  */
@@ -13,7 +13,7 @@ const { ErrorHandler, ErrorTypes } = require('./ErrorHandler');
  */
 const ConnectionState = {
   DISCONNECTED: 'DISCONNECTED',
-  CONNECTING: 'CONNECTING', 
+  CONNECTING: 'CONNECTING',
   CONNECTED: 'CONNECTED',
   RECONNECTING: 'RECONNECTING',
   FAILED: 'FAILED'
@@ -28,12 +28,12 @@ class SerialConnectionManager extends EventEmitter {
     this.config = config;
     this.logger = logger;
     this.errorHandler = errorHandler || new ErrorHandler(logger);
-    
+
     // Connection state
     this.state = ConnectionState.DISCONNECTED;
     this.serialPort = null;
     this.parser = null;
-    
+
     // Reconnection parameters
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 10;
@@ -41,23 +41,23 @@ class SerialConnectionManager extends EventEmitter {
     this.maxReconnectDelay = 30000; // 30 seconds
     this.reconnectMultiplier = 1.5;
     this.reconnectTimer = null;
-    
+
     // Device detection
     this.lastKnownDevices = [];
     this.deviceScanInterval = 5000; // 5 seconds
     this.deviceScanTimer = null;
-    
+
     // Health monitoring
     this.lastActivityTime = Date.now();
     this.healthCheckInterval = 10000; // 10 seconds
     this.healthCheckTimer = null;
     this.connectionTimeout = 5000; // 5 seconds
-    
+
     // Graceful degradation
     this.isOfflineMode = false;
     this.pendingCommands = [];
     this.maxPendingCommands = 100;
-    
+
     // Bind methods
     this.connect = this.connect.bind(this);
     this.disconnect = this.disconnect.bind(this);
@@ -71,16 +71,16 @@ class SerialConnectionManager extends EventEmitter {
    */
   async initialize() {
     this.logger.info('Initializing Serial Connection Manager...');
-    
+
     // Set up error handler listeners
     this.setupErrorHandlerListeners();
-    
+
     // Start device scanning
     this.startDeviceScanning();
-    
+
     // Start health monitoring
     this.startHealthMonitoring();
-    
+
     // Initial connection attempt
     if (this.config.device.serialPort) {
       await this.connect();
@@ -94,7 +94,7 @@ class SerialConnectionManager extends EventEmitter {
    * Set up error handler event listeners
    */
   setupErrorHandlerListeners() {
-    this.errorHandler.on('serialRecovery', async (context) => {
+    this.errorHandler.on('serialRecovery', async context => {
       this.logger.info('Error handler requested serial recovery');
       await this.reconnect();
     });
@@ -105,7 +105,7 @@ class SerialConnectionManager extends EventEmitter {
    */
   async connect(port = null) {
     const targetPort = port || this.config.device.serialPort;
-    
+
     if (!targetPort) {
       const error = this.errorHandler.createError(
         ErrorTypes.HARDWARE.DEVICE_NOT_FOUND,
@@ -116,33 +116,33 @@ class SerialConnectionManager extends EventEmitter {
       await this.errorHandler.handleError(error, 'SerialConnection');
       return false;
     }
-    
+
     if (this.state === ConnectionState.CONNECTING || this.state === ConnectionState.CONNECTED) {
       this.logger.warn(`Already connecting/connected to ${targetPort}`);
       return this.state === ConnectionState.CONNECTED;
     }
-    
+
     this.setState(ConnectionState.CONNECTING);
     this.logger.info(`Attempting to connect to ${targetPort}...`);
-    
+
     try {
       const { SerialPort } = require('serialport');
       const { ReadlineParser } = require('@serialport/parser-readline');
-      
+
       // Create serial port with timeout
       this.serialPort = new SerialPort({
         path: targetPort,
         baudRate: this.config.device.baudRate,
         autoOpen: false
       });
-      
+
       // Set up connection timeout
       const connectionPromise = new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
           reject(new Error(`Connection timeout after ${this.connectionTimeout}ms`));
         }, this.connectionTimeout);
-        
-        this.serialPort.open((error) => {
+
+        this.serialPort.open(error => {
           clearTimeout(timeout);
           if (error) {
             reject(error);
@@ -151,29 +151,28 @@ class SerialConnectionManager extends EventEmitter {
           }
         });
       });
-      
+
       await connectionPromise;
-      
+
       // Set up parser
       this.parser = this.serialPort.pipe(new ReadlineParser({ delimiter: '\n' }));
-      
+
       // Set up event handlers
       this.setupSerialPortHandlers();
-      
+
       // Connection successful
       this.setState(ConnectionState.CONNECTED);
       this.reconnectAttempts = 0;
       this.isOfflineMode = false;
       this.lastActivityTime = Date.now();
-      
+
       this.logger.info(`Successfully connected to ${targetPort}`);
       this.emit('connected', targetPort);
-      
+
       // Process any pending commands
       await this.processPendingCommands();
-      
+
       return true;
-      
     } catch (error) {
       const macroError = this.errorHandler.createError(
         ErrorTypes.HARDWARE.SERIAL_CONNECTION_FAILED,
@@ -181,12 +180,12 @@ class SerialConnectionManager extends EventEmitter {
         error,
         { port: targetPort, baudRate: this.config.device.baudRate }
       );
-      
+
       await this.errorHandler.handleError(macroError, 'SerialConnection');
-      
+
       this.setState(ConnectionState.FAILED);
       this.scheduleReconnect();
-      
+
       return false;
     }
   }
@@ -195,19 +194,19 @@ class SerialConnectionManager extends EventEmitter {
    * Set up serial port event handlers
    */
   setupSerialPortHandlers() {
-    this.serialPort.on('data', (data) => {
+    this.serialPort.on('data', data => {
       this.lastActivityTime = Date.now();
       this.emit('data', data);
     });
-    
-    this.parser.on('data', (data) => {
+
+    this.parser.on('data', data => {
       this.lastActivityTime = Date.now();
       this.emit('message', data);
     });
-    
+
     this.serialPort.on('error', this.handleConnectionError);
     this.serialPort.on('close', this.handleConnectionClose);
-    
+
     this.serialPort.on('drain', () => {
       this.logger.debug('Serial port write buffer drained');
     });
@@ -218,16 +217,16 @@ class SerialConnectionManager extends EventEmitter {
    */
   async handleConnectionError(error) {
     this.logger.error('Serial port error:', error);
-    
+
     const macroError = this.errorHandler.createError(
       ErrorTypes.HARDWARE.ARDUINO_COMMUNICATION_ERROR,
       `Serial communication error: ${error.message}`,
       error,
       { port: this.config.device.serialPort }
     );
-    
+
     await this.errorHandler.handleError(macroError, 'SerialConnection');
-    
+
     // Don't immediately reconnect on error - wait for close event
   }
 
@@ -236,7 +235,7 @@ class SerialConnectionManager extends EventEmitter {
    */
   async handleConnectionClose() {
     this.logger.warn('Serial port connection closed');
-    
+
     if (this.state === ConnectionState.CONNECTED) {
       const macroError = this.errorHandler.createError(
         ErrorTypes.HARDWARE.DEVICE_DISCONNECTED,
@@ -244,20 +243,20 @@ class SerialConnectionManager extends EventEmitter {
         null,
         { port: this.config.device.serialPort }
       );
-      
+
       await this.errorHandler.handleError(macroError, 'SerialConnection');
     }
-    
+
     this.setState(ConnectionState.DISCONNECTED);
     this.emit('disconnected');
-    
+
     // Clean up
     this.serialPort = null;
     this.parser = null;
-    
+
     // Enable offline mode
     this.enableOfflineMode();
-    
+
     // Schedule reconnection
     this.scheduleReconnect();
   }
@@ -268,8 +267,8 @@ class SerialConnectionManager extends EventEmitter {
   async disconnect() {
     if (this.serialPort && this.serialPort.isOpen) {
       this.logger.info('Disconnecting from serial port...');
-      
-      return new Promise((resolve) => {
+
+      return new Promise(resolve => {
         this.serialPort.close(() => {
           this.logger.info('Serial port disconnected');
           resolve();
@@ -285,23 +284,25 @@ class SerialConnectionManager extends EventEmitter {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
     }
-    
+
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       this.logger.error(`Max reconnection attempts reached (${this.maxReconnectAttempts})`);
       this.setState(ConnectionState.FAILED);
       this.emit('reconnectFailed');
       return;
     }
-    
+
     // Calculate delay with exponential backoff
     const delay = Math.min(
       this.baseReconnectDelay * Math.pow(this.reconnectMultiplier, this.reconnectAttempts),
       this.maxReconnectDelay
     );
-    
+
     this.reconnectAttempts++;
-    this.logger.info(`Scheduling reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`);
-    
+    this.logger.info(
+      `Scheduling reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`
+    );
+
     this.reconnectTimer = setTimeout(async () => {
       await this.reconnect();
     }, delay);
@@ -315,26 +316,26 @@ class SerialConnectionManager extends EventEmitter {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    
+
     this.setState(ConnectionState.RECONNECTING);
     this.logger.info(`Reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
-    
+
     // First, try to detect available devices
     const availableDevices = await this.detectDevices();
-    
+
     let targetPort = this.config.device.serialPort;
-    
+
     // If configured port not available, try to find a suitable device
     if (!availableDevices.find(dev => dev.path === targetPort)) {
       targetPort = this.findSuitableDevice(availableDevices);
-      
+
       if (targetPort && targetPort !== this.config.device.serialPort) {
         this.logger.info(`Configured port not available, trying ${targetPort}`);
       }
     }
-    
+
     const success = await this.connect(targetPort);
-    
+
     if (!success) {
       this.scheduleReconnect();
     }
@@ -353,12 +354,12 @@ class SerialConnectionManager extends EventEmitter {
         const serialportModule = require('serialport');
         SerialPort = serialportModule.SerialPort;
       }
-      
+
       const ports = await SerialPort.list();
-      
+
       this.lastKnownDevices = ports;
       this.emit('devicesDetected', ports);
-      
+
       return ports;
     } catch (error) {
       this.logger.error('Error detecting serial devices:', error);
@@ -371,29 +372,24 @@ class SerialConnectionManager extends EventEmitter {
    */
   findSuitableDevice(devices) {
     // Look for Arduino-like devices
-    const arduinoPatterns = [
-      /arduino/i,
-      /micro/i,
-      /leonardo/i,
-      /uno/i,
-      /usb.*serial/i
-    ];
-    
+    const arduinoPatterns = [/arduino/i, /micro/i, /leonardo/i, /uno/i, /usb.*serial/i];
+
     for (const device of devices) {
-      const deviceInfo = `${device.manufacturer || ''} ${device.productId || ''} ${device.vendorId || ''}`.toLowerCase();
-      
+      const deviceInfo =
+        `${device.manufacturer || ''} ${device.productId || ''} ${device.vendorId || ''}`.toLowerCase();
+
       if (arduinoPatterns.some(pattern => pattern.test(deviceInfo))) {
         this.logger.info(`Found potential Arduino device: ${device.path} (${device.manufacturer})`);
         return device.path;
       }
     }
-    
+
     // If no Arduino-like device found, return the first available port
     if (devices.length > 0) {
       this.logger.info(`No Arduino device detected, trying first available: ${devices[0].path}`);
       return devices[0].path;
     }
-    
+
     return null;
   }
 
@@ -415,9 +411,11 @@ class SerialConnectionManager extends EventEmitter {
     this.healthCheckTimer = setInterval(() => {
       if (this.state === ConnectionState.CONNECTED) {
         const timeSinceActivity = Date.now() - this.lastActivityTime;
-        
+
         if (timeSinceActivity > this.healthCheckInterval * 2) {
-          this.logger.warn(`No serial activity for ${timeSinceActivity}ms, checking connection health`);
+          this.logger.warn(
+            `No serial activity for ${timeSinceActivity}ms, checking connection health`
+          );
           this.checkConnectionHealth();
         }
       }
@@ -432,7 +430,7 @@ class SerialConnectionManager extends EventEmitter {
       this.setState(ConnectionState.DISCONNECTED);
       return;
     }
-    
+
     try {
       // Send a ping command to verify connection
       await this.sendCommand('PING', 2000);
@@ -457,20 +455,20 @@ class SerialConnectionManager extends EventEmitter {
         }
         return;
       }
-      
+
       const timeoutHandle = setTimeout(() => {
         reject(new Error(`Command timeout: ${command}`));
       }, timeout);
-      
-      const responseHandler = (data) => {
+
+      const responseHandler = data => {
         clearTimeout(timeoutHandle);
         this.parser.removeListener('data', responseHandler);
         resolve(data);
       };
-      
+
       this.parser.once('data', responseHandler);
-      
-      this.serialPort.write(`${command}\n`, (error) => {
+
+      this.serialPort.write(`${command}\n`, error => {
         if (error) {
           clearTimeout(timeoutHandle);
           this.parser.removeListener('data', responseHandler);
@@ -505,12 +503,12 @@ class SerialConnectionManager extends EventEmitter {
     if (this.pendingCommands.length >= this.maxPendingCommands) {
       this.pendingCommands.shift(); // Remove oldest command
     }
-    
+
     this.pendingCommands.push({
       command,
       timestamp: Date.now()
     });
-    
+
     this.logger.debug(`Queued command: ${command} (${this.pendingCommands.length} pending)`);
   }
 
@@ -518,10 +516,12 @@ class SerialConnectionManager extends EventEmitter {
    * Process pending commands after reconnection
    */
   async processPendingCommands() {
-    if (this.pendingCommands.length === 0) return;
-    
+    if (this.pendingCommands.length === 0) {
+      return;
+    }
+
     this.logger.info(`Processing ${this.pendingCommands.length} pending commands...`);
-    
+
     for (const { command, timestamp } of this.pendingCommands) {
       try {
         // Skip old commands (older than 30 seconds)
@@ -529,14 +529,14 @@ class SerialConnectionManager extends EventEmitter {
           this.logger.debug(`Skipping old command: ${command}`);
           continue;
         }
-        
+
         await this.sendCommand(command);
         await this.sleep(100); // Small delay between commands
       } catch (error) {
         this.logger.warn(`Failed to process pending command: ${command}`, error);
       }
     }
-    
+
     this.pendingCommands = [];
     this.disableOfflineMode();
   }
@@ -574,18 +574,24 @@ class SerialConnectionManager extends EventEmitter {
    */
   async destroy() {
     this.logger.info('Destroying Serial Connection Manager...');
-    
+
     // Clear timers
-    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    if (this.deviceScanTimer) clearInterval(this.deviceScanTimer);
-    if (this.healthCheckTimer) clearInterval(this.healthCheckTimer);
-    
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+    }
+    if (this.deviceScanTimer) {
+      clearInterval(this.deviceScanTimer);
+    }
+    if (this.healthCheckTimer) {
+      clearInterval(this.healthCheckTimer);
+    }
+
     // Disconnect
     await this.disconnect();
-    
+
     // Clear pending commands
     this.pendingCommands = [];
-    
+
     this.emit('destroyed');
   }
 

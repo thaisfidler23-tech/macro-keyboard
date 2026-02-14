@@ -1,6 +1,6 @@
 /**
  * Windows Speech Platform Integration
- * 
+ *
  * Provides Windows-specific speech recognition using the Windows Speech Platform
  * and System.Speech.Recognition framework through native integration.
  */
@@ -12,7 +12,7 @@ const path = require('path');
 class WindowsSpeechEngine extends EventEmitter {
   constructor(config = {}) {
     super();
-    
+
     this.config = {
       language: 'en-US',
       confidenceThreshold: 0.7,
@@ -60,10 +60,9 @@ class WindowsSpeechEngine extends EventEmitter {
 
       this.isInitialized = true;
       this.emit('initialized');
-      
+
       this.logger.info('Windows Speech Platform initialized successfully');
       return true;
-
     } catch (error) {
       this.logger.error('Failed to initialize Windows Speech Platform:', error);
       throw error;
@@ -75,23 +74,27 @@ class WindowsSpeechEngine extends EventEmitter {
    */
   async checkSpeechPlatformAvailability() {
     return new Promise((resolve, reject) => {
-      const checkProcess = spawn('powershell', [
-        '-Command',
-        'Add-Type -AssemblyName System.Speech; [System.Speech.Recognition.SpeechRecognitionEngine]::InstalledRecognizers()'
-      ], { windowsHide: true });
+      const checkProcess = spawn(
+        'powershell',
+        [
+          '-Command',
+          'Add-Type -AssemblyName System.Speech; [System.Speech.Recognition.SpeechRecognitionEngine]::InstalledRecognizers()'
+        ],
+        { windowsHide: true }
+      );
 
       let output = '';
       let error = '';
 
-      checkProcess.stdout.on('data', (data) => {
+      checkProcess.stdout.on('data', data => {
         output += data.toString();
       });
 
-      checkProcess.stderr.on('data', (data) => {
+      checkProcess.stderr.on('data', data => {
         error += data.toString();
       });
 
-      checkProcess.on('close', (code) => {
+      checkProcess.on('close', code => {
         if (code === 0 && output.trim()) {
           this.logger.info('Windows Speech Platform available');
           resolve(true);
@@ -108,7 +111,7 @@ class WindowsSpeechEngine extends EventEmitter {
   async initializePowerShellRecognition() {
     const script = this.generatePowerShellScript();
     const scriptPath = path.join(__dirname, 'windows-speech.ps1');
-    
+
     // Write PowerShell script to temporary file
     const fs = require('fs').promises;
     await fs.writeFile(scriptPath, script, 'utf8');
@@ -144,7 +147,7 @@ Register-ObjectEvent -InputObject $recognizer -EventName SpeechRecognized -Actio
     $confidence = $result.Confidence
     $text = $result.Text
     $alternates = $result.Alternates | ForEach-Object { @{ Text = $_.Text; Confidence = $_.Confidence } }
-    
+
     $output = @{
         Type = "SpeechRecognized"
         Text = $text
@@ -152,7 +155,7 @@ Register-ObjectEvent -InputObject $recognizer -EventName SpeechRecognized -Actio
         Alternates = $alternates
         Timestamp = Get-Date -Format "o"
     }
-    
+
     Write-Output (ConvertTo-Json $output -Compress)
     Write-Output "---EVENT---"
 }
@@ -165,7 +168,7 @@ Register-ObjectEvent -InputObject $recognizer -EventName SpeechRecognitionReject
         Confidence = $result.Confidence
         Timestamp = Get-Date -Format "o"
     }
-    
+
     Write-Output (ConvertTo-Json $output -Compress)
     Write-Output "---EVENT---"
 }
@@ -175,7 +178,7 @@ Register-ObjectEvent -InputObject $recognizer -EventName RecognizeCompleted -Act
         Type = "RecognizeCompleted"
         Timestamp = Get-Date -Format "o"
     }
-    
+
     Write-Output (ConvertTo-Json $output -Compress)
     Write-Output "---EVENT---"
 }
@@ -183,7 +186,7 @@ Register-ObjectEvent -InputObject $recognizer -EventName RecognizeCompleted -Act
 # Command processing loop
 while ($true) {
     $input = Read-Host
-    
+
     switch ($input) {
         "START" {
             $recognizer.RecognizeAsync([System.Speech.Recognition.RecognizeMode]::Multiple)
@@ -228,24 +231,24 @@ while ($true) {
 
     try {
       const scriptPath = path.join(__dirname, 'windows-speech.ps1');
-      
-      this.speechProcess = spawn('powershell', [
-        '-ExecutionPolicy', 'Bypass',
-        '-File', scriptPath
-      ], { 
-        windowsHide: true,
-        stdio: ['pipe', 'pipe', 'pipe']
-      });
+
+      this.speechProcess = spawn(
+        'powershell',
+        ['-ExecutionPolicy', 'Bypass', '-File', scriptPath],
+        {
+          windowsHide: true,
+          stdio: ['pipe', 'pipe', 'pipe']
+        }
+      );
 
       this.setupProcessEventHandlers();
-      
+
       // Start recognition
       this.speechProcess.stdin.write('START\n');
       this.isRecognizing = true;
-      
+
       this.emit('started');
       this.logger.info('Windows speech recognition started');
-
     } catch (error) {
       this.logger.error('Failed to start Windows speech recognition:', error);
       throw error;
@@ -263,10 +266,9 @@ while ($true) {
     try {
       this.speechProcess.stdin.write('STOP\n');
       this.isRecognizing = false;
-      
+
       this.emit('stopped');
       this.logger.info('Windows speech recognition stopped');
-
     } catch (error) {
       this.logger.error('Failed to stop Windows speech recognition:', error);
       throw error;
@@ -293,10 +295,9 @@ while ($true) {
 
       const grammarJson = JSON.stringify(grammarData);
       this.speechProcess.stdin.write(`GRAMMAR:${grammarJson}\n`);
-      
+
       this.emit('grammarUpdated', grammarData);
       this.logger.info(`Grammar updated with ${commands.length} commands`);
-
     } catch (error) {
       this.logger.error('Failed to update grammar:', error);
       throw error;
@@ -309,13 +310,13 @@ while ($true) {
   setupProcessEventHandlers() {
     let buffer = '';
 
-    this.speechProcess.stdout.on('data', (data) => {
+    this.speechProcess.stdout.on('data', data => {
       buffer += data.toString();
-      
+
       // Process complete events (delimited by ---EVENT---)
       const events = buffer.split('---EVENT---');
       buffer = events.pop(); // Keep incomplete event in buffer
-      
+
       for (const eventData of events) {
         if (eventData.trim()) {
           try {
@@ -328,14 +329,14 @@ while ($true) {
       }
     });
 
-    this.speechProcess.stderr.on('data', (data) => {
+    this.speechProcess.stderr.on('data', data => {
       this.logger.error('Windows speech recognition error:', data.toString());
     });
 
-    this.speechProcess.on('close', (code) => {
+    this.speechProcess.on('close', code => {
       this.isRecognizing = false;
       this.speechProcess = null;
-      
+
       if (code !== 0) {
         this.logger.error(`Windows speech process exited with code ${code}`);
         this.emit('error', new Error(`Speech process exited with code ${code}`));
@@ -344,7 +345,7 @@ while ($true) {
       }
     });
 
-    this.speechProcess.on('error', (error) => {
+    this.speechProcess.on('error', error => {
       this.logger.error('Windows speech process error:', error);
       this.emit('error', error);
     });
@@ -408,9 +409,9 @@ while ($true) {
     if (this.speechProcess) {
       try {
         this.speechProcess.stdin.write('EXIT\n');
-        
+
         // Wait for process to exit gracefully
-        await new Promise((resolve) => {
+        await new Promise(resolve => {
           const timeout = setTimeout(() => {
             this.speechProcess.kill('SIGTERM');
             resolve();
@@ -450,7 +451,18 @@ while ($true) {
       platform: 'windows',
       engine: 'System.Speech.Recognition',
       features: this.features,
-      languages: ['en-US', 'en-GB', 'es-ES', 'fr-FR', 'de-DE', 'it-IT', 'pt-BR', 'ja-JP', 'ko-KR', 'zh-CN'],
+      languages: [
+        'en-US',
+        'en-GB',
+        'es-ES',
+        'fr-FR',
+        'de-DE',
+        'it-IT',
+        'pt-BR',
+        'ja-JP',
+        'ko-KR',
+        'zh-CN'
+      ],
       maxAlternatives: 10,
       confidenceScoring: true,
       grammarSupport: true,

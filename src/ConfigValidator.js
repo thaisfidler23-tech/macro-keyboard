@@ -1,6 +1,6 @@
 /**
  * Configuration Validator for Macro Keyboard
- * 
+ *
  * Provides JSON schema validation, configuration migration, and error reporting
  * for all configuration files and updates.
  */
@@ -19,21 +19,21 @@ const CONFIG_SCHEMA_VERSION = '1.0.0';
 class ConfigValidator {
   constructor(logger = null) {
     this.logger = logger;
-    this.ajv = new Ajv({ 
+    this.ajv = new Ajv({
       allErrors: true,
       verbose: true,
       strict: false,
       removeAdditional: true // Remove unknown properties
     });
     addFormats(this.ajv);
-    
+
     this.schema = null;
     this.currentVersion = CONFIG_SCHEMA_VERSION;
     this.migrations = new Map();
-    
+
     // Load schema
     this.loadSchema();
-    
+
     // Register migrations
     this.registerMigrations();
   }
@@ -46,10 +46,10 @@ class ConfigValidator {
       const schemaPath = path.join(__dirname, '..', 'config', 'schema.json');
       const schemaContent = fs.readFileSync(schemaPath, 'utf8');
       this.schema = JSON.parse(schemaContent);
-      
+
       // Compile validator
       this.validate = this.ajv.compile(this.schema);
-      
+
       this.logger?.info('Configuration schema loaded successfully');
     } catch (error) {
       this.logger?.error('Failed to load configuration schema:', error);
@@ -62,9 +62,9 @@ class ConfigValidator {
    */
   registerMigrations() {
     // Migration from unversioned config to 1.0.0
-    this.migrations.set('unversioned->1.0.0', (config) => {
+    this.migrations.set('unversioned->1.0.0', config => {
       this.logger?.info('Migrating configuration from unversioned to 1.0.0');
-      
+
       const migrated = {
         version: '1.0.0',
         device: {
@@ -96,10 +96,10 @@ class ConfigValidator {
           available: ['default']
         }
       };
-      
+
       return migrated;
     });
-    
+
     // Add future migrations here
     // this.migrations.set('1.0.0->1.1.0', (config) => { ... });
   }
@@ -130,7 +130,7 @@ class ConfigValidator {
       // Check if migration is needed
       const configVersion = config.version;
       let workingConfig = config;
-      
+
       if (!configVersion || configVersion !== this.currentVersion) {
         const migrationResult = this.migrateConfig(config);
         if (!migrationResult.success) {
@@ -138,12 +138,14 @@ class ConfigValidator {
           return result;
         }
         workingConfig = migrationResult.migratedConfig;
-        result.warnings.push(`Configuration migrated from ${configVersion || 'unversioned'} to ${this.currentVersion}`);
+        result.warnings.push(
+          `Configuration migrated from ${configVersion || 'unversioned'} to ${this.currentVersion}`
+        );
       }
 
       // Validate against schema
       const isValid = this.validate(workingConfig);
-      
+
       if (isValid) {
         result.valid = true;
         result.migratedConfig = workingConfig;
@@ -157,7 +159,6 @@ class ConfigValidator {
         result.valid = false;
         result.errors.push(...semanticErrors);
       }
-
     } catch (error) {
       result.errors.push(`Validation error: ${error.message}`);
       this.logger?.error('Configuration validation failed:', error);
@@ -181,24 +182,23 @@ class ConfigValidator {
     try {
       const sourceVersion = config.version || 'unversioned';
       let workingConfig = { ...config };
-      
+
       // Apply migrations in sequence
       const migrationPath = this.findMigrationPath(sourceVersion, this.currentVersion);
-      
+
       for (const migrationKey of migrationPath) {
         const migration = this.migrations.get(migrationKey);
         if (!migration) {
           result.errors.push(`Migration not found: ${migrationKey}`);
           return result;
         }
-        
+
         workingConfig = migration(workingConfig);
         this.logger?.debug(`Applied migration: ${migrationKey}`);
       }
-      
+
       result.success = true;
       result.migratedConfig = workingConfig;
-      
     } catch (error) {
       result.errors.push(`Migration failed: ${error.message}`);
       this.logger?.error('Configuration migration failed:', error);
@@ -210,21 +210,21 @@ class ConfigValidator {
   /**
    * Find migration path between versions
    * @param {string} fromVersion - Source version
-   * @param {string} toVersion - Target version  
+   * @param {string} toVersion - Target version
    * @returns {Array} Array of migration keys
    */
   findMigrationPath(fromVersion, toVersion) {
     // For now, simple direct migrations
     // In future, could implement complex version graphs
-    
+
     if (fromVersion === 'unversioned' && toVersion === '1.0.0') {
       return ['unversioned->1.0.0'];
     }
-    
+
     if (fromVersion === toVersion) {
       return [];
     }
-    
+
     throw new Error(`No migration path from ${fromVersion} to ${toVersion}`);
   }
 
@@ -240,22 +240,26 @@ class ConfigValidator {
       // Validate button configurations don't exceed device limits
       const buttonKeys = Object.keys(config.buttons || {});
       const maxButtons = config.device.buttons;
-      
+
       for (const buttonKey of buttonKeys) {
-        const buttonNumber = parseInt(buttonKey.replace('button', ''));
+        const buttonNumber = parseInt(buttonKey.replace('button', ''), 10);
         if (buttonNumber > maxButtons) {
-          errors.push(`Button ${buttonNumber} configured but device only has ${maxButtons} buttons`);
+          errors.push(
+            `Button ${buttonNumber} configured but device only has ${maxButtons} buttons`
+          );
         }
       }
 
       // Validate encoder configurations don't exceed device limits
       const encoderKeys = Object.keys(config.encoders || {});
       const maxEncoders = config.device.encoders;
-      
+
       for (const encoderKey of encoderKeys) {
-        const encoderNumber = parseInt(encoderKey.replace('encoder', ''));
+        const encoderNumber = parseInt(encoderKey.replace('encoder', ''), 10);
         if (encoderNumber > maxEncoders) {
-          errors.push(`Encoder ${encoderNumber} configured but device only has ${maxEncoders} encoders`);
+          errors.push(
+            `Encoder ${encoderNumber} configured but device only has ${maxEncoders} encoders`
+          );
         }
       }
 
@@ -263,13 +267,14 @@ class ConfigValidator {
       if (config.security?.commandExecution?.mode === 'allowlist') {
         const allowedCommands = config.security.commandExecution.allowedCommands || [];
         if (allowedCommands.length === 0) {
-          errors.push('Allowlist mode enabled but no commands are allowed - all command actions will fail');
+          errors.push(
+            'Allowlist mode enabled but no commands are allowed - all command actions will fail'
+          );
         }
       }
 
       // Validate action references
       this.validateActionReferences(config, errors);
-
     } catch (error) {
       errors.push(`Semantic validation error: ${error.message}`);
     }
@@ -290,7 +295,7 @@ class ConfigValidator {
       if (buttonConfig.type === 'command' && commandExecutionDisabled) {
         errors.push(`Button ${buttonKey} uses command action but command execution is disabled`);
       }
-      
+
       if (buttonConfig.type === 'keypress' && !buttonConfig.action) {
         errors.push(`Button ${buttonKey} has keypress type but no action specified`);
       }
@@ -299,10 +304,14 @@ class ConfigValidator {
     // Check encoder actions
     for (const [encoderKey, encoderConfig] of Object.entries(config.encoders || {})) {
       if (encoderConfig.typeCW === 'command' && commandExecutionDisabled) {
-        errors.push(`Encoder ${encoderKey} CW action uses command but command execution is disabled`);
+        errors.push(
+          `Encoder ${encoderKey} CW action uses command but command execution is disabled`
+        );
       }
       if (encoderConfig.typeCCW === 'command' && commandExecutionDisabled) {
-        errors.push(`Encoder ${encoderKey} CCW action uses command but command execution is disabled`);
+        errors.push(
+          `Encoder ${encoderKey} CCW action uses command but command execution is disabled`
+        );
       }
     }
   }
@@ -318,28 +327,28 @@ class ConfigValidator {
     }
 
     return ajvErrors.map(error => {
-      const path = error.instancePath || error.dataPath || 'root';
+      const errorPath = error.instancePath || error.dataPath || 'root';
       const message = error.message || 'validation failed';
-      
+
       switch (error.keyword) {
         case 'required':
-          return `Missing required field: ${path}/${error.params.missingProperty}`;
+          return `Missing required field: ${errorPath}/${error.params.missingProperty}`;
         case 'type':
-          return `Invalid type at ${path}: expected ${error.params.type}, got ${typeof error.data}`;
+          return `Invalid type at ${errorPath}: expected ${error.params.type}, got ${typeof error.data}`;
         case 'enum':
-          return `Invalid value at ${path}: must be one of [${error.params.allowedValues.join(', ')}]`;
+          return `Invalid value at ${errorPath}: must be one of [${error.params.allowedValues.join(', ')}]`;
         case 'minimum':
-          return `Value too small at ${path}: must be >= ${error.params.limit}`;
+          return `Value too small at ${errorPath}: must be >= ${error.params.limit}`;
         case 'maximum':
-          return `Value too large at ${path}: must be <= ${error.params.limit}`;
+          return `Value too large at ${errorPath}: must be <= ${error.params.limit}`;
         case 'minLength':
-          return `String too short at ${path}: must be at least ${error.params.limit} characters`;
+          return `String too short at ${errorPath}: must be at least ${error.params.limit} characters`;
         case 'maxLength':
-          return `String too long at ${path}: must be at most ${error.params.limit} characters`;
+          return `String too long at ${errorPath}: must be at most ${error.params.limit} characters`;
         case 'pattern':
-          return `Invalid format at ${path}: ${message}`;
+          return `Invalid format at ${errorPath}: ${message}`;
         default:
-          return `Validation error at ${path}: ${message}`;
+          return `Validation error at ${errorPath}: ${message}`;
       }
     });
   }
@@ -353,7 +362,7 @@ class ConfigValidator {
     try {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const backupPath = `${configPath}.backup.${timestamp}`;
-      
+
       if (fs.existsSync(configPath)) {
         fs.copyFileSync(configPath, backupPath);
         this.logger?.info(`Configuration backed up to: ${backupPath}`);
@@ -362,7 +371,7 @@ class ConfigValidator {
     } catch (error) {
       this.logger?.warn('Failed to create configuration backup:', error);
     }
-    
+
     return null;
   }
 
@@ -376,23 +385,23 @@ class ConfigValidator {
     try {
       // Create backup first
       this.createConfigBackup(configPath);
-      
+
       // Ensure directory exists
       const configDir = path.dirname(configPath);
       if (!fs.existsSync(configDir)) {
         fs.mkdirSync(configDir, { recursive: true });
       }
-      
+
       // Convert to YAML and save
-      const yamlContent = yaml.dump(config, { 
+      const yamlContent = yaml.dump(config, {
         indent: 2,
         lineWidth: 120,
         noRefs: true
       });
-      
+
       fs.writeFileSync(configPath, yamlContent, 'utf8');
       this.logger?.info(`Configuration saved to: ${configPath}`);
-      
+
       return true;
     } catch (error) {
       this.logger?.error('Failed to save configuration:', error);

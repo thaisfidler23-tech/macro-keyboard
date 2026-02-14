@@ -27,7 +27,7 @@ class DatabaseManager {
         user: this.config.username,
         password: this.config.password,
         ssl: this.config.ssl,
-        ...this.config.pool,
+        ...this.config.pool
       });
 
       // Test connection
@@ -127,13 +127,10 @@ class DatabaseManager {
       for (const migration of migrationFiles) {
         if (!executedNames.has(migration.name)) {
           console.log(`Running migration: ${migration.name}`);
-          
-          await this.transaction(async (client) => {
+
+          await this.transaction(async client => {
             await client.query(migration.sql);
-            await client.query(
-              'INSERT INTO migrations (name) VALUES ($1)',
-              [migration.name]
-            );
+            await client.query('INSERT INTO migrations (name) VALUES ($1)', [migration.name]);
           });
 
           console.log(`Migration completed: ${migration.name}`);
@@ -167,7 +164,7 @@ class DatabaseManager {
       const sql = await fs.readFile(filePath, 'utf8');
       migrations.push({
         name: file.replace('.sql', ''),
-        sql,
+        sql
       });
     }
 
@@ -385,13 +382,13 @@ CREATE TRIGGER update_plugin_rating_trigger
         healthy: true,
         timestamp: rows[0].timestamp,
         version: rows[0].version,
-        connection: 'active',
+        connection: 'active'
       };
     } catch (error) {
       return {
         healthy: false,
         error: error.message,
-        connection: 'failed',
+        connection: 'failed'
       };
     }
   }
@@ -407,7 +404,7 @@ CREATE TRIGGER update_plugin_rating_trigger
       const tables = ['users', 'plugins', 'plugin_versions', 'reviews', 'download_analytics'];
       for (const table of tables) {
         const { rows } = await this.query(`SELECT COUNT(*) as count FROM ${table}`);
-        stats[table] = parseInt(rows[0].count);
+        stats[table] = parseInt(rows[0].count, 10);
       }
 
       // Get database size

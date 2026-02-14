@@ -12,38 +12,38 @@ const { app } = require('electron');
 class LogManager extends EventEmitter {
   constructor(config = {}) {
     super();
-    
+
     this.config = {
       // Logging levels
       level: config.level || (process.env.NODE_ENV === 'development' ? 'debug' : 'info'),
-      
+
       // File logging configuration
       logDir: config.logDir || path.join(app.getPath('userData'), 'logs'),
       maxFileSize: config.maxFileSize || 5 * 1024 * 1024, // 5MB
       maxFiles: config.maxFiles || 10,
       datePattern: config.datePattern || 'YYYY-MM-DD',
-      
+
       // Console logging
       enableConsole: config.enableConsole !== false,
       colorizeConsole: config.colorizeConsole !== false,
-      
+
       // Remote logging
       enableRemote: config.enableRemote || false,
       remoteEndpoint: config.remoteEndpoint || null,
       remoteBatchSize: config.remoteBatchSize || 100,
       remoteFlushInterval: config.remoteFlushInterval || 5000, // 5 seconds
-      
+
       // Performance logging
       enablePerformance: config.enablePerformance || false,
       performanceThreshold: config.performanceThreshold || 100, // ms
-      
+
       // Structured logging
       enableStructured: config.enableStructured !== false,
       includeMetadata: config.includeMetadata !== false,
-      
+
       // Log retention
       retentionDays: config.retentionDays || 30,
-      
+
       ...config
     };
 
@@ -52,11 +52,11 @@ class LogManager extends EventEmitter {
     this.remoteTimer = null;
     this.performanceTimers = new Map();
     this.metadata = this.collectMetadata();
-    
+
     this.initializeLogger();
     this.setupRemoteLogging();
     this.startLogRotation();
-    
+
     // Clean up old logs on startup
     this.cleanupOldLogs();
   }
@@ -75,58 +75,65 @@ class LogManager extends EventEmitter {
       const customFormat = winston.format.combine(
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
         winston.format.errors({ stack: true }),
-        this.config.enableStructured ? winston.format.json() : winston.format.printf(this.formatMessage.bind(this))
+        this.config.enableStructured
+          ? winston.format.json()
+          : winston.format.printf(this.formatMessage.bind(this))
       );
 
       // Create transports array
       const transports = [];
 
       // File transport with rotation
-      transports.push(new winston.transports.File({
-        filename: path.join(this.config.logDir, 'app.log'),
-        maxsize: this.config.maxFileSize,
-        maxFiles: this.config.maxFiles,
-        format: customFormat
-      }));
+      transports.push(
+        new winston.transports.File({
+          filename: path.join(this.config.logDir, 'app.log'),
+          maxsize: this.config.maxFileSize,
+          maxFiles: this.config.maxFiles,
+          format: customFormat
+        })
+      );
 
       // Error-only file transport
-      transports.push(new winston.transports.File({
-        filename: path.join(this.config.logDir, 'errors.log'),
-        level: 'error',
-        maxsize: this.config.maxFileSize,
-        maxFiles: this.config.maxFiles,
-        format: customFormat
-      }));
+      transports.push(
+        new winston.transports.File({
+          filename: path.join(this.config.logDir, 'errors.log'),
+          level: 'error',
+          maxsize: this.config.maxFileSize,
+          maxFiles: this.config.maxFiles,
+          format: customFormat
+        })
+      );
 
       // Performance log transport (if enabled)
       if (this.config.enablePerformance) {
-        transports.push(new winston.transports.File({
-          filename: path.join(this.config.logDir, 'performance.log'),
-          level: 'info',
-          maxsize: this.config.maxFileSize,
-          maxFiles: this.config.maxFiles,
-          format: winston.format.combine(
-            winston.format.timestamp(),
-            winston.format.json(),
-            winston.format((info) => {
-              return info.type === 'performance' ? info : false;
-            })()
-          )
-        }));
+        transports.push(
+          new winston.transports.File({
+            filename: path.join(this.config.logDir, 'performance.log'),
+            level: 'info',
+            maxsize: this.config.maxFileSize,
+            maxFiles: this.config.maxFiles,
+            format: winston.format.combine(
+              winston.format.timestamp(),
+              winston.format.json(),
+              winston.format(info => {
+                return info.type === 'performance' ? info : false;
+              })()
+            )
+          })
+        );
       }
 
       // Console transport (if enabled)
       if (this.config.enableConsole) {
-        const consoleFormat = this.config.colorizeConsole 
-          ? winston.format.combine(
-              winston.format.colorize(),
-              winston.format.simple()
-            )
+        const consoleFormat = this.config.colorizeConsole
+          ? winston.format.combine(winston.format.colorize(), winston.format.simple())
           : winston.format.simple();
 
-        transports.push(new winston.transports.Console({
-          format: consoleFormat
-        }));
+        transports.push(
+          new winston.transports.Console({
+            format: consoleFormat
+          })
+        );
       }
 
       // Create logger instance
@@ -135,14 +142,14 @@ class LogManager extends EventEmitter {
         format: customFormat,
         transports,
         exceptionHandlers: [
-          new winston.transports.File({ 
+          new winston.transports.File({
             filename: path.join(this.config.logDir, 'exceptions.log'),
             maxsize: this.config.maxFileSize,
             maxFiles: 3
           })
         ],
         rejectionHandlers: [
-          new winston.transports.File({ 
+          new winston.transports.File({
             filename: path.join(this.config.logDir, 'rejections.log'),
             maxsize: this.config.maxFileSize,
             maxFiles: 3
@@ -155,14 +162,13 @@ class LogManager extends EventEmitter {
         logDir: this.config.logDir,
         enableRemote: this.config.enableRemote
       });
-
     } catch (error) {
       console.error('Failed to initialize LogManager:', error);
       // Create fallback logger
       this.logger = {
         debug: console.debug.bind(console),
         info: console.info.bind(console),
-        warn: console.warn.bind(console),
+        warn: this.logger.warn.bind(console),
         error: console.error.bind(console)
       };
     }
@@ -173,21 +179,21 @@ class LogManager extends EventEmitter {
    */
   formatMessage(info) {
     let message = `${info.timestamp} [${info.level.toUpperCase()}]`;
-    
+
     if (this.config.includeMetadata && info.component) {
       message += ` [${info.component}]`;
     }
-    
+
     message += `: ${info.message}`;
-    
+
     if (info.stack) {
       message += `\n${info.stack}`;
     }
-    
+
     if (info.data && Object.keys(info.data).length > 0) {
       message += `\nData: ${JSON.stringify(info.data, null, 2)}`;
     }
-    
+
     return message;
   }
 
@@ -223,9 +229,12 @@ class LogManager extends EventEmitter {
     setTimeout(() => {
       this.rotateLogs();
       // Set up daily rotation
-      setInterval(() => {
-        this.rotateLogs();
-      }, 24 * 60 * 60 * 1000); // 24 hours
+      setInterval(
+        () => {
+          this.rotateLogs();
+        },
+        24 * 60 * 60 * 1000
+      ); // 24 hours
     }, msUntilMidnight);
   }
 
@@ -236,18 +245,18 @@ class LogManager extends EventEmitter {
     try {
       const dateStr = new Date().toISOString().split('T')[0];
       const logFiles = fs.readdirSync(this.config.logDir);
-      
+
       for (const file of logFiles) {
         if (file.endsWith('.log')) {
           const oldPath = path.join(this.config.logDir, file);
           const newPath = path.join(this.config.logDir, `${file}.${dateStr}`);
-          
+
           if (fs.existsSync(oldPath) && fs.statSync(oldPath).size > 0) {
             fs.renameSync(oldPath, newPath);
           }
         }
       }
-      
+
       this.info('Log rotation completed', { date: dateStr });
     } catch (error) {
       this.error('Log rotation failed', error);
@@ -261,20 +270,20 @@ class LogManager extends EventEmitter {
     try {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - this.config.retentionDays);
-      
+
       const logFiles = fs.readdirSync(this.config.logDir);
       let deletedCount = 0;
-      
+
       for (const file of logFiles) {
         const filePath = path.join(this.config.logDir, file);
         const stats = fs.statSync(filePath);
-        
+
         if (stats.mtime < cutoffDate) {
           fs.unlinkSync(filePath);
           deletedCount++;
         }
       }
-      
+
       if (deletedCount > 0) {
         this.info(`Cleaned up ${deletedCount} old log files`, {
           retentionDays: this.config.retentionDays,
@@ -326,13 +335,16 @@ class LogManager extends EventEmitter {
    * Log error message
    */
   error(message, error = null, component = null) {
-    const data = error instanceof Error ? {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-      code: error.code
-    } : error || {};
-    
+    const data =
+      error instanceof Error
+        ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+            code: error.code
+          }
+        : error || {};
+
     this.log('error', message, data, component);
   }
 
@@ -362,7 +374,7 @@ class LogManager extends EventEmitter {
     // Add to remote buffer if remote logging enabled
     if (this.config.enableRemote) {
       this.remoteBuffer.push(logData);
-      
+
       if (this.remoteBuffer.length >= this.config.remoteBatchSize) {
         this.flushRemoteLogs();
       }
@@ -376,8 +388,10 @@ class LogManager extends EventEmitter {
    * Start performance timer
    */
   startPerformanceTimer(label, component = null) {
-    if (!this.config.enablePerformance) return;
-    
+    if (!this.config.enablePerformance) {
+      return;
+    }
+
     this.performanceTimers.set(label, {
       start: process.hrtime.bigint(),
       component
@@ -391,12 +405,12 @@ class LogManager extends EventEmitter {
     if (!this.config.enablePerformance || !this.performanceTimers.has(label)) {
       return;
     }
-    
+
     const timer = this.performanceTimers.get(label);
     const duration = Number(process.hrtime.bigint() - timer.start) / 1000000; // Convert to ms
-    
+
     this.performanceTimers.delete(label);
-    
+
     const logData = {
       type: 'performance',
       label,
@@ -404,13 +418,13 @@ class LogManager extends EventEmitter {
       threshold: this.config.performanceThreshold,
       ...data
     };
-    
+
     if (duration >= this.config.performanceThreshold) {
       this.warn(`Performance threshold exceeded: ${label}`, logData, timer.component);
     } else {
       this.debug(`Performance timer: ${label}`, logData, timer.component);
     }
-    
+
     return duration;
   }
 
@@ -418,8 +432,10 @@ class LogManager extends EventEmitter {
    * Log performance metrics
    */
   logPerformance(label, duration, data = {}, component = null) {
-    if (!this.config.enablePerformance) return;
-    
+    if (!this.config.enablePerformance) {
+      return;
+    }
+
     const logData = {
       type: 'performance',
       label,
@@ -427,7 +443,7 @@ class LogManager extends EventEmitter {
       threshold: this.config.performanceThreshold,
       ...data
     };
-    
+
     this.info(`Performance: ${label} (${duration}ms)`, logData, component);
   }
 
@@ -444,7 +460,7 @@ class LogManager extends EventEmitter {
 
     try {
       const fetch = await import('node-fetch').then(mod => mod.default);
-      
+
       const response = await fetch(this.config.remoteEndpoint, {
         method: 'POST',
         headers: {
@@ -483,25 +499,26 @@ class LogManager extends EventEmitter {
       const content = fs.readFileSync(logFile, 'utf-8');
       const lines = content.split('\n').filter(line => line.trim());
       const recentLines = lines.slice(-count);
-      
+
       const logs = recentLines.map(line => {
         try {
           if (this.config.enableStructured) {
             const parsed = JSON.parse(line);
             return parsed;
-          } else {
-            // Parse formatted log line
-            const match = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}) \[(\w+)\](?:\s\[([^\]]+)\])?: (.+)$/);
-            if (match) {
-              return {
-                timestamp: match[1],
-                level: match[2].toLowerCase(),
-                component: match[3] || null,
-                message: match[4]
-              };
-            }
-            return { message: line, level: 'info', timestamp: new Date().toISOString() };
           }
+          // Parse formatted log line
+          const match = line.match(
+            /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}) \[(\w+)\](?:\s\[([^\]]+)\])?: (.+)$/
+          );
+          if (match) {
+            return {
+              timestamp: match[1],
+              level: match[2].toLowerCase(),
+              component: match[3] || null,
+              message: match[4]
+            };
+          }
+          return { message: line, level: 'info', timestamp: new Date().toISOString() };
         } catch (error) {
           return { message: line, level: 'info', timestamp: new Date().toISOString() };
         }
@@ -529,29 +546,29 @@ class LogManager extends EventEmitter {
       };
 
       const logFiles = fs.readdirSync(this.config.logDir);
-      
+
       for (const file of logFiles) {
         if (file.endsWith('.log')) {
           const filePath = path.join(this.config.logDir, file);
           const fileStat = fs.statSync(filePath);
-          
+
           stats.totalSize += fileStat.size;
           stats.fileCount++;
-          
+
           if (!stats.oldestLog || fileStat.mtime < stats.oldestLog) {
             stats.oldestLog = fileStat.mtime;
           }
-          
+
           if (!stats.newestLog || fileStat.mtime > stats.newestLog) {
             stats.newestLog = fileStat.mtime;
           }
         }
       }
-      
+
       // Count log levels from recent logs
       const recentLogs = this.getRecentLogs(1000);
       stats.totalLogs = recentLogs.length;
-      
+
       for (const log of recentLogs) {
         if (stats.logCounts.hasOwnProperty(log.level)) {
           stats.logCounts[log.level]++;
@@ -585,12 +602,12 @@ class LogManager extends EventEmitter {
   rotateLogsIfNeeded() {
     try {
       const logFiles = fs.readdirSync(this.config.logDir);
-      
+
       for (const file of logFiles) {
         if (file.endsWith('.log')) {
           const filePath = path.join(this.config.logDir, file);
           const stats = fs.statSync(filePath);
-          
+
           if (stats.size > this.config.maxFileSize) {
             this.rotateLogs();
             break;
@@ -607,10 +624,10 @@ class LogManager extends EventEmitter {
    */
   updateConfiguration(newConfig) {
     this.config = { ...this.config, ...newConfig };
-    
+
     // Reinitialize logger with new configuration
     this.initializeLogger();
-    
+
     this.info('Logging configuration updated', newConfig);
   }
 
@@ -621,25 +638,32 @@ class LogManager extends EventEmitter {
     try {
       const logs = this.getRecentLogs(10000);
       let filteredLogs = logs;
-      
+
       if (startDate || endDate) {
         filteredLogs = logs.filter(log => {
           const logDate = new Date(log.timestamp);
-          if (startDate && logDate < new Date(startDate)) return false;
-          if (endDate && logDate > new Date(endDate)) return false;
+          if (startDate && logDate < new Date(startDate)) {
+            return false;
+          }
+          if (endDate && logDate > new Date(endDate)) {
+            return false;
+          }
           return true;
         });
       }
-      
+
       if (format === 'csv') {
         const csvHeader = 'timestamp,level,component,message\n';
-        const csvRows = filteredLogs.map(log => 
-          `${log.timestamp},${log.level},${log.component || ''},${JSON.stringify(log.message)}`
-        ).join('\n');
-        
+        const csvRows = filteredLogs
+          .map(
+            log =>
+              `${log.timestamp},${log.level},${log.component || ''},${JSON.stringify(log.message)}`
+          )
+          .join('\n');
+
         return csvHeader + csvRows;
       }
-      
+
       return JSON.stringify(filteredLogs, null, 2);
     } catch (error) {
       this.error('Failed to export logs', error);
@@ -674,20 +698,20 @@ class LogManager extends EventEmitter {
   async clearLogs() {
     try {
       const logFiles = fs.readdirSync(this.config.logDir);
-      
+
       for (const file of logFiles) {
         if (file.endsWith('.log') || file.includes('.log.')) {
           const filePath = path.join(this.config.logDir, file);
           fs.unlinkSync(filePath);
         }
       }
-      
+
       // Initialize logs array if it doesn't exist
       if (!this.logs) {
         this.logs = [];
       }
       this.logs.length = 0;
-      
+
       this.info('All logs cleared');
     } catch (error) {
       this.error('Failed to clear logs', error);
@@ -716,16 +740,16 @@ class LogManager extends EventEmitter {
       clearInterval(this.remoteTimer);
       this.remoteTimer = null;
     }
-    
+
     // Flush any remaining remote logs
     if (this.remoteBuffer.length > 0) {
       this.flushRemoteLogs().catch(error => {
         console.error('Failed to flush logs during cleanup:', error);
       });
     }
-    
+
     this.performanceTimers.clear();
-    
+
     this.info('LogManager cleanup completed');
   }
 }

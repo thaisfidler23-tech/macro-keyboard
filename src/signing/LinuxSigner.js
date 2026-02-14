@@ -19,7 +19,13 @@ class LinuxSigner {
       defaultKeyId: config.defaultKeyId,
       keyringPath: config.keyringPath,
       signBinaries: config.signBinaries !== false,
-      supportedExtensions: config.supportedExtensions || ['.deb', '.rpm', '.tar.gz', '.tar.xz', '.AppImage'],
+      supportedExtensions: config.supportedExtensions || [
+        '.deb',
+        '.rpm',
+        '.tar.gz',
+        '.tar.xz',
+        '.AppImage'
+      ],
       ...config
     };
 
@@ -37,11 +43,11 @@ class LinuxSigner {
     try {
       const fileExtension = path.extname(filePath).toLowerCase();
       const fileName = path.basename(filePath);
-      
+
       this.logger.info(`Signing Linux file: ${filePath}`);
 
       let signedPath;
-      
+
       // Choose signing method based on file type and certificate type
       if (certificate.type === 'gpg') {
         signedPath = await this.signWithGPG(filePath, certificate, options);
@@ -53,7 +59,6 @@ class LinuxSigner {
 
       this.logger.info(`Successfully signed: ${signedPath}`);
       return signedPath;
-      
     } catch (error) {
       this.logger.error(`Linux signing failed for ${filePath}:`, error);
       throw error;
@@ -112,7 +117,9 @@ class LinuxSigner {
     const result = await this.executeCommand(command);
 
     if (result.exitCode !== 0) {
-      throw new Error(`GPG detached signing failed (exit code ${result.exitCode}): ${result.stderr}`);
+      throw new Error(
+        `GPG detached signing failed (exit code ${result.exitCode}): ${result.stderr}`
+      );
     }
 
     this.logger.debug(`Created detached signature: ${signaturePath}`);
@@ -147,7 +154,9 @@ class LinuxSigner {
     const result = await this.executeCommand(command);
 
     if (result.exitCode !== 0) {
-      throw new Error(`GPG cleartext signing failed (exit code ${result.exitCode}): ${result.stderr}`);
+      throw new Error(
+        `GPG cleartext signing failed (exit code ${result.exitCode}): ${result.stderr}`
+      );
     }
 
     this.logger.debug(`Created cleartext signature: ${signaturePath}`);
@@ -158,16 +167,22 @@ class LinuxSigner {
    */
   async signWithX509(filePath, certificate, options) {
     const signedPath = `${filePath}.p7s`;
-    
+
     // Create PKCS#7 signature
     const command = [
-      this.config.opensslPath, 'smime',
+      this.config.opensslPath,
+      'smime',
       '-sign',
-      '-in', filePath,
-      '-out', signedPath,
-      '-signer', certificate.certPath,
-      '-inkey', certificate.keyPath,
-      '-outform', 'DER',
+      '-in',
+      filePath,
+      '-out',
+      signedPath,
+      '-signer',
+      certificate.certPath,
+      '-inkey',
+      certificate.keyPath,
+      '-outform',
+      'DER',
       '-binary'
     ];
 
@@ -194,7 +209,7 @@ class LinuxSigner {
 
       // Determine signature type based on file extension or options
       const signatureType = this.detectSignatureType(filePath, options);
-      
+
       let verificationResult;
 
       if (signatureType === 'gpg') {
@@ -206,7 +221,6 @@ class LinuxSigner {
       }
 
       return verificationResult;
-      
     } catch (error) {
       this.logger.error(`Linux signature verification failed for ${filePath}:`, error);
       return {
@@ -222,11 +236,7 @@ class LinuxSigner {
    */
   async verifyGPGSignature(filePath, options) {
     // Look for signature file
-    const possibleSigFiles = [
-      `${filePath}.sig`,
-      `${filePath}.asc`,
-      `${filePath}.gpg`
-    ];
+    const possibleSigFiles = [`${filePath}.sig`, `${filePath}.asc`, `${filePath}.gpg`];
 
     let signatureFile = options.signatureFile;
     if (!signatureFile) {
@@ -257,7 +267,7 @@ class LinuxSigner {
     const verificationResult = {
       valid: result.exitCode === 0,
       path: filePath,
-      signatureFile: signatureFile,
+      signatureFile,
       output: result.stderr, // GPG outputs verification info to stderr
       exitCode: result.exitCode
     };
@@ -282,11 +292,15 @@ class LinuxSigner {
     }
 
     const command = [
-      this.config.opensslPath, 'smime',
+      this.config.opensslPath,
+      'smime',
       '-verify',
-      '-in', signatureFile,
-      '-content', filePath,
-      '-inform', 'DER'
+      '-in',
+      signatureFile,
+      '-content',
+      filePath,
+      '-inform',
+      'DER'
     ];
 
     // Add CA certificates if provided
@@ -299,7 +313,7 @@ class LinuxSigner {
     return {
       valid: result.exitCode === 0,
       path: filePath,
-      signatureFile: signatureFile,
+      signatureFile,
       output: result.stdout,
       error: result.stderr,
       exitCode: result.exitCode
@@ -377,7 +391,7 @@ class LinuxSigner {
   async createChecksums(filePath, options = {}) {
     const checksumAlgorithms = options.algorithms || ['sha256', 'sha512'];
     const checksumFile = options.outputFile || `${filePath}.checksums`;
-    
+
     const checksums = {};
     const fileBuffer = await fs.readFile(filePath);
 
@@ -388,9 +402,11 @@ class LinuxSigner {
     }
 
     // Create checksums file
-    const checksumContent = Object.entries(checksums)
-      .map(([algorithm, hash]) => `${hash}  ${path.basename(filePath)} (${algorithm.toUpperCase()})`)
-      .join('\n') + '\n';
+    const checksumContent = `${Object.entries(checksums)
+      .map(
+        ([algorithm, hash]) => `${hash}  ${path.basename(filePath)} (${algorithm.toUpperCase()})`
+      )
+      .join('\n')}\n`;
 
     await fs.writeFile(checksumFile, checksumContent);
 
@@ -482,15 +498,15 @@ class LinuxSigner {
       let stdout = '';
       let stderr = '';
 
-      process.stdout.on('data', (data) => {
+      process.stdout.on('data', data => {
         stdout += data.toString();
       });
 
-      process.stderr.on('data', (data) => {
+      process.stderr.on('data', data => {
         stderr += data.toString();
       });
 
-      process.on('close', (exitCode) => {
+      process.on('close', exitCode => {
         resolve({
           exitCode,
           stdout,
@@ -498,15 +514,18 @@ class LinuxSigner {
         });
       });
 
-      process.on('error', (error) => {
+      process.on('error', error => {
         reject(error);
       });
 
       // Set timeout for long-running operations
-      const timeout = setTimeout(() => {
-        process.kill();
-        reject(new Error('Linux signing operation timed out'));
-      }, 5 * 60 * 1000); // 5 minutes
+      const timeout = setTimeout(
+        () => {
+          process.kill();
+          reject(new Error('Linux signing operation timed out'));
+        },
+        5 * 60 * 1000
+      ); // 5 minutes
 
       process.on('close', () => {
         clearTimeout(timeout);
@@ -521,7 +540,7 @@ class LinuxSigner {
     try {
       // Test GPG availability
       const gpgResult = await this.executeCommand([this.config.gpgPath, '--version']);
-      
+
       // Test OpenSSL availability
       const opensslResult = await this.executeCommand([this.config.opensslPath, 'version']);
 

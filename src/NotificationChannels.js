@@ -5,7 +5,7 @@ const nodemailer = require('nodemailer').catch(() => null); // Optional dependen
 
 /**
  * NotificationChannels - Multi-channel notification delivery system
- * 
+ *
  * Features:
  * - UI notifications with toast messages
  * - System notifications (native OS notifications)
@@ -17,18 +17,18 @@ const nodemailer = require('nodemailer').catch(() => null); // Optional dependen
 class NotificationChannels extends EventEmitter {
   constructor(config = {}, logManager = null) {
     super();
-    
+
     this.config = this.mergeConfig(config);
     this.logManager = logManager;
     this.isInitialized = false;
-    
+
     // Channel implementations
     this.channels = new Map();
-    
+
     // Throttling and deduplication
     this.throttleCache = new Map();
     this.deduplicationCache = new Map();
-    
+
     // Statistics
     this.stats = {
       totalNotifications: 0,
@@ -38,7 +38,7 @@ class NotificationChannels extends EventEmitter {
       deduplicatedNotifications: 0,
       channelStats: {}
     };
-    
+
     this.init();
   }
 
@@ -57,7 +57,7 @@ class NotificationChannels extends EventEmitter {
         enableActions: true,
         enableSound: true
       },
-      
+
       // System Notifications
       system: {
         enabled: true,
@@ -67,7 +67,7 @@ class NotificationChannels extends EventEmitter {
         icon: null,
         timeoutType: 'default'
       },
-      
+
       // Email Notifications
       email: {
         enabled: false,
@@ -85,14 +85,14 @@ class NotificationChannels extends EventEmitter {
         subject: 'Macro Keyboard Alert: {{severity}} - {{title}}',
         template: 'default'
       },
-      
+
       // Log Notifications
       log: {
         enabled: true,
         includeContext: true,
         structuredFormat: false
       },
-      
+
       // Webhook Notifications
       webhook: {
         enabled: false,
@@ -101,7 +101,7 @@ class NotificationChannels extends EventEmitter {
         retries: 3,
         format: 'json' // json, slack, discord, teams
       },
-      
+
       // Throttling Configuration
       throttling: {
         enabled: true,
@@ -109,7 +109,7 @@ class NotificationChannels extends EventEmitter {
         maxPerWindow: 10,
         perRuleLimit: 3
       },
-      
+
       // Deduplication Configuration
       deduplication: {
         enabled: true,
@@ -117,7 +117,7 @@ class NotificationChannels extends EventEmitter {
         keyFields: ['ruleId', 'severity']
       }
     };
-    
+
     return { ...defaultConfig, ...userConfig };
   }
 
@@ -128,7 +128,7 @@ class NotificationChannels extends EventEmitter {
     try {
       this.setupChannels();
       this.isInitialized = true;
-      
+
       this.log('info', 'NotificationChannels initialized successfully');
     } catch (error) {
       this.log('error', 'Failed to initialize NotificationChannels', { error: error.message });
@@ -148,7 +148,7 @@ class NotificationChannels extends EventEmitter {
         test: this.testUINotification.bind(this)
       });
     }
-    
+
     // System Channel
     if (this.config.system.enabled) {
       this.channels.set('system', {
@@ -158,7 +158,7 @@ class NotificationChannels extends EventEmitter {
         test: this.testSystemNotification.bind(this)
       });
     }
-    
+
     // Email Channel
     if (this.config.email.enabled && this.isEmailConfigured()) {
       this.channels.set('email', {
@@ -168,7 +168,7 @@ class NotificationChannels extends EventEmitter {
         test: this.testEmailNotification.bind(this)
       });
     }
-    
+
     // Log Channel
     if (this.config.log.enabled) {
       this.channels.set('log', {
@@ -178,7 +178,7 @@ class NotificationChannels extends EventEmitter {
         test: this.testLogNotification.bind(this)
       });
     }
-    
+
     // Webhook Channel
     if (this.config.webhook.enabled && this.config.webhook.endpoints.length > 0) {
       this.channels.set('webhook', {
@@ -188,7 +188,7 @@ class NotificationChannels extends EventEmitter {
         test: this.testWebhookNotification.bind(this)
       });
     }
-    
+
     // Initialize channel statistics
     for (const [channelName] of this.channels) {
       this.stats.channelStats[channelName] = {
@@ -205,11 +205,13 @@ class NotificationChannels extends EventEmitter {
    */
   isEmailConfigured() {
     const email = this.config.email;
-    return email.smtp.host && 
-           email.smtp.auth.user && 
-           email.smtp.auth.pass && 
-           email.from && 
-           email.to.length > 0;
+    return (
+      email.smtp.host &&
+      email.smtp.auth.user &&
+      email.smtp.auth.pass &&
+      email.from &&
+      email.to.length > 0
+    );
   }
 
   /**
@@ -219,34 +221,34 @@ class NotificationChannels extends EventEmitter {
     if (!this.isInitialized) {
       throw new Error('NotificationChannels not initialized');
     }
-    
+
     // Check deduplication
     if (this.config.deduplication.enabled && this.isDuplicate(notification)) {
       this.stats.deduplicatedNotifications++;
-      this.log('debug', 'Notification deduplicated', { 
+      this.log('debug', 'Notification deduplicated', {
         id: notification.id,
-        title: notification.title 
+        title: notification.title
       });
       return { status: 'deduplicated' };
     }
-    
+
     // Check throttling
     if (this.config.throttling.enabled && this.isThrottled(notification)) {
       this.stats.throttledNotifications++;
-      this.log('debug', 'Notification throttled', { 
+      this.log('debug', 'Notification throttled', {
         id: notification.id,
-        title: notification.title 
+        title: notification.title
       });
       return { status: 'throttled' };
     }
-    
+
     const results = [];
     this.stats.totalNotifications++;
-    
+
     // Send to each requested channel
     for (const channelName of channels) {
       const channel = this.channels.get(channelName);
-      
+
       if (!channel) {
         results.push({
           channel: channelName,
@@ -255,7 +257,7 @@ class NotificationChannels extends EventEmitter {
         });
         continue;
       }
-      
+
       if (!channel.enabled) {
         results.push({
           channel: channelName,
@@ -264,19 +266,18 @@ class NotificationChannels extends EventEmitter {
         });
         continue;
       }
-      
+
       try {
         await channel.deliver(notification);
-        
+
         results.push({
           channel: channelName,
           status: 'success',
           sentAt: Date.now()
         });
-        
+
         this.stats.successfulDeliveries++;
         this.stats.channelStats[channelName].sent++;
-        
       } catch (error) {
         results.push({
           channel: channelName,
@@ -284,21 +285,21 @@ class NotificationChannels extends EventEmitter {
           error: error.message,
           failedAt: Date.now()
         });
-        
+
         this.stats.failedDeliveries++;
         this.stats.channelStats[channelName].failed++;
-        
+
         this.log('error', `Failed to deliver notification to ${channelName}`, {
           id: notification.id,
           error: error.message
         });
       }
     }
-    
+
     // Update caches
     this.updateThrottleCache(notification);
     this.updateDeduplicationCache(notification);
-    
+
     return { status: 'sent', results };
   }
 
@@ -308,11 +309,11 @@ class NotificationChannels extends EventEmitter {
   isDuplicate(notification) {
     const key = this.generateDeduplicationKey(notification);
     const cached = this.deduplicationCache.get(key);
-    
+
     if (!cached) {
       return false;
     }
-    
+
     const age = Date.now() - cached.timestamp;
     return age < this.config.deduplication.window;
   }
@@ -332,27 +333,27 @@ class NotificationChannels extends EventEmitter {
   isThrottled(notification) {
     const now = Date.now();
     const windowStart = now - this.config.throttling.window;
-    
+
     // Global throttling
     const globalKey = 'global';
     const globalCache = this.throttleCache.get(globalKey) || [];
     const recentGlobal = globalCache.filter(timestamp => timestamp > windowStart);
-    
+
     if (recentGlobal.length >= this.config.throttling.maxPerWindow) {
       return true;
     }
-    
+
     // Per-rule throttling
     if (notification.ruleId) {
       const ruleKey = `rule:${notification.ruleId}`;
       const ruleCache = this.throttleCache.get(ruleKey) || [];
       const recentRule = ruleCache.filter(timestamp => timestamp > windowStart);
-      
+
       if (recentRule.length >= this.config.throttling.perRuleLimit) {
         return true;
       }
     }
-    
+
     return false;
   }
 
@@ -362,14 +363,14 @@ class NotificationChannels extends EventEmitter {
   updateThrottleCache(notification) {
     const now = Date.now();
     const windowStart = now - this.config.throttling.window;
-    
+
     // Update global throttling
     const globalKey = 'global';
     let globalCache = this.throttleCache.get(globalKey) || [];
     globalCache.push(now);
     globalCache = globalCache.filter(timestamp => timestamp > windowStart);
     this.throttleCache.set(globalKey, globalCache);
-    
+
     // Update per-rule throttling
     if (notification.ruleId) {
       const ruleKey = `rule:${notification.ruleId}`;
@@ -389,7 +390,7 @@ class NotificationChannels extends EventEmitter {
       timestamp: Date.now(),
       notification: { ...notification }
     });
-    
+
     // Clean up old entries
     const cutoff = Date.now() - this.config.deduplication.window;
     for (const [cacheKey, entry] of this.deduplicationCache.entries()) {
@@ -416,7 +417,7 @@ class NotificationChannels extends EventEmitter {
       color: this.getSeverityColor(notification.severity),
       icon: this.getSeverityIcon(notification.severity)
     };
-    
+
     // Add actions if enabled
     if (this.config.ui.enableActions) {
       uiNotification.actions = [
@@ -425,15 +426,15 @@ class NotificationChannels extends EventEmitter {
         { id: 'dismiss', label: 'Dismiss', secondary: true }
       ];
     }
-    
+
     // Play sound if enabled
     if (this.config.ui.enableSound && notification.severity === 'critical') {
       uiNotification.sound = this.getSeveritySound(notification.severity);
     }
-    
+
     // Emit to renderer process
     this.emit('ui-notification', uiNotification);
-    
+
     this.log('debug', 'UI notification sent', { id: notification.id });
   }
 
@@ -445,7 +446,7 @@ class NotificationChannels extends EventEmitter {
     if (!Notification.isSupported()) {
       throw new Error('System notifications are not supported');
     }
-    
+
     const options = {
       title: notification.title,
       body: notification.message,
@@ -455,7 +456,7 @@ class NotificationChannels extends EventEmitter {
       timeoutType: this.config.system.timeoutType,
       actions: []
     };
-    
+
     // Add actions for supported platforms
     if (process.platform === 'win32' || process.platform === 'darwin') {
       options.actions = [
@@ -463,28 +464,28 @@ class NotificationChannels extends EventEmitter {
         { type: 'button', text: 'View Details' }
       ];
     }
-    
+
     const systemNotification = new Notification(options);
-    
+
     // Handle notification events
     systemNotification.on('click', () => {
       this.emit('notification-clicked', { id: notification.id, action: 'click' });
     });
-    
+
     systemNotification.on('action', (event, index) => {
       const actions = ['acknowledge', 'details'];
-      this.emit('notification-action', { 
-        id: notification.id, 
-        action: actions[index] || 'unknown' 
+      this.emit('notification-action', {
+        id: notification.id,
+        action: actions[index] || 'unknown'
       });
     });
-    
+
     systemNotification.on('close', () => {
       this.emit('notification-closed', { id: notification.id });
     });
-    
+
     systemNotification.show();
-    
+
     this.log('debug', 'System notification sent', { id: notification.id });
   }
 
@@ -495,7 +496,7 @@ class NotificationChannels extends EventEmitter {
     if (!nodemailer) {
       throw new Error('nodemailer is not available for email notifications');
     }
-    
+
     // Create SMTP transporter
     const transporter = nodemailer.createTransporter({
       host: this.config.email.smtp.host,
@@ -503,31 +504,31 @@ class NotificationChannels extends EventEmitter {
       secure: this.config.email.smtp.secure,
       auth: this.config.email.smtp.auth
     });
-    
+
     // Format subject
     const subject = this.formatEmailTemplate(this.config.email.subject, notification);
-    
+
     // Create email content
     const emailContent = this.generateEmailContent(notification);
-    
+
     const mailOptions = {
       from: this.config.email.from,
       to: this.config.email.to.join(', '),
-      subject: subject,
+      subject,
       html: emailContent.html,
       text: emailContent.text,
       priority: notification.severity === 'critical' ? 'high' : 'normal'
     };
-    
+
     // Send email
     const info = await transporter.sendMail(mailOptions);
-    
-    this.log('debug', 'Email notification sent', { 
+
+    this.log('debug', 'Email notification sent', {
       id: notification.id,
       messageId: info.messageId,
       recipients: this.config.email.to.length
     });
-    
+
     return info;
   }
 
@@ -542,12 +543,12 @@ class NotificationChannels extends EventEmitter {
       message: notification.message,
       timestamp: new Date().toISOString()
     };
-    
+
     // Add context if enabled
     if (this.config.log.includeContext && notification.context) {
       logData.context = notification.context;
     }
-    
+
     // Use structured format if enabled
     if (this.config.log.structuredFormat) {
       this.log('info', 'Alert notification', logData);
@@ -563,20 +564,22 @@ class NotificationChannels extends EventEmitter {
   async deliverWebhookNotification(notification) {
     const webhookPayload = this.formatWebhookPayload(notification);
     const promises = [];
-    
+
     for (const endpoint of this.config.webhook.endpoints) {
       promises.push(this.sendWebhook(endpoint, webhookPayload));
     }
-    
+
     const results = await Promise.allSettled(promises);
-    
+
     // Check for failures
     const failures = results.filter(r => r.status === 'rejected');
     if (failures.length > 0) {
-      throw new Error(`${failures.length} webhook(s) failed: ${failures.map(f => f.reason.message).join(', ')}`);
+      throw new Error(
+        `${failures.length} webhook(s) failed: ${failures.map(f => f.reason.message).join(', ')}`
+      );
     }
-    
-    this.log('debug', 'Webhook notification sent', { 
+
+    this.log('debug', 'Webhook notification sent', {
       id: notification.id,
       endpoints: this.config.webhook.endpoints.length
     });
@@ -589,40 +592,39 @@ class NotificationChannels extends EventEmitter {
     const fetch = require('node-fetch').catch(() => {
       throw new Error('node-fetch is required for webhook notifications');
     });
-    
+
     const options = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': `macro-keyboard-alerts/1.0`
+        'User-Agent': 'macro-keyboard-alerts/1.0'
       },
       body: JSON.stringify(payload),
       timeout: this.config.webhook.timeout
     };
-    
+
     // Add authentication headers if configured
     if (endpoint.headers) {
       Object.assign(options.headers, endpoint.headers);
     }
-    
+
     let attempt = 0;
     let lastError;
-    
+
     // Retry logic
     while (attempt < this.config.webhook.retries) {
       try {
         const response = await fetch(endpoint.url, options);
-        
+
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        
+
         return await response.json().catch(() => ({}));
-        
       } catch (error) {
         lastError = error;
         attempt++;
-        
+
         if (attempt < this.config.webhook.retries) {
           // Exponential backoff
           const delay = Math.pow(2, attempt) * 1000;
@@ -630,7 +632,7 @@ class NotificationChannels extends EventEmitter {
         }
       }
     }
-    
+
     throw lastError;
   }
 
@@ -647,12 +649,12 @@ class NotificationChannels extends EventEmitter {
       source: 'macro-keyboard',
       hostname: os.hostname()
     };
-    
+
     // Add context if available
     if (notification.context) {
       basePayload.context = notification.context;
     }
-    
+
     // Format for specific webhook types
     switch (this.config.webhook.format) {
       case 'slack':
@@ -671,11 +673,11 @@ class NotificationChannels extends EventEmitter {
    */
   formatSlackPayload(payload) {
     const color = this.getSeverityColor(payload.severity);
-    
+
     return {
       attachments: [
         {
-          color: color,
+          color,
           title: payload.title,
           text: payload.message,
           fields: [
@@ -711,14 +713,14 @@ class NotificationChannels extends EventEmitter {
    * Format Discord webhook payload
    */
   formatDiscordPayload(payload) {
-    const color = parseInt(this.getSeverityColor(payload.severity).replace('#', ''), 16);
-    
+    const color = parseInt(this.getSeverityColor(payload.severity, 10).replace('#', ''), 16);
+
     return {
       embeds: [
         {
           title: payload.title,
           description: payload.message,
-          color: color,
+          color,
           fields: [
             {
               name: 'Severity',
@@ -745,7 +747,7 @@ class NotificationChannels extends EventEmitter {
    */
   formatTeamsPayload(payload) {
     const color = this.getSeverityColor(payload.severity);
-    
+
     return {
       '@type': 'MessageCard',
       '@context': 'http://schema.org/extensions',
@@ -811,18 +813,18 @@ class NotificationChannels extends EventEmitter {
       </body>
       </html>
     `;
-    
+
     const text = `
       ALERT: ${notification.title}
-      
+
       Severity: ${notification.severity.toUpperCase()}
       Message: ${notification.message}
       Time: ${new Date().toLocaleString()}
       ${notification.context ? `Context: ${JSON.stringify(notification.context, null, 2)}` : ''}
-      
+
       This alert was generated by your Macro Keyboard application on ${os.hostname()}.
     `;
-    
+
     return { html, text };
   }
 
@@ -846,7 +848,7 @@ class NotificationChannels extends EventEmitter {
       info: '#0066CC',
       recovery: '#00AA00'
     };
-    
+
     return colors[severity] || colors.info;
   }
 
@@ -860,7 +862,7 @@ class NotificationChannels extends EventEmitter {
       info: 'info',
       recovery: 'check'
     };
-    
+
     return icons[severity] || icons.info;
   }
 
@@ -874,7 +876,7 @@ class NotificationChannels extends EventEmitter {
       info: 'info-alert.wav',
       recovery: 'success-alert.wav'
     };
-    
+
     return sounds[severity] || null;
   }
 
@@ -888,7 +890,7 @@ class NotificationChannels extends EventEmitter {
       info: 'low',
       recovery: 'low'
     };
-    
+
     return mapping[severity] || 'normal';
   }
 
@@ -902,7 +904,7 @@ class NotificationChannels extends EventEmitter {
       info: 'info',
       recovery: 'info'
     };
-    
+
     return mapping[severity] || 'info';
   }
 
@@ -922,11 +924,11 @@ class NotificationChannels extends EventEmitter {
     if (!channel) {
       throw new Error(`Channel ${channelName} is not configured`);
     }
-    
+
     if (!channel.enabled) {
       throw new Error(`Channel ${channelName} is disabled`);
     }
-    
+
     const testNotification = {
       id: `test_${channelName}_${Date.now()}`,
       severity: 'info',
@@ -938,22 +940,21 @@ class NotificationChannels extends EventEmitter {
         channel: channelName
       }
     };
-    
+
     try {
       await channel.deliver(testNotification);
-      
+
       this.log('info', `Test notification sent successfully to ${channelName}`);
-      
+
       return {
         channel: channelName,
         status: 'success',
         message: 'Test notification delivered successfully',
         timestamp: Date.now()
       };
-      
     } catch (error) {
       this.log('error', `Test notification failed for ${channelName}`, { error: error.message });
-      
+
       return {
         channel: channelName,
         status: 'failed',
@@ -968,7 +969,7 @@ class NotificationChannels extends EventEmitter {
    */
   async testAllChannels() {
     const results = [];
-    
+
     for (const [channelName] of this.channels) {
       try {
         const result = await this.testChannel(channelName);
@@ -982,7 +983,7 @@ class NotificationChannels extends EventEmitter {
         });
       }
     }
-    
+
     return results;
   }
 
@@ -1002,16 +1003,16 @@ class NotificationChannels extends EventEmitter {
    */
   getChannels() {
     const channels = [];
-    
+
     for (const [name, channel] of this.channels) {
       channels.push({
-        name: name,
+        name,
         displayName: channel.name,
         enabled: channel.enabled,
         stats: this.stats.channelStats[name]
       });
     }
-    
+
     return channels;
   }
 
@@ -1023,11 +1024,11 @@ class NotificationChannels extends EventEmitter {
     if (!channel) {
       return false;
     }
-    
+
     channel.enabled = enabled;
-    
+
     this.log('info', `Channel ${channelName} ${enabled ? 'enabled' : 'disabled'}`);
-    
+
     return true;
   }
 
@@ -1037,7 +1038,7 @@ class NotificationChannels extends EventEmitter {
   clearCaches() {
     this.throttleCache.clear();
     this.deduplicationCache.clear();
-    
+
     this.log('debug', 'Notification caches cleared');
   }
 
@@ -1062,10 +1063,10 @@ class NotificationChannels extends EventEmitter {
     this.channels.clear();
     this.throttleCache.clear();
     this.deduplicationCache.clear();
-    
+
     // Remove all event listeners
     this.removeAllListeners();
-    
+
     this.isInitialized = false;
     this.log('info', 'NotificationChannels cleaned up');
   }
@@ -1082,11 +1083,11 @@ class NotificationChannels extends EventEmitter {
    */
   updateConfiguration(newConfig) {
     this.config = this.mergeConfig(newConfig);
-    
+
     // Reinitialize channels
     this.channels.clear();
     this.setupChannels();
-    
+
     this.log('info', 'NotificationChannels configuration updated');
   }
 }

@@ -41,15 +41,15 @@ class WindowsSigner {
       // Windows 10/11 SDK paths
       'C:\\Program Files (x86)\\Windows Kits\\10\\bin\\x64\\signtool.exe',
       'C:\\Program Files (x86)\\Windows Kits\\10\\bin\\x86\\signtool.exe',
-      
+
       // Windows 8.1 SDK
       'C:\\Program Files (x86)\\Windows Kits\\8.1\\bin\\x64\\signtool.exe',
       'C:\\Program Files (x86)\\Windows Kits\\8.1\\bin\\x86\\signtool.exe',
-      
+
       // Visual Studio paths
       'C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v10.0A\\bin\\NETFX 4.8 Tools\\x64\\signtool.exe',
       'C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\v10.0A\\bin\\NETFX 4.8 Tools\\signtool.exe',
-      
+
       // Try PATH
       'signtool.exe'
     ];
@@ -60,7 +60,7 @@ class WindowsSigner {
         if (!signToolPath.includes(':\\')) {
           return signToolPath;
         }
-        
+
         // Check if file exists
         require('fs').accessSync(signToolPath, require('fs').constants.F_OK);
         return signToolPath;
@@ -78,7 +78,7 @@ class WindowsSigner {
   async sign(filePath, certificate, options = {}) {
     try {
       const fileExtension = path.extname(filePath).toLowerCase();
-      
+
       if (!this.supportedFormats.includes(fileExtension)) {
         throw new Error(`Unsupported file format for Windows signing: ${fileExtension}`);
       }
@@ -87,19 +87,18 @@ class WindowsSigner {
 
       // Prepare signing command
       const signCommand = await this.buildSignCommand(filePath, certificate, options);
-      
+
       this.logger.debug('Signing command:', signCommand.join(' '));
 
       // Execute signing
       const result = await this.executeCommand(signCommand);
-      
+
       if (result.exitCode !== 0) {
         throw new Error(`Signing failed (exit code ${result.exitCode}): ${result.stderr}`);
       }
 
       this.logger.info(`Successfully signed: ${filePath}`);
       return filePath; // SignTool signs in place
-      
     } catch (error) {
       this.logger.error(`Windows signing failed for ${filePath}:`, error);
       throw error;
@@ -179,7 +178,7 @@ class WindowsSigner {
         this.config.signToolPath,
         'verify',
         '/pa', // Use default Authenticode policy
-        '/v',  // Verbose output
+        '/v', // Verbose output
         filePath
       ];
 
@@ -208,7 +207,6 @@ class WindowsSigner {
       }
 
       return verificationResult;
-      
     } catch (error) {
       this.logger.error(`Windows signature verification failed for ${filePath}:`, error);
       return {
@@ -224,7 +222,7 @@ class WindowsSigner {
    */
   parseVerificationOutput(output) {
     const details = {};
-    
+
     // Extract certificate information
     const certMatch = output.match(/Issued to: (.+)/);
     if (certMatch) {
@@ -270,16 +268,10 @@ class WindowsSigner {
    */
   async getSignatureInfo(filePath) {
     try {
-      const command = [
-        this.config.signToolPath,
-        'verify',
-        '/v',
-        '/pa',
-        filePath
-      ];
+      const command = [this.config.signToolPath, 'verify', '/v', '/pa', filePath];
 
       const result = await this.executeCommand(command);
-      
+
       if (result.exitCode === 0) {
         return this.parseVerificationOutput(result.stdout);
       }
@@ -298,15 +290,10 @@ class WindowsSigner {
     try {
       this.logger.info(`Removing signature from: ${filePath}`);
 
-      const command = [
-        this.config.signToolPath,
-        'remove',
-        '/s',
-        filePath
-      ];
+      const command = [this.config.signToolPath, 'remove', '/s', filePath];
 
       const result = await this.executeCommand(command);
-      
+
       if (result.exitCode !== 0) {
         throw new Error(`Failed to remove signature: ${result.stderr}`);
       }
@@ -353,15 +340,15 @@ class WindowsSigner {
       let stdout = '';
       let stderr = '';
 
-      process.stdout.on('data', (data) => {
+      process.stdout.on('data', data => {
         stdout += data.toString();
       });
 
-      process.stderr.on('data', (data) => {
+      process.stderr.on('data', data => {
         stderr += data.toString();
       });
 
-      process.on('close', (exitCode) => {
+      process.on('close', exitCode => {
         resolve({
           exitCode,
           stdout,
@@ -369,15 +356,18 @@ class WindowsSigner {
         });
       });
 
-      process.on('error', (error) => {
+      process.on('error', error => {
         reject(error);
       });
 
       // Set timeout for long-running operations
-      const timeout = setTimeout(() => {
-        process.kill();
-        reject(new Error('SignTool operation timed out'));
-      }, 5 * 60 * 1000); // 5 minutes
+      const timeout = setTimeout(
+        () => {
+          process.kill();
+          reject(new Error('SignTool operation timed out'));
+        },
+        5 * 60 * 1000
+      ); // 5 minutes
 
       process.on('close', () => {
         clearTimeout(timeout);
@@ -392,7 +382,7 @@ class WindowsSigner {
     try {
       // Test SignTool availability
       const result = await this.executeCommand([this.config.signToolPath, '/?']);
-      
+
       return {
         status: result.exitCode === 0 ? 'healthy' : 'degraded',
         signToolPath: this.config.signToolPath,

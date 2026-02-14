@@ -14,10 +14,10 @@ class LinuxApplicationDetector extends ApplicationDetector {
   constructor(logger) {
     super(logger);
     this.platform = 'linux';
-    
+
     this.detectionMethod = null;
     this.availableMethods = [];
-    
+
     this.initialized = false;
   }
 
@@ -32,7 +32,7 @@ class LinuxApplicationDetector extends ApplicationDetector {
     try {
       await this.detectAvailableMethods();
       await this.selectBestDetectionMethod();
-      
+
       this.initialized = true;
       this.logger.info(`Linux application detector initialized with method: ${this.detectionMethod}`);
     } catch (error) {
@@ -127,26 +127,26 @@ class LinuxApplicationDetector extends ApplicationDetector {
       let applicationInfo = null;
 
       switch (this.detectionMethod) {
-        case 'xdotool':
-          applicationInfo = await this.getApplicationXdotool();
-          break;
-        case 'wmctrl':
-          applicationInfo = await this.getApplicationWmctrl();
-          break;
-        case 'xprop':
-          applicationInfo = await this.getApplicationXprop();
-          break;
-        case 'sway':
-          applicationInfo = await this.getApplicationSway();
-          break;
-        case 'gnome-shell':
-          applicationInfo = await this.getApplicationGnomeShell();
-          break;
-        case 'proc-fallback':
-          applicationInfo = await this.getApplicationProcFallback();
-          break;
-        default:
-          throw new Error(`Unknown detection method: ${this.detectionMethod}`);
+      case 'xdotool':
+        applicationInfo = await this.getApplicationXdotool();
+        break;
+      case 'wmctrl':
+        applicationInfo = await this.getApplicationWmctrl();
+        break;
+      case 'xprop':
+        applicationInfo = await this.getApplicationXprop();
+        break;
+      case 'sway':
+        applicationInfo = await this.getApplicationSway();
+        break;
+      case 'gnome-shell':
+        applicationInfo = await this.getApplicationGnomeShell();
+        break;
+      case 'proc-fallback':
+        applicationInfo = await this.getApplicationProcFallback();
+        break;
+      default:
+        throw new Error(`Unknown detection method: ${this.detectionMethod}`);
       }
 
       if (applicationInfo) {
@@ -156,7 +156,6 @@ class LinuxApplicationDetector extends ApplicationDetector {
       }
 
       return applicationInfo;
-      
     } catch (error) {
       this.logger.error('Error detecting Linux application:', error);
       return null;
@@ -182,15 +181,15 @@ class LinuxApplicationDetector extends ApplicationDetector {
 
       // Get process ID
       const { stdout: pidInfo } = await execAsync(`xdotool getwindowpid ${activeWindowId}`, { timeout: 3000 });
-      const processId = parseInt(pidInfo.trim()) || 0;
+      const processId = parseInt(pidInfo.trim(, 10)) || 0;
 
       // Get process information
       const processInfo = await this.getProcessInfoFromPID(processId);
 
       return {
         processName: processInfo?.name || 'Unknown',
-        processId: processId,
-        windowTitle: windowTitle,
+        processId,
+        windowTitle,
         windowId: activeWindowId,
         executablePath: processInfo?.executable || '',
         commandLine: processInfo?.commandLine || '',
@@ -198,7 +197,6 @@ class LinuxApplicationDetector extends ApplicationDetector {
         memoryUsage: processInfo?.memoryUsage || 0,
         cpuTime: processInfo?.cpuTime || 0
       };
-      
     } catch (error) {
       this.logger.error('xdotool detection failed:', error);
       return null;
@@ -217,7 +215,7 @@ class LinuxApplicationDetector extends ApplicationDetector {
       // Get active window ID using xprop
       const { stdout: activeWindowOutput } = await execAsync('xprop -root _NET_ACTIVE_WINDOW', { timeout: 3000 });
       const activeWindowMatch = activeWindowOutput.match(/0x[0-9a-fA-F]+/);
-      
+
       if (!activeWindowMatch) {
         return null;
       }
@@ -230,9 +228,9 @@ class LinuxApplicationDetector extends ApplicationDetector {
         const parts = line.trim().split(/\s+/);
         if (parts.length >= 4) {
           const windowIdDecimal = parseInt(parts[0], 16);
-          
+
           if (windowIdDecimal === activeWindowIdDecimal) {
-            const processId = parseInt(parts[2]) || 0;
+            const processId = parseInt(parts[2], 10) || 0;
             const windowTitle = parts.slice(4).join(' ');
 
             // Get process information
@@ -240,8 +238,8 @@ class LinuxApplicationDetector extends ApplicationDetector {
 
             return {
               processName: processInfo?.name || 'Unknown',
-              processId: processId,
-              windowTitle: windowTitle,
+              processId,
+              windowTitle,
               windowId: parts[0],
               executablePath: processInfo?.executable || '',
               commandLine: processInfo?.commandLine || '',
@@ -254,7 +252,6 @@ class LinuxApplicationDetector extends ApplicationDetector {
       }
 
       return null;
-      
     } catch (error) {
       this.logger.error('wmctrl detection failed:', error);
       return null;
@@ -269,7 +266,7 @@ class LinuxApplicationDetector extends ApplicationDetector {
       // Get active window ID
       const { stdout: activeWindowOutput } = await execAsync('xprop -root _NET_ACTIVE_WINDOW', { timeout: 3000 });
       const windowIdMatch = activeWindowOutput.match(/0x[0-9a-fA-F]+/);
-      
+
       if (!windowIdMatch) {
         return null;
       }
@@ -293,23 +290,22 @@ class LinuxApplicationDetector extends ApplicationDetector {
 
       // Parse process ID
       const pidMatch = windowProps.match(/_NET_WM_PID\(CARDINAL\) = (\d+)/);
-      const processId = pidMatch ? parseInt(pidMatch[1]) : 0;
+      const processId = pidMatch ? parseInt(pidMatch[1], 10) : 0;
 
       // Get process information
       const processInfo = await this.getProcessInfoFromPID(processId);
 
       return {
         processName: processInfo?.name || 'Unknown',
-        processId: processId,
-        windowTitle: windowTitle,
-        windowId: windowId,
+        processId,
+        windowTitle,
+        windowId,
         executablePath: processInfo?.executable || '',
         commandLine: processInfo?.commandLine || '',
         startTime: processInfo?.startTime || '',
         memoryUsage: processInfo?.memoryUsage || 0,
         cpuTime: processInfo?.cpuTime || 0
       };
-      
     } catch (error) {
       this.logger.error('xprop detection failed:', error);
       return null;
@@ -326,7 +322,7 @@ class LinuxApplicationDetector extends ApplicationDetector {
 
       // Find focused window
       const focusedWindow = this.findFocusedWindow(tree);
-      
+
       if (!focusedWindow || !focusedWindow.pid) {
         return null;
       }
@@ -346,7 +342,6 @@ class LinuxApplicationDetector extends ApplicationDetector {
         cpuTime: processInfo?.cpuTime || 0,
         appId: focusedWindow.app_id
       };
-      
     } catch (error) {
       this.logger.error('Sway detection failed:', error);
       return null;
@@ -400,14 +395,13 @@ class LinuxApplicationDetector extends ApplicationDetector {
           }
         });
       `;
-      
+
       const { stdout } = await execAsync(`gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell --method org.gnome.Shell.Eval "${script}"`, { timeout: 5000 });
-      
+
       // Parse the result (this is a simplified approach)
       // In a real implementation, you'd need to handle the D-Bus response format properly
-      
+
       return null; // Placeholder - this method needs more complex implementation
-      
     } catch (error) {
       this.logger.error('GNOME Shell detection failed:', error);
       return null;
@@ -421,15 +415,15 @@ class LinuxApplicationDetector extends ApplicationDetector {
     try {
       // This is a very basic fallback that tries to find processes with GUI components
       // It's not perfect but provides some information when other methods fail
-      
+
       const { stdout: psOutput } = await execAsync('ps aux --sort=-%cpu | grep -E "(X11|wayland|gnome|kde|xfce)" | head -1', { timeout: 3000 });
-      
+
       if (!psOutput.trim()) {
         return null;
       }
 
       const processLine = psOutput.trim().split(/\s+/);
-      const processId = parseInt(processLine[1]) || 0;
+      const processId = parseInt(processLine[1], 10) || 0;
 
       if (processId === 0) {
         return null;
@@ -440,7 +434,7 @@ class LinuxApplicationDetector extends ApplicationDetector {
 
       return {
         processName: processInfo?.name || 'Unknown',
-        processId: processId,
+        processId,
         windowTitle: 'Unknown',
         windowId: '',
         executablePath: processInfo?.executable || '',
@@ -449,7 +443,6 @@ class LinuxApplicationDetector extends ApplicationDetector {
         memoryUsage: processInfo?.memoryUsage || 0,
         cpuTime: processInfo?.cpuTime || 0
       };
-      
     } catch (error) {
       this.logger.error('Proc fallback detection failed:', error);
       return null;
@@ -466,7 +459,7 @@ class LinuxApplicationDetector extends ApplicationDetector {
 
     try {
       const procPath = `/proc/${pid}`;
-      
+
       // Check if process exists
       try {
         await fs.access(procPath);
@@ -512,7 +505,7 @@ class LinuxApplicationDetector extends ApplicationDetector {
         const statusContent = await fs.readFile(`${procPath}/status`, 'utf8');
         const vmRSSMatch = statusContent.match(/VmRSS:\s+(\d+)\s+kB/);
         if (vmRSSMatch) {
-          processInfo.memoryUsage = parseInt(vmRSSMatch[1]) * 1024; // Convert KB to bytes
+          processInfo.memoryUsage = parseInt(vmRSSMatch[1], 10) * 1024; // Convert KB to bytes
         }
       } catch (error) {
         // Ignore
@@ -523,8 +516,8 @@ class LinuxApplicationDetector extends ApplicationDetector {
         const statContent = await fs.readFile(`${procPath}/stat`, 'utf8');
         const statFields = statContent.split(' ');
         if (statFields.length > 13) {
-          const utime = parseInt(statFields[13]) || 0;
-          const stime = parseInt(statFields[14]) || 0;
+          const utime = parseInt(statFields[13], 10) || 0;
+          const stime = parseInt(statFields[14], 10) || 0;
           processInfo.cpuTime = utime + stime;
         }
       } catch (error) {
@@ -532,7 +525,6 @@ class LinuxApplicationDetector extends ApplicationDetector {
       }
 
       return processInfo;
-      
     } catch (error) {
       this.logger.error(`Error getting process info for PID ${pid}:`, error);
       return null;
@@ -553,16 +545,16 @@ class LinuxApplicationDetector extends ApplicationDetector {
           const parts = line.trim().split(/\s+/);
           if (parts.length >= 4) {
             const windowId = parts[0];
-            const processId = parseInt(parts[2]) || 0;
+            const processId = parseInt(parts[2], 10) || 0;
             const windowTitle = parts.slice(4).join(' ');
 
             const processInfo = await this.getProcessInfoFromPID(processId);
 
             applications.push({
               processName: processInfo?.name || 'Unknown',
-              processId: processId,
-              windowTitle: windowTitle,
-              windowId: windowId,
+              processId,
+              windowTitle,
+              windowId,
               executablePath: processInfo?.executable || '',
               platform: 'linux'
             });
@@ -573,7 +565,6 @@ class LinuxApplicationDetector extends ApplicationDetector {
       }
 
       return [];
-      
     } catch (error) {
       this.logger.error('Error getting all applications with windows:', error);
       return [];
@@ -587,7 +578,6 @@ class LinuxApplicationDetector extends ApplicationDetector {
     try {
       const { stdout } = await execAsync(`pgrep -f "${processName}"`, { timeout: 3000 });
       return stdout.trim() !== '';
-      
     } catch (error) {
       // pgrep returns non-zero exit code when no matches found
       return false;

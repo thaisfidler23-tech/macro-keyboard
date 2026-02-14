@@ -16,7 +16,7 @@ const TimestampService = require('./TimestampService');
 class CodeSigningManager extends EventEmitter {
   constructor(logger, config = {}) {
     super();
-    
+
     this.logger = logger;
     this.platform = process.platform;
     this.config = {
@@ -44,7 +44,7 @@ class CodeSigningManager extends EventEmitter {
     };
 
     this.initializeComponents();
-    
+
     this.logger.info(`CodeSigningManager initialized for platform: ${this.platform}`);
   }
 
@@ -55,13 +55,13 @@ class CodeSigningManager extends EventEmitter {
     try {
       // Initialize platform-specific signer
       this.signer = this.createPlatformSigner();
-      
+
       // Initialize certificate manager
       this.certificateManager = new CertificateManager(this.logger, this.config);
-      
+
       // Initialize timestamp service
       this.timestampService = new TimestampService(this.logger, this.config);
-      
+
       this.logger.info('Code signing components initialized successfully');
     } catch (error) {
       this.logger.error('Failed to initialize code signing components:', error);
@@ -96,12 +96,14 @@ class CodeSigningManager extends EventEmitter {
 
     const startTime = Date.now();
     let attempt = 0;
-    
+
     while (attempt < this.config.retryAttempts) {
       try {
         attempt++;
-        
-        this.logger.info(`Signing artifact: ${artifactPath} (attempt ${attempt}/${this.config.retryAttempts})`);
+
+        this.logger.info(
+          `Signing artifact: ${artifactPath} (attempt ${attempt}/${this.config.retryAttempts})`
+        );
         this.emit('signing-started', { artifactPath, attempt });
 
         // Validate artifact exists and is readable
@@ -109,35 +111,36 @@ class CodeSigningManager extends EventEmitter {
 
         // Get appropriate signing certificate
         const certificate = await this.certificateManager.getSigningCertificate(this.platform);
-        
+
         // Calculate artifact hash before signing
         const preSignHash = await this.calculateFileHash(artifactPath);
-        
+
         // Perform platform-specific signing
         const signingOptions = {
           timestamp: this.config.enableTimestamping && options.timestamp !== false,
-          description: options.description || `Macro Keyboard v${require('../../package.json').version}`,
+          description:
+            options.description || `Macro Keyboard v${require('../../package.json').version}`,
           url: options.url || 'https://github.com/jmassardo/macro-keyboard',
           algorithm: this.config.signatureAlgorithm,
           ...options
         };
 
         const signedPath = await this.signer.sign(artifactPath, certificate, signingOptions);
-        
+
         // Verify signature immediately after signing
         const verificationResult = await this.verifySigning(signedPath);
-        
+
         if (!verificationResult.valid) {
           throw new Error(`Signature verification failed: ${verificationResult.error}`);
         }
 
         // Calculate post-signing hash
         const postSignHash = await this.calculateFileHash(signedPath);
-        
+
         const result = {
           signed: true,
           originalPath: artifactPath,
-          signedPath: signedPath,
+          signedPath,
           certificate: {
             thumbprint: certificate.thumbprint,
             subject: certificate.subject,
@@ -156,7 +159,7 @@ class CodeSigningManager extends EventEmitter {
           },
           signingTime: new Date().toISOString(),
           duration: Date.now() - startTime,
-          attempt: attempt,
+          attempt,
           platform: this.platform
         };
 
@@ -169,14 +172,13 @@ class CodeSigningManager extends EventEmitter {
         this.emit('signing-completed', result);
 
         return result;
-
       } catch (error) {
         this.logger.error(`Signing attempt ${attempt} failed:`, error);
-        
+
         if (attempt >= this.config.retryAttempts) {
           this.signingStats.totalSigned++;
           this.signingStats.failureCount++;
-          
+
           const failureResult = {
             signed: false,
             originalPath: artifactPath,
@@ -205,15 +207,15 @@ class CodeSigningManager extends EventEmitter {
   async verifySigning(signedPath, options = {}) {
     try {
       this.logger.debug(`Verifying signature for: ${signedPath}`);
-      
+
       const verificationResult = await this.signer.verify(signedPath, options);
-      
+
       if (verificationResult.valid) {
         this.logger.debug(`Signature verification successful for: ${signedPath}`);
       } else {
         this.logger.warn(`Signature verification failed for: ${signedPath}`, verificationResult);
       }
-      
+
       return verificationResult;
     } catch (error) {
       this.logger.error('Signature verification error:', error);
@@ -241,7 +243,7 @@ class CodeSigningManager extends EventEmitter {
 
     for (let i = 0; i < artifactPaths.length; i += batchOptions.concurrency) {
       const batch = artifactPaths.slice(i, i + batchOptions.concurrency);
-      const batchPromises = batch.map(async (artifactPath) => {
+      const batchPromises = batch.map(async artifactPath => {
         try {
           const result = await this.signArtifact(artifactPath, options);
           return { path: artifactPath, result, success: true };
@@ -262,11 +264,11 @@ class CodeSigningManager extends EventEmitter {
     const failureCount = results.length - successCount;
 
     this.logger.info(`Batch signing completed: ${successCount} successful, ${failureCount} failed`);
-    this.emit('batch-signing-completed', { 
-      results, 
-      successCount, 
-      failureCount, 
-      totalCount: results.length 
+    this.emit('batch-signing-completed', {
+      results,
+      successCount,
+      failureCount,
+      totalCount: results.length
     });
 
     return {
@@ -275,7 +277,7 @@ class CodeSigningManager extends EventEmitter {
         total: results.length,
         successful: successCount,
         failed: failureCount,
-        successRate: (successCount / results.length * 100).toFixed(2) + '%'
+        successRate: `${((successCount / results.length) * 100).toFixed(2)}%`
       }
     };
   }
@@ -286,7 +288,7 @@ class CodeSigningManager extends EventEmitter {
   async validateArtifact(artifactPath) {
     try {
       const stats = await fs.stat(artifactPath);
-      
+
       if (!stats.isFile()) {
         throw new Error(`Artifact is not a file: ${artifactPath}`);
       }
@@ -297,7 +299,7 @@ class CodeSigningManager extends EventEmitter {
 
       // Check if file is readable
       await fs.access(artifactPath, fs.constants.R_OK);
-      
+
       this.logger.debug(`Artifact validation successful: ${artifactPath} (${stats.size} bytes)`);
       return true;
     } catch (error) {
@@ -341,9 +343,10 @@ class CodeSigningManager extends EventEmitter {
   getSigningStatistics() {
     return {
       ...this.signingStats,
-      successRate: this.signingStats.totalSigned > 0 
-        ? (this.signingStats.successCount / this.signingStats.totalSigned * 100).toFixed(2) + '%'
-        : '0%',
+      successRate:
+        this.signingStats.totalSigned > 0
+          ? `${((this.signingStats.successCount / this.signingStats.totalSigned) * 100).toFixed(2)}%`
+          : '0%',
       certificateStats: this.certificateManager?.getStatistics() || {},
       timestampStats: this.timestampService?.getStatistics() || {}
     };
@@ -354,12 +357,12 @@ class CodeSigningManager extends EventEmitter {
    */
   updateConfig(newConfig) {
     this.config = { ...this.config, ...newConfig };
-    
+
     // Update component configurations
     this.certificateManager?.updateConfig(newConfig);
     this.timestampService?.updateConfig(newConfig);
     this.signer?.updateConfig?.(newConfig);
-    
+
     this.logger.info('Code signing configuration updated');
     this.emit('config-updated', this.config);
   }
@@ -384,10 +387,10 @@ class CodeSigningManager extends EventEmitter {
     try {
       // Check certificate manager
       healthStatus.components.certificateManager = await this.certificateManager.healthCheck();
-      
+
       // Check timestamp service
       healthStatus.components.timestampService = await this.timestampService.healthCheck();
-      
+
       // Check platform signer
       if (this.signer.healthCheck) {
         healthStatus.components.signer = await this.signer.healthCheck();
@@ -402,7 +405,6 @@ class CodeSigningManager extends EventEmitter {
       } else if (componentStatuses.some(status => status === 'degraded')) {
         healthStatus.overall = 'degraded';
       }
-
     } catch (error) {
       healthStatus.overall = 'critical';
       healthStatus.error = error.message;
@@ -419,15 +421,15 @@ class CodeSigningManager extends EventEmitter {
       if (this.certificateManager) {
         await this.certificateManager.cleanup();
       }
-      
+
       if (this.timestampService) {
         await this.timestampService.cleanup();
       }
-      
+
       if (this.signer && this.signer.cleanup) {
         await this.signer.cleanup();
       }
-      
+
       this.removeAllListeners();
       this.logger.info('CodeSigningManager cleaned up');
     } catch (error) {

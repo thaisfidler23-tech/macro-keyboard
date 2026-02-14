@@ -1,6 +1,6 @@
 /**
  * Plugin Marketplace Backend Server
- * 
+ *
  * Express.js server providing RESTful API for plugin marketplace functionality
  * including authentication, plugin management, downloads, and reviews.
  */
@@ -23,21 +23,21 @@ const { validateConfig, defaultConfig } = require('./config/serverConfig');
 class MarketplaceServer extends EventEmitter {
   constructor(config = {}) {
     super();
-    
+
     this.config = validateConfig({ ...defaultConfig, ...config });
     this.app = express();
     this.server = null;
-    
+
     // Service instances
     this.databaseManager = null;
     this.authService = null;
     this.pluginService = null;
     this.downloadService = null;
     this.reviewService = null;
-    
+
     this.isStarted = false;
     this.startTime = null;
-    
+
     this.setupMiddleware();
     this.setupRoutes();
     this.setupErrorHandling();
@@ -48,24 +48,28 @@ class MarketplaceServer extends EventEmitter {
    */
   setupMiddleware() {
     // Security middleware
-    this.app.use(helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
-          scriptSrc: ["'self'"],
-          imgSrc: ["'self'", "data:", "https:"],
-        },
-      },
-    }));
+    this.app.use(
+      helmet({
+        contentSecurityPolicy: {
+          directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            scriptSrc: ["'self'"],
+            imgSrc: ["'self'", 'data:', 'https:']
+          }
+        }
+      })
+    );
 
     // CORS configuration
-    this.app.use(cors({
-      origin: this.config.cors.allowedOrigins,
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
-    }));
+    this.app.use(
+      cors({
+        origin: this.config.cors.allowedOrigins,
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization']
+      })
+    );
 
     // Rate limiting
     const limiter = rateLimit({
@@ -73,7 +77,7 @@ class MarketplaceServer extends EventEmitter {
       max: this.config.rateLimit.max,
       message: 'Too many requests from this IP, please try again later.',
       standardHeaders: true,
-      legacyHeaders: false,
+      legacyHeaders: false
     });
     this.app.use('/api/', limiter);
 
@@ -112,8 +116,8 @@ class MarketplaceServer extends EventEmitter {
           auth: this.authService ? true : false,
           plugins: this.pluginService ? true : false,
           downloads: this.downloadService ? true : false,
-          reviews: this.reviewService ? true : false,
-        },
+          reviews: this.reviewService ? true : false
+        }
       });
     });
 
@@ -130,13 +134,13 @@ class MarketplaceServer extends EventEmitter {
           reviews: '/api/v1/reviews',
           categories: '/api/v1/categories',
           trending: '/api/v1/trending',
-          featured: '/api/v1/featured',
+          featured: '/api/v1/featured'
         },
         documentation: '/api/v1/docs',
         rateLimit: {
           windowMs: this.config.rateLimit.windowMs,
-          max: this.config.rateLimit.max,
-        },
+          max: this.config.rateLimit.max
+        }
       });
     });
 
@@ -149,17 +153,17 @@ class MarketplaceServer extends EventEmitter {
   setupServiceRoutes() {
     // Authentication routes
     this.app.use('/api/v1/auth', this.authService.getRouter());
-    
+
     // Plugin management routes
     this.app.use('/api/v1/plugins', this.pluginService.getRouter());
     this.app.use('/api/v1/search', this.pluginService.getSearchRouter());
     this.app.use('/api/v1/categories', this.pluginService.getCategoriesRouter());
     this.app.use('/api/v1/trending', this.pluginService.getTrendingRouter());
     this.app.use('/api/v1/featured', this.pluginService.getFeaturedRouter());
-    
+
     // Download routes
     this.app.use('/api/v1/download', this.downloadService.getRouter());
-    
+
     // Review routes
     this.app.use('/api/v1/reviews', this.reviewService.getRouter());
   }
@@ -174,7 +178,7 @@ class MarketplaceServer extends EventEmitter {
         error: 'Not Found',
         message: `The requested resource ${req.originalUrl} was not found`,
         timestamp: new Date().toISOString(),
-        requestId: req.id,
+        requestId: req.id
       });
     });
 
@@ -182,20 +186,20 @@ class MarketplaceServer extends EventEmitter {
     this.app.use((err, req, res, next) => {
       const statusCode = err.statusCode || err.status || 500;
       const message = err.message || 'Internal Server Error';
-      
+
       // Log error
       console.error(`[${new Date().toISOString()}] Error ${statusCode}: ${message}`, {
         requestId: req.id,
         url: req.url,
         method: req.method,
-        stack: this.config.development ? err.stack : undefined,
+        stack: this.config.development ? err.stack : undefined
       });
 
       res.status(statusCode).json({
         error: statusCode >= 500 ? 'Internal Server Error' : message,
         message: this.config.development ? message : undefined,
         timestamp: new Date().toISOString(),
-        requestId: req.id,
+        requestId: req.id
       });
     });
   }
@@ -237,9 +241,9 @@ class MarketplaceServer extends EventEmitter {
       }
 
       const serverPort = port || this.config.port;
-      
+
       return new Promise((resolve, reject) => {
-        this.server = this.app.listen(serverPort, this.config.host, (error) => {
+        this.server = this.app.listen(serverPort, this.config.host, error => {
           if (error) {
             reject(error);
             return;
@@ -272,7 +276,7 @@ class MarketplaceServer extends EventEmitter {
         return;
       }
 
-      this.server.close(async (error) => {
+      this.server.close(async error => {
         if (error) {
           reject(error);
           return;
@@ -308,15 +312,15 @@ class MarketplaceServer extends EventEmitter {
       config: {
         host: this.config.host,
         port: this.config.port,
-        environment: this.config.environment,
+        environment: this.config.environment
       },
       services: {
         database: this.databaseManager ? this.databaseManager.isConnected : false,
         auth: !!this.authService,
         plugins: !!this.pluginService,
         downloads: !!this.downloadService,
-        reviews: !!this.reviewService,
-      },
+        reviews: !!this.reviewService
+      }
     };
   }
 }

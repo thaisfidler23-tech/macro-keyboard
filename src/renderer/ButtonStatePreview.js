@@ -1,6 +1,6 @@
 /**
  * Button State Preview System
- * 
+ *
  * Provides visual feedback for button states, active configurations,
  * and real-time hardware status with animations and interactive elements.
  */
@@ -9,12 +9,12 @@ class ButtonStatePreview {
   constructor(container, config = {}) {
     this.container = container;
     this.config = config;
-    
+
     // State tracking
     this.buttonStates = new Map();
     this.encoderStates = new Map();
     this.activeAnimations = new Map();
-    
+
     // Configuration
     this.options = {
       animationDuration: 200,
@@ -80,14 +80,14 @@ class ButtonStatePreview {
       const buttonsSection = document.createElement('div');
       buttonsSection.className = 'buttons-section';
       buttonsSection.innerHTML = '<h4>Buttons</h4>';
-      
+
       const buttonsGrid = document.createElement('div');
       buttonsGrid.className = `buttons-grid buttons-${buttonCount}`;
-      
+
       for (let i = 1; i <= buttonCount; i++) {
         const buttonElement = this.createButtonElement(i);
         buttonsGrid.appendChild(buttonElement);
-        
+
         // Initialize button state
         this.buttonStates.set(`button${i}`, {
           pressed: false,
@@ -96,7 +96,7 @@ class ButtonStatePreview {
           timestamp: null
         });
       }
-      
+
       buttonsSection.appendChild(buttonsGrid);
       layoutContainer.appendChild(buttonsSection);
     }
@@ -106,14 +106,14 @@ class ButtonStatePreview {
       const encodersSection = document.createElement('div');
       encodersSection.className = 'encoders-section';
       encodersSection.innerHTML = '<h4>Encoders</h4>';
-      
+
       const encodersGrid = document.createElement('div');
       encodersGrid.className = 'encoders-grid';
-      
+
       for (let i = 1; i <= encoderCount; i++) {
         const encoderElement = this.createEncoderElement(i);
         encodersGrid.appendChild(encoderElement);
-        
+
         // Initialize encoder state
         this.encoderStates.set(`encoder${i}`, {
           rotation: 0,
@@ -123,7 +123,7 @@ class ButtonStatePreview {
           timestamp: null
         });
       }
-      
+
       encodersSection.appendChild(encodersGrid);
       layoutContainer.appendChild(encodersSection);
     }
@@ -135,11 +135,11 @@ class ButtonStatePreview {
   createButtonElement(buttonId) {
     const buttonConfig = this.config.buttons?.[`button${buttonId}`] || {};
     const hasAction = buttonConfig.action && buttonConfig.type;
-    
+
     const element = document.createElement('div');
     element.className = `preview-button ${hasAction ? 'has-action' : 'no-action'}`;
     element.dataset.buttonId = buttonId;
-    
+
     element.innerHTML = `
       <div class="button-visual">
         <div class="button-number">${buttonId}</div>
@@ -175,11 +175,11 @@ class ButtonStatePreview {
     const encoderConfig = this.config.encoders?.[`encoder${encoderId}`] || {};
     const hasCWAction = encoderConfig.actionCW && encoderConfig.typeCW;
     const hasCCWAction = encoderConfig.actionCCW && encoderConfig.typeCCW;
-    
+
     const element = document.createElement('div');
-    element.className = `preview-encoder ${(hasCWAction || hasCCWAction) ? 'has-action' : 'no-action'}`;
+    element.className = `preview-encoder ${hasCWAction || hasCCWAction ? 'has-action' : 'no-action'}`;
     element.dataset.encoderId = encoderId;
-    
+
     element.innerHTML = `
       <div class="encoder-visual">
         <div class="encoder-knob">
@@ -215,12 +215,12 @@ class ButtonStatePreview {
     if (hasCWAction || hasCCWAction) {
       const cwArrow = element.querySelector('.rotation-arrow.cw');
       const ccwArrow = element.querySelector('.rotation-arrow.ccw');
-      
+
       if (hasCWAction) {
         cwArrow.addEventListener('click', () => this.simulateEncoderRotation(encoderId, 'CW'));
         cwArrow.style.cursor = 'pointer';
       }
-      
+
       if (hasCCWAction) {
         ccwArrow.addEventListener('click', () => this.simulateEncoderRotation(encoderId, 'CCW'));
         ccwArrow.style.cursor = 'pointer';
@@ -239,7 +239,7 @@ class ButtonStatePreview {
     }
 
     const shortcut = buttonConfig.shortcutDisplay || buttonConfig.action;
-    
+
     switch (buttonConfig.type) {
       case 'keypress':
         return `<span class="shortcut-display">${shortcut}</span>`;
@@ -259,13 +259,13 @@ class ButtonStatePreview {
     const actionKey = `action${direction}`;
     const typeKey = `type${direction}`;
     const shortcutKey = `shortcutDisplay${direction}`;
-    
+
     if (!encoderConfig[actionKey] || !encoderConfig[typeKey]) {
       return '<span class="no-action-text">None</span>';
     }
 
     const shortcut = encoderConfig[shortcutKey] || encoderConfig[actionKey];
-    
+
     switch (encoderConfig[typeKey]) {
       case 'keypress':
         return `<span class="shortcut-display">${shortcut}</span>`;
@@ -283,9 +283,9 @@ class ButtonStatePreview {
    */
   getActionTypeDisplay(type) {
     const typeMap = {
-      'keypress': '⌨️ Keyboard',
-      'command': '💻 Command', 
-      'application': '🚀 Launch App',
+      keypress: '⌨️ Keyboard',
+      command: '💻 Command',
+      application: '🚀 Launch App',
       '': '❌ Not set'
     };
     return typeMap[type] || '❓ Unknown';
@@ -295,8 +295,10 @@ class ButtonStatePreview {
    * Truncate text for display
    */
   truncateText(text, maxLength) {
-    if (!text) return '';
-    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+    if (!text) {
+      return '';
+    }
+    return text.length > maxLength ? `${text.substring(0, maxLength)}...` : text;
   }
 
   /**
@@ -305,8 +307,10 @@ class ButtonStatePreview {
   simulateButtonPress(buttonId) {
     const buttonElement = this.container.querySelector(`[data-button-id="${buttonId}"]`);
     const state = this.buttonStates.get(`button${buttonId}`);
-    
-    if (!buttonElement || !state) return;
+
+    if (!buttonElement || !state) {
+      return;
+    }
 
     // Update state
     state.pressed = true;
@@ -316,7 +320,7 @@ class ButtonStatePreview {
 
     // Visual feedback
     this.animateButtonPress(buttonElement);
-    
+
     // Log activity
     const buttonConfig = this.config.buttons?.[`button${buttonId}`] || {};
     this.logActivity('button', buttonId, 'press', buttonConfig.action || 'No action');
@@ -340,8 +344,10 @@ class ButtonStatePreview {
   simulateEncoderRotation(encoderId, direction) {
     const encoderElement = this.container.querySelector(`[data-encoder-id="${encoderId}"]`);
     const state = this.encoderStates.get(`encoder${encoderId}`);
-    
-    if (!encoderElement || !state) return;
+
+    if (!encoderElement || !state) {
+      return;
+    }
 
     // Update state
     state.direction = direction;
@@ -352,7 +358,7 @@ class ButtonStatePreview {
 
     // Visual feedback
     this.animateEncoderRotation(encoderElement, direction);
-    
+
     // Log activity
     const encoderConfig = this.config.encoders?.[`encoder${encoderId}`] || {};
     const action = encoderConfig[`action${direction}`] || 'No action';
@@ -370,12 +376,12 @@ class ButtonStatePreview {
    */
   animateButtonPress(element) {
     element.classList.add('pressed', 'active');
-    
+
     // Add ripple effect
     const ripple = document.createElement('div');
     ripple.className = 'button-ripple';
     element.querySelector('.button-visual').appendChild(ripple);
-    
+
     // Remove ripple after animation
     setTimeout(() => {
       if (ripple.parentNode) {
@@ -390,7 +396,7 @@ class ButtonStatePreview {
   animateEncoderRotation(element, direction) {
     const knob = element.querySelector('.encoder-knob');
     const arrow = element.querySelector(`.rotation-arrow.${direction.toLowerCase()}`);
-    
+
     // Add active classes
     element.classList.add('active');
     knob.classList.add(`rotating-${direction.toLowerCase()}`);
@@ -407,8 +413,10 @@ class ButtonStatePreview {
    * Highlight button on hover
    */
   highlightButton(buttonId, highlight) {
-    if (!this.options.enableHoverEffects) return;
-    
+    if (!this.options.enableHoverEffects) {
+      return;
+    }
+
     const buttonElement = this.container.querySelector(`[data-button-id="${buttonId}"]`);
     if (buttonElement) {
       if (highlight) {
@@ -424,15 +432,17 @@ class ButtonStatePreview {
    */
   logActivity(type, id, action, command) {
     const activityList = this.container.querySelector('#activity-list');
-    if (!activityList) return;
+    if (!activityList) {
+      return;
+    }
 
     const timestamp = new Date().toLocaleTimeString();
     const activityItem = document.createElement('div');
     activityItem.className = `activity-item activity-${type}`;
-    
-    const actionIcon = type === 'button' ? '🔘' : (action === 'cw' ? '↻' : '↺');
+
+    const actionIcon = type === 'button' ? '🔘' : action === 'cw' ? '↻' : '↺';
     const actionText = type === 'button' ? 'Pressed' : `Rotated ${action.toUpperCase()}`;
-    
+
     activityItem.innerHTML = `
       <div class="activity-icon">${actionIcon}</div>
       <div class="activity-details">
@@ -456,7 +466,7 @@ class ButtonStatePreview {
     // Animate in
     activityItem.style.opacity = '0';
     activityItem.style.transform = 'translateY(-10px)';
-    
+
     requestAnimationFrame(() => {
       activityItem.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
       activityItem.style.opacity = '1';
@@ -501,7 +511,10 @@ class ButtonStatePreview {
 
     toggleDescriptions?.addEventListener('click', () => {
       this.options.showDescriptions = !this.options.showDescriptions;
-      this.toggleDisplay('.button-description, .encoder-description', this.options.showDescriptions);
+      this.toggleDisplay(
+        '.button-description, .encoder-description',
+        this.options.showDescriptions
+      );
       toggleDescriptions.classList.toggle('active', this.options.showDescriptions);
     });
 
@@ -533,11 +546,11 @@ class ButtonStatePreview {
   destroy() {
     // Clear all animations
     this.activeAnimations.clear();
-    
+
     // Clear states
     this.buttonStates.clear();
     this.encoderStates.clear();
-    
+
     // Remove event listeners (they'll be removed with the DOM)
     if (this.container) {
       this.container.innerHTML = '';

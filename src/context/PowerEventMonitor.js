@@ -1,6 +1,6 @@
 /**
  * Power Event Monitor - Cross-platform power management event detection
- * 
+ *
  * Monitors:
  * - Battery level changes and status
  * - AC power connection/disconnection
@@ -17,14 +17,14 @@ const path = require('path');
 class PowerEventMonitor extends EventEmitter {
   constructor(config = {}) {
     super();
-    
+
     this.logger = config.logger || {
       info: () => {},
       warn: () => {},
       error: () => {},
       debug: () => {}
     };
-    
+
     this.platform = config.platform || process.platform;
     this.config = {
       batteryCheckInterval: config.batteryCheckInterval || 10000, // 10 seconds
@@ -34,7 +34,7 @@ class PowerEventMonitor extends EventEmitter {
       enableACPowerDetection: config.enableACPowerDetection !== false,
       ...config
     };
-    
+
     // Current power state
     this.currentState = {
       batteryLevel: null,
@@ -45,13 +45,13 @@ class PowerEventMonitor extends EventEmitter {
       isCriticalBattery: false,
       lastUpdate: null
     };
-    
+
     // Monitoring state
     this.monitoring = false;
     this.batteryTimer = null;
     this.platformHandlers = null;
     this.suspendProcess = null;
-    
+
     // Statistics
     this.statistics = {
       batteryChecks: 0,
@@ -62,7 +62,7 @@ class PowerEventMonitor extends EventEmitter {
       lowBatteryWarnings: 0,
       criticalBatteryWarnings: 0
     };
-    
+
     this.logger.debug('PowerEventMonitor initialized', { platform: this.platform });
   }
 
@@ -75,23 +75,22 @@ class PowerEventMonitor extends EventEmitter {
     }
 
     this.monitoring = true;
-    
+
     try {
       // Initialize platform-specific monitoring
       await this.initializePlatformMonitoring();
-      
+
       // Start battery monitoring
       if (this.config.enableBatteryMonitoring !== false) {
         await this.startBatteryMonitoring();
       }
-      
+
       // Start suspend/resume detection
       if (this.config.enableSuspendDetection) {
         await this.startSuspendDetection();
       }
 
       this.logger.info('Power event monitoring started');
-      
     } catch (error) {
       this.monitoring = false;
       this.logger.error('Failed to start power monitoring:', error);
@@ -108,18 +107,18 @@ class PowerEventMonitor extends EventEmitter {
     }
 
     this.monitoring = false;
-    
+
     // Clear battery monitoring timer
     if (this.batteryTimer) {
       clearInterval(this.batteryTimer);
       this.batteryTimer = null;
     }
-    
+
     // Clean up platform-specific handlers
     if (this.platformHandlers && typeof this.platformHandlers.cleanup === 'function') {
       await this.platformHandlers.cleanup();
     }
-    
+
     // Stop suspend detection process
     if (this.suspendProcess) {
       this.suspendProcess.kill();
@@ -134,17 +133,17 @@ class PowerEventMonitor extends EventEmitter {
    */
   async initializePlatformMonitoring() {
     switch (this.platform) {
-      case 'win32':
-        this.platformHandlers = await this.initializeWindowsPowerMonitoring();
-        break;
-      case 'darwin':
-        this.platformHandlers = await this.initializeMacOSPowerMonitoring();
-        break;
-      case 'linux':
-        this.platformHandlers = await this.initializeLinuxPowerMonitoring();
-        break;
-      default:
-        this.logger.warn(`Power monitoring not fully supported on platform: ${this.platform}`);
+    case 'win32':
+      this.platformHandlers = await this.initializeWindowsPowerMonitoring();
+      break;
+    case 'darwin':
+      this.platformHandlers = await this.initializeMacOSPowerMonitoring();
+      break;
+    case 'linux':
+      this.platformHandlers = await this.initializeLinuxPowerMonitoring();
+      break;
+    default:
+      this.logger.warn(`Power monitoring not fully supported on platform: ${this.platform}`);
     }
   }
 
@@ -157,7 +156,7 @@ class PowerEventMonitor extends EventEmitter {
       // For now, implementing basic polling approach
       resolve({
         getBatteryInfo: this.getWindowsBatteryInfo.bind(this),
-        cleanup: async () => {}
+        cleanup: async() => {}
       });
     });
   }
@@ -169,7 +168,7 @@ class PowerEventMonitor extends EventEmitter {
     return new Promise((resolve) => {
       resolve({
         getBatteryInfo: this.getMacOSBatteryInfo.bind(this),
-        cleanup: async () => {}
+        cleanup: async() => {}
       });
     });
   }
@@ -181,7 +180,7 @@ class PowerEventMonitor extends EventEmitter {
     return new Promise((resolve) => {
       resolve({
         getBatteryInfo: this.getLinuxBatteryInfo.bind(this),
-        cleanup: async () => {}
+        cleanup: async() => {}
       });
     });
   }
@@ -192,9 +191,9 @@ class PowerEventMonitor extends EventEmitter {
   async startBatteryMonitoring() {
     // Get initial battery state
     await this.updateBatteryState();
-    
+
     // Set up periodic battery checks
-    this.batteryTimer = setInterval(async () => {
+    this.batteryTimer = setInterval(async() => {
       try {
         await this.updateBatteryState();
       } catch (error) {
@@ -208,15 +207,15 @@ class PowerEventMonitor extends EventEmitter {
    */
   async startSuspendDetection() {
     switch (this.platform) {
-      case 'win32':
-        await this.startWindowsSuspendDetection();
-        break;
-      case 'darwin':
-        await this.startMacOSSuspendDetection();
-        break;
-      case 'linux':
-        await this.startLinuxSuspendDetection();
-        break;
+    case 'win32':
+      await this.startWindowsSuspendDetection();
+      break;
+    case 'darwin':
+      await this.startMacOSSuspendDetection();
+      break;
+    case 'linux':
+      await this.startLinuxSuspendDetection();
+      break;
     }
   }
 
@@ -236,18 +235,17 @@ class PowerEventMonitor extends EventEmitter {
     try {
       // Monitor system power events using pmset
       this.suspendProcess = spawn('pmset', ['-g', 'log'], { stdio: 'pipe' });
-      
+
       this.suspendProcess.stdout.on('data', (data) => {
         const logLine = data.toString();
         this.parseMacOSPowerLog(logLine);
       });
-      
+
       this.suspendProcess.on('error', (error) => {
         this.logger.error('macOS suspend detection error:', error);
       });
-      
+
       this.logger.debug('macOS suspend detection initialized');
-      
     } catch (error) {
       this.logger.error('Failed to start macOS suspend detection:', error);
     }
@@ -260,18 +258,17 @@ class PowerEventMonitor extends EventEmitter {
     try {
       // Monitor systemd journal for suspend/resume events
       this.suspendProcess = spawn('journalctl', ['-f', '-u', 'systemd-suspend.service', '-u', 'systemd-resume.service'], { stdio: 'pipe' });
-      
+
       this.suspendProcess.stdout.on('data', (data) => {
         const logLine = data.toString();
         this.parseLinuxSuspendLog(logLine);
       });
-      
+
       this.suspendProcess.on('error', (error) => {
         this.logger.error('Linux suspend detection error:', error);
       });
-      
+
       this.logger.debug('Linux suspend detection initialized');
-      
     } catch (error) {
       this.logger.error('Failed to start Linux suspend detection:', error);
     }
@@ -288,7 +285,7 @@ class PowerEventMonitor extends EventEmitter {
     try {
       const batteryInfo = await this.platformHandlers.getBatteryInfo();
       const previousState = { ...this.currentState };
-      
+
       // Update current state
       this.currentState = {
         ...batteryInfo,
@@ -297,9 +294,8 @@ class PowerEventMonitor extends EventEmitter {
 
       // Check for state changes and emit events
       this.checkBatteryStateChanges(previousState, this.currentState);
-      
+
       this.statistics.batteryChecks++;
-      
     } catch (error) {
       this.logger.error('Failed to update battery state:', error);
     }
@@ -391,8 +387,8 @@ class PowerEventMonitor extends EventEmitter {
    */
   async getWindowsBatteryInfo() {
     return new Promise((resolve, reject) => {
-      const command = `powershell -Command "Get-WmiObject -Class Win32_Battery | Select-Object EstimatedChargeRemaining, BatteryStatus, PowerManagementCapabilities | ConvertTo-Json"`;
-      
+      const command = 'powershell -Command "Get-WmiObject -Class Win32_Battery | Select-Object EstimatedChargeRemaining, BatteryStatus, PowerManagementCapabilities | ConvertTo-Json"';
+
       exec(command, (error, stdout, stderr) => {
         if (error) {
           reject(error);
@@ -403,7 +399,7 @@ class PowerEventMonitor extends EventEmitter {
           const batteryData = JSON.parse(stdout.trim() || '{}');
           const level = batteryData.EstimatedChargeRemaining || 0;
           const status = this.parseWindowsBatteryStatus(batteryData.BatteryStatus);
-          
+
           resolve({
             batteryLevel: level,
             batteryStatus: status,
@@ -435,14 +431,14 @@ class PowerEventMonitor extends EventEmitter {
           const batteryMatch = output.match(/(\d+)%/);
           const sourceMatch = output.match(/'([^']+)'/);
           const statusMatch = output.match(/;\s*(\w+)/);
-          
+
           if (batteryMatch && sourceMatch) {
-            const level = parseInt(batteryMatch[1]);
+            const level = parseInt(batteryMatch[1], 10);
             const source = sourceMatch[1];
             const status = statusMatch ? statusMatch[1].toLowerCase() : 'unknown';
-            
+
             const acConnected = source.toLowerCase().includes('power') || status === 'charging';
-            
+
             resolve({
               batteryLevel: level,
               batteryStatus: this.normalizeBatteryStatus(status),
@@ -471,10 +467,9 @@ class PowerEventMonitor extends EventEmitter {
       if (upowerInfo) {
         return upowerInfo;
       }
-      
+
       // Fallback to /sys/class/power_supply
       return await this.getLinuxSysClassInfo();
-      
     } catch (error) {
       this.logger.debug('Failed to get Linux battery info:', error);
       throw error;
@@ -496,12 +491,12 @@ class PowerEventMonitor extends EventEmitter {
           const output = stdout.trim();
           const levelMatch = output.match(/percentage:\s*(\d+)%/);
           const stateMatch = output.match(/state:\s*(\w+)/);
-          
+
           if (levelMatch) {
-            const level = parseInt(levelMatch[1]);
+            const level = parseInt(levelMatch[1], 10);
             const state = stateMatch ? stateMatch[1].toLowerCase() : 'unknown';
             const acConnected = state === 'charging' || state === 'fully-charged';
-            
+
             resolve({
               batteryLevel: level,
               batteryStatus: this.normalizeBatteryStatus(state),
@@ -526,14 +521,14 @@ class PowerEventMonitor extends EventEmitter {
   async getLinuxSysClassInfo() {
     try {
       const batteryPath = '/sys/class/power_supply/BAT0';
-      
+
       const capacityData = await fs.readFile(path.join(batteryPath, 'capacity'), 'utf8');
       const statusData = await fs.readFile(path.join(batteryPath, 'status'), 'utf8');
-      
-      const level = parseInt(capacityData.trim());
+
+      const level = parseInt(capacityData.trim(, 10));
       const status = statusData.trim().toLowerCase();
       const acConnected = status === 'charging' || status === 'full';
-      
+
       return {
         batteryLevel: level,
         batteryStatus: this.normalizeBatteryStatus(status),
@@ -542,7 +537,6 @@ class PowerEventMonitor extends EventEmitter {
         isLowBattery: level <= this.config.lowBatteryThreshold,
         isCriticalBattery: level <= this.config.criticalBatteryThreshold
       };
-      
     } catch (error) {
       throw new Error(`Failed to read battery info from sysfs: ${error.message}`);
     }
@@ -553,18 +547,18 @@ class PowerEventMonitor extends EventEmitter {
    */
   parseWindowsBatteryStatus(statusCode) {
     switch (statusCode) {
-      case 1: return 'discharging';
-      case 2: return 'charging';
-      case 3: return 'critical';
-      case 4: return 'charging';
-      case 5: return 'critical';
-      case 6: return 'charging';
-      case 7: return 'charging';
-      case 8: return 'charging';
-      case 9: return 'charging';
-      case 10: return 'partial';
-      case 11: return 'full';
-      default: return 'unknown';
+    case 1: return 'discharging';
+    case 2: return 'charging';
+    case 3: return 'critical';
+    case 4: return 'charging';
+    case 5: return 'critical';
+    case 6: return 'charging';
+    case 7: return 'charging';
+    case 8: return 'charging';
+    case 9: return 'charging';
+    case 10: return 'partial';
+    case 11: return 'full';
+    default: return 'unknown';
     }
   }
 
@@ -573,13 +567,23 @@ class PowerEventMonitor extends EventEmitter {
    */
   normalizeBatteryStatus(status) {
     const normalized = status.toLowerCase();
-    
-    if (normalized.includes('charg')) return 'charging';
-    if (normalized.includes('discharg')) return 'discharging';
-    if (normalized.includes('full') || normalized.includes('complete')) return 'full';
-    if (normalized.includes('critical')) return 'critical';
-    if (normalized.includes('low')) return 'low';
-    
+
+    if (normalized.includes('charg')) {
+      return 'charging';
+    }
+    if (normalized.includes('discharg')) {
+      return 'discharging';
+    }
+    if (normalized.includes('full') || normalized.includes('complete')) {
+      return 'full';
+    }
+    if (normalized.includes('critical')) {
+      return 'critical';
+    }
+    if (normalized.includes('low')) {
+      return 'low';
+    }
+
     return normalized;
   }
 
