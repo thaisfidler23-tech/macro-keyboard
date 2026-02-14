@@ -525,7 +525,7 @@ class PowerEventMonitor extends EventEmitter {
       const capacityData = await fs.readFile(path.join(batteryPath, 'capacity'), 'utf8');
       const statusData = await fs.readFile(path.join(batteryPath, 'status'), 'utf8');
 
-      const level = parseInt(capacityData.trim(, 10));
+      const level = parseInt(capacityData.trim(), 10);
       const status = statusData.trim().toLowerCase();
       const acConnected = status === 'charging' || status === 'full';
 

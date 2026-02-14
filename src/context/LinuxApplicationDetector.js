@@ -181,7 +181,7 @@ class LinuxApplicationDetector extends ApplicationDetector {
 
       // Get process ID
       const { stdout: pidInfo } = await execAsync(`xdotool getwindowpid ${activeWindowId}`, { timeout: 3000 });
-      const processId = parseInt(pidInfo.trim(, 10)) || 0;
+      const processId = parseInt(pidInfo.trim(), 10) || 0;
 
       // Get process information
       const processInfo = await this.getProcessInfoFromPID(processId);
