@@ -134,3 +134,16 @@ config/local-*.yaml
 
 # Local test files
 test-local/
+
+# Backup directories (use git for versioning)
+backup-*/
+*.backup
+
+# Development artifacts
+fix-summary.md
+manual-fixes-needed.txt
+test-summary.txt
+
+# Generated reports
+eslint-report.json
+quality-report.json
