@@ -47,7 +47,7 @@
     "@electron/rebuild": "^4.0.3",
     "@eslint/js": "^8.57.1",
     "@playwright/test": "^1.58.2",
-    "electron": "^40.4.1",
+    "electron": "^41.10.6",
     "electron-builder": "^26.7.0",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.1.8",
